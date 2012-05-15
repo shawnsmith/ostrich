@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bazaarvoice.soa.examples</groupId>
+        <artifactId>soa-examples</artifactId>
+        <version>0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>com.bazaarvoice.soa.examples.calculator</groupId>
+    <artifactId>calculator</artifactId>
+    <version>0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>calculator</name>
+    <description>Calculator example for SOA</description>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.yammer.dropwizard</groupId>
+                <artifactId>dropwizard-core</artifactId>
+                <version>0.4.0</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <modules>
+        <module>client</module>
+        <module>service</module>
+        <module>user</module>
+    </modules>
+</project>

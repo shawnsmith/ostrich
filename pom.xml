@@ -1,0 +1,151 @@
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.bazaarvoice.soa</groupId>
+    <artifactId>soa</artifactId>
+    <version>0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>soa</name>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!-- Make sure we always turn all warnings on during compilation. -->
+                <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>2.3.2</version>
+                    <configuration>
+                        <compilerArgument>-Xlint:all</compilerArgument>
+                        <showWarnings>true</showWarnings>
+                        <showDeprecation>true</showDeprecation>
+                    </configuration>
+                </plugin>
+
+                <!-- Build an uber-jar with all of our dependencies bundled in.  Shade 3rd party libraries into a    -->
+                <!-- custom package so that we can use exactly the versions of jars we want without impacting        -->
+                <!-- anyone.  The goal should be to have a completely self contained jar that includes all of our    -->
+                <!-- dependencies in a namespace that's local to our code.  This may be a bit too idealistic         -->
+                <!-- however because it seems that we're pulling in *A LOT* of dependencies transitively.            -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>1.4</version>
+                    <configuration>
+                        <createDependencyReducedPom>true</createDependencyReducedPom>
+                        <filters>
+                            <filter>
+                                <artifact>*:*</artifact>
+                                <excludes>
+                                    <exclude>META-INF/*.SF</exclude>
+                                    <exclude>META-INF/*.DSA</exclude>
+                                    <exclude>META-INF/*.RSA</exclude>
+                                </excludes>
+                            </filter>
+                        </filters>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>shade</goal>
+                            </goals>
+                            <configuration>
+                                <transformers>
+                                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                </transformers>
+
+                                <relocations>
+                                    <relocation>
+                                        <pattern>com.fasterxml.jackson</pattern>
+                                        <shadedPattern>com.bazaarvoice.soa.shaded.com.fasterxml.jackson</shadedPattern>
+                                    </relocation>
+                                    <relocation>
+                                        <pattern>com.google.common</pattern>
+                                        <shadedPattern>com.bazaarvoice.soa.shaded.com.google.common</shadedPattern>
+                                    </relocation>
+                                    <relocation>
+                                        <pattern>com.netflix.curator</pattern>
+                                        <shadedPattern>com.bazaarvoice.soa.shaded.com.netflix.curator</shadedPattern>
+                                    </relocation>
+                                    <relocation>
+                                        <pattern>org.apache.jute</pattern>
+                                        <shadedPattern>com.bazaarvoice.soa.shaded.org.apache.jute</shadedPattern>
+                                    </relocation>
+                                    <relocation>
+                                        <pattern>org.apache.zookeeper</pattern>
+                                        <shadedPattern>com.bazaarvoice.soa.shaded.org.apache.zookeeper</shadedPattern>
+                                    </relocation>
+                                    <relocation>
+                                        <pattern>org.joda.time</pattern>
+                                        <shadedPattern>com.bazaarvoice.soa.shaded.org.joda.time</shadedPattern>
+                                    </relocation>
+                                </relocations>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.netflix.curator</groupId>
+                <artifactId>curator-recipes</artifactId>
+                <version>1.0.8</version>
+            </dependency>
+            <dependency>
+                <groupId>com.netflix.curator</groupId>
+                <artifactId>curator-test</artifactId>
+                <version>1.0.8</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>12.0</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>2.0.0</version>
+            </dependency>
+
+            <dependency>
+                <groupId>joda-time</groupId>
+                <artifactId>joda-time</artifactId>
+                <version>2.1</version>
+            </dependency>
+
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.10</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>1.9.0</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <modules>
+        <module>core</module>
+        <module>examples</module>
+    </modules>
+</project>
