@@ -1,4 +1,4 @@
 ostrich
 =======
 
-SOA Framework
+SOA Library
