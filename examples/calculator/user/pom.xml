@@ -21,7 +21,6 @@
         <dependency>
             <groupId>com.bazaarvoice.soa</groupId>
             <artifactId>soa-core</artifactId>
-            <version>0.1-SNAPSHOT</version>
         </dependency>
 
         <dependency>

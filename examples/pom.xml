@@ -18,6 +18,16 @@
     <name>examples</name>
     <description>Examples of how to use SOA</description>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.bazaarvoice.soa</groupId>
+                <artifactId>soa-core</artifactId>
+                <version>0.1-SNAPSHOT</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <modules>
         <module>calculator</module>
     </modules>
