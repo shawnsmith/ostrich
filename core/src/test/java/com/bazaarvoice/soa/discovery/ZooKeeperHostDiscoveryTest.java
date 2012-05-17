@@ -5,7 +5,6 @@ import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.google.common.collect.Iterables;
-import com.google.common.net.HostAndPort;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
@@ -13,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertTrue;
 
 public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
-    private static final ServiceInstance FOO = new ServiceInstance("Foo", HostAndPort.fromParts("server", 8080));
+    private static final ServiceInstance FOO = new ServiceInstance("Foo", "server", 8080);
 
     private ZooKeeperServiceRegistry _registry;
     private ZooKeeperHostDiscovery _discovery;

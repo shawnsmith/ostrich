@@ -3,7 +3,6 @@ package com.bazaarvoice.soa.loadbalance;
 import com.bazaarvoice.soa.ServiceInstance;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.net.HostAndPort;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -28,11 +27,11 @@ public class RandomAlgorithmTest {
         RandomAlgorithm algorithm = new RandomAlgorithm();
 
         List<ServiceInstance> instances = Lists.newArrayList(
-                new ServiceInstance("Service1", HostAndPort.fromParts("server", 1)),
-                new ServiceInstance("Service2", HostAndPort.fromParts("server", 2)),
-                new ServiceInstance("Service3", HostAndPort.fromParts("server", 3)),
-                new ServiceInstance("Service4", HostAndPort.fromParts("server", 4)),
-                new ServiceInstance("Service5", HostAndPort.fromParts("server", 5))
+                new ServiceInstance("Service1", "server", 1),
+                new ServiceInstance("Service2", "server", 2),
+                new ServiceInstance("Service3", "server", 3),
+                new ServiceInstance("Service4", "server", 4),
+                new ServiceInstance("Service5", "server", 5)
         );
 
         // Make 100 independent choices.  This ensures that we'll see all of the elements with a probability

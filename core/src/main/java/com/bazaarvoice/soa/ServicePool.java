@@ -1,6 +1,6 @@
 package com.bazaarvoice.soa;
 
-import com.google.common.util.concurrent.ListenableFuture;
+import java.util.concurrent.Future;
 
 /**
  * A <code>ServicePool</code> keeps track of <code>Service</code> instances for a particular service.  Internally it
@@ -48,5 +48,5 @@ public interface ServicePool<S extends Service> {
      * @param callback The user provided callback to invoke with a service instance.
      * @param <R> The return type for the call.
      */
-    <R> ListenableFuture<R> executeAsync(RetryPolicy retryPolicy, ServiceCallback<S, R> callback);
+    <R> Future<R> executeAsync(RetryPolicy retryPolicy, ServiceCallback<S, R> callback);
 }

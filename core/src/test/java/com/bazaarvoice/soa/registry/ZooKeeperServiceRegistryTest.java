@@ -3,7 +3,6 @@ package com.bazaarvoice.soa.registry;
 import com.bazaarvoice.soa.ServiceInstance;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
-import com.google.common.net.HostAndPort;
 import com.netflix.curator.framework.CuratorFramework;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -19,7 +18,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
-    private static final ServiceInstance FOO = new ServiceInstance("Foo", HostAndPort.fromString("server:8080"));
+    private static final ServiceInstance FOO = new ServiceInstance("Foo", "server", 8080);
 
     /** All verifications are done using this curator instance to ensure session isolation from the registry. */
     private CuratorFramework _curator;

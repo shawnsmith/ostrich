@@ -9,10 +9,12 @@ import com.bazaarvoice.soa.ServiceException;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.ServiceInstance;
 import com.bazaarvoice.soa.ServicePool;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.base.Ticker;
-import com.google.common.util.concurrent.ListenableFuture;
+
+import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -21,7 +23,8 @@ public class ServicePoolBuilder<S extends Service> {
     private HostDiscovery _hostDiscovery;
     private ServiceFactory<S> _serviceFactory;
 
-    public ServicePoolBuilder<S> withTicker(Ticker ticker) {
+    @VisibleForTesting
+    ServicePoolBuilder<S> withTicker(Ticker ticker) {
         _ticker = checkNotNull(ticker);
         return this;
     }
@@ -71,8 +74,8 @@ public class ServicePoolBuilder<S extends Service> {
             }
 
             @Override
-            public <R> ListenableFuture<R> executeAsync(RetryPolicy retry, ServiceCallback<S, R> callback) {
-                return null;
+            public <R> Future<R> executeAsync(RetryPolicy retry, ServiceCallback<S, R> callback) {
+                throw new UnsupportedOperationException();
             }
         };
     }

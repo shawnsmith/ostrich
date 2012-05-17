@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.net.HostAndPort;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 import org.junit.Test;
@@ -19,7 +18,6 @@ import static org.junit.Assert.fail;
 public class ServiceInstanceTest {
     private static final int MAX_PAYLOAD_SIZE_IN_CHARACTERS = ServiceInstance.MAX_PAYLOAD_SIZE_IN_CHARACTERS;
     private static final DateTimeFormatter ISO8601 = ServiceInstance.ISO8601;
-    private static final HostAndPort SERVER = HostAndPort.fromParts("server", 8080);
 
     @Test
     public void testInvalidServiceNames() {
@@ -35,12 +33,20 @@ public class ServiceInstanceTest {
     }
 
     @Test
-    public void testInvalidAddresses() {
+    public void testInvalidHostNames() {
         ServiceInstanceBuilder base = new ServiceInstanceBuilder();
 
-        assertThrows(base.withAddress(HostAndPort.fromString("localhost")), IllegalArgumentException.class); // no port
-        assertThrows(base.withAddress(HostAndPort.fromString(":8080")), IllegalArgumentException.class);  // no hostname
-        assertThrows(base.withAddress(null), IllegalArgumentException.class);
+        assertThrows(base.withAddress(null, 8080), IllegalArgumentException.class);
+        assertThrows(base.withAddress("", 8080), IllegalArgumentException.class);
+    }
+
+    @Test
+    public void testInvalidPorts() {
+        ServiceInstanceBuilder base = new ServiceInstanceBuilder();
+
+        assertThrows(base.withAddress("localhost", -1), IllegalArgumentException.class);
+        assertThrows(base.withAddress("localhost", -2), IllegalArgumentException.class);
+        assertThrows(base.withAddress("localhost", 65536), IllegalArgumentException.class);
     }
 
     @Test
@@ -54,37 +60,37 @@ public class ServiceInstanceTest {
 
     @Test
     public void testToJson() throws Exception {
-        ServiceInstance instance = new ServiceInstance("FooService", SERVER);
+        ServiceInstance instance = new ServiceInstance("FooService", "server", 8080);
         assertJson(instance.toJson(), instance);
     }
 
     @Test
     public void testToJsonWithPayload() throws Exception {
-        ServiceInstance instance = new ServiceInstance("FooService", SERVER, "payload");
+        ServiceInstance instance = new ServiceInstance("FooService", "server", 8080, "payload");
         assertJson(instance.toJson(), instance);
     }
 
     @Test
     public void testToJsonWithEmptyPayload() throws Exception {
-        ServiceInstance instance = new ServiceInstance("FooService", SERVER, "");
+        ServiceInstance instance = new ServiceInstance("FooService", "server", 8080, "");
         assertJson(instance.toJson(), instance);
     }
 
     @Test
     public void testFromJson() throws Exception {
-        ServiceInstance instance = new ServiceInstance("FooService", SERVER);
+        ServiceInstance instance = new ServiceInstance("FooService", "server", 8080);
         assertEquals(instance, ServiceInstance.fromJson(instance.toJson()));
     }
 
     @Test
     public void testFromJsonWithPayload() throws Exception {
-        ServiceInstance instance = new ServiceInstance("FooService", SERVER, "payload");
+        ServiceInstance instance = new ServiceInstance("FooService", "server", 8080, "payload");
         assertEquals(instance, ServiceInstance.fromJson(instance.toJson()));
     }
 
     @Test
     public void testFromJsonWithEmptyPayload() throws Exception {
-        ServiceInstance instance = new ServiceInstance("FooService", SERVER, "");
+        ServiceInstance instance = new ServiceInstance("FooService", "server", 8080, "");
         assertEquals(instance, ServiceInstance.fromJson(instance.toJson()));
     }
 
@@ -119,11 +125,19 @@ public class ServiceInstanceTest {
     }
 
     private void assertThrows(ServiceInstanceBuilder builder, Class<? extends Throwable> cls) {
+        String expectedClassName = cls.getSimpleName();
+
         try {
             builder.build();
-            fail();
+            fail("No exception thrown, expected " + expectedClassName + " to be thrown.");
+        } catch (AssertionError e) {
+            // Don't check the type of AssertionError exceptions, those happen when we fail to throw an exception.
+            throw e;
         } catch (Throwable t) {
-            if (!cls.isInstance(t)) fail();
+            if (!cls.isInstance(t)) {
+                String actualClassName = t.getClass().getSimpleName();
+                fail("Expected " + expectedClassName + " to be thrown, instead " + actualClassName + " was thrown.");
+            }
         }
     }
 
@@ -182,33 +196,35 @@ public class ServiceInstanceTest {
 
     private static final class ServiceInstanceBuilder {
         private final String _serviceName;
-        private final HostAndPort _address;
+        private final String _hostname;
+        private final int _port;
         private final String _payload;
 
         public ServiceInstanceBuilder() {
-            this("Foo", HostAndPort.fromParts("localhost", 8080), null);
+            this("Foo", "localhost", 8080, null);
         }
 
-        public ServiceInstanceBuilder(String serviceName, HostAndPort address, String payload) {
+        public ServiceInstanceBuilder(String serviceName, String hostname, int port, String payload) {
             _serviceName = serviceName;
-            _address = address;
+            _hostname = hostname;
+            _port = port;
             _payload = payload;
         }
 
         public ServiceInstanceBuilder withName(String serviceName) {
-            return new ServiceInstanceBuilder(serviceName, _address, _payload);
+            return new ServiceInstanceBuilder(serviceName, _hostname, _port, _payload);
         }
 
-        public ServiceInstanceBuilder withAddress(HostAndPort address) {
-            return new ServiceInstanceBuilder(_serviceName, address, _payload);
+        public ServiceInstanceBuilder withAddress(String hostname, int port) {
+            return new ServiceInstanceBuilder(_serviceName, hostname, port, _payload);
         }
 
         public ServiceInstanceBuilder withPayload(String payload) {
-            return new ServiceInstanceBuilder(_serviceName, _address, payload);
+            return new ServiceInstanceBuilder(_serviceName, _hostname, _port, payload);
         }
 
         public ServiceInstance build() {
-            return new ServiceInstance(_serviceName, _address, _payload);
+            return new ServiceInstance(_serviceName, _hostname, _port, _payload);
         }
     }
 }

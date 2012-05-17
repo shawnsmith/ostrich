@@ -1,7 +1,5 @@
 package com.bazaarvoice.soa;
 
-import java.util.Collection;
-
 /**
  * The <code>HostDiscovery</code> class is used to encapsulate the strategy that provides a set of hosts for use.
  * Users of this class shouldn't cache the results of discovery as subclasses can choose to change the set of available

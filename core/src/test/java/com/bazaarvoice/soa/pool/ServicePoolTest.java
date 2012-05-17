@@ -10,7 +10,6 @@ import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.ServiceInstance;
 import com.bazaarvoice.soa.ServicePool;
 import com.google.common.base.Ticker;
-import com.google.common.net.HostAndPort;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -95,7 +94,7 @@ public class ServicePoolTest {
     @SuppressWarnings("unchecked")
     private <S extends Service> ServicePool<S> newPool(S service) {
         // TODO: If this were an interface we could mock it...
-        ServiceInstance instance = new ServiceInstance("service", HostAndPort.fromParts("server", 8080));
+        ServiceInstance instance = new ServiceInstance("service", "server", 8080);
 
         // A host discovery implementation that only ever finds a single service instance -- the one backing the
         // service provided by our caller

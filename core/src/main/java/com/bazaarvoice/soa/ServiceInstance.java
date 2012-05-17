@@ -47,22 +47,22 @@ public final class ServiceInstance {
     private final DateTime _registrationTime;
     private final String _payload;
 
-    public ServiceInstance(String serviceName, HostAndPort address) {
-        this(serviceName, address, null);
+    public ServiceInstance(String serviceName, String hostname, int port) {
+        this(serviceName, hostname, port, DateTime.now(), null);
     }
 
-    public ServiceInstance(String serviceName, HostAndPort address, String payload) {
-        this(serviceName, address, DateTime.now(), payload);
+    public ServiceInstance(String serviceName, String hostname, int port, String payload) {
+        this(serviceName, hostname, port, DateTime.now(), payload);
     }
 
-    private ServiceInstance(String serviceName, HostAndPort address, DateTime registrationTime, String payload) {
+    private ServiceInstance(String serviceName, String hostname, int port, DateTime registrationTime, String payload) {
         checkArgument(serviceName != null && serviceName.length() > 0);
         checkArgument(VALID_CHARACTERS.matchesAllOf(serviceName));
-        checkArgument(address != null && address.getHostText().length() > 0 && address.hasPort());
+        checkArgument(hostname != null && hostname.length() > 0);
         checkArgument(payload == null || payload.length() <= MAX_PAYLOAD_SIZE_IN_CHARACTERS);
 
         _serviceName = serviceName;
-        _address = address;
+        _address = HostAndPort.fromParts(hostname, port);
         _registrationTime = registrationTime.toDateTime(DateTimeZone.UTC);
         _payload = payload;
     }
@@ -148,11 +148,12 @@ public final class ServiceInstance {
             JsonNode payloadNode = checkNotNull(root.get("payload"));
 
             String name = nameNode.textValue();
-            HostAndPort address = HostAndPort.fromParts(hostNode.textValue(), portNode.intValue());
+            String hostname = hostNode.textValue();
+            int port = portNode.intValue();
             DateTime registrationTime = ISO8601.parseDateTime(registrationTimeNode.textValue());
             String payload = !payloadNode.isNull() ? payloadNode.textValue() : null;
 
-            return new ServiceInstance(name, address, registrationTime, payload);
+            return new ServiceInstance(name, hostname, port, registrationTime, payload);
         } catch (IOException e) {
             // TODO: Is propagating the right thing to do here?
             throw Throwables.propagate(e);
