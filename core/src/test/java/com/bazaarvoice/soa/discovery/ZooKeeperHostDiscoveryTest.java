@@ -5,6 +5,7 @@ import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.google.common.collect.Iterables;
+import com.google.common.io.Closeables;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
@@ -22,6 +23,12 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
         super.setup();
         _registry = new ZooKeeperServiceRegistry(newZooKeeperConfiguration());
         _discovery = new ZooKeeperHostDiscovery(newCurator(), FOO.getServiceName());
+    }
+
+    @Override
+    public void teardown() throws Exception {
+        Closeables.closeQuietly(_discovery);
+        super.teardown();
     }
 
     @Test(expected = NullPointerException.class)
