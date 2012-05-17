@@ -65,7 +65,7 @@ public class ServicePoolTest {
     }
 
     @Test
-    public void testAttemptsToRetryOnException() {
+    public void testAttemptsToRetryOnServiceException() {
         RetryPolicy retry = neverRetry();
 
         ServicePool<Service> pool = newPool();
@@ -80,6 +80,48 @@ public class ServicePoolTest {
             // We expect a service exception to happen since we're not going to be allowed to retry at all.
             // Make sure we asked the retry strategy if it was okay to retry one time (it said no).
             verify(retry).allowRetry(eq(1), anyLong());
+            return;
+        }
+
+        fail();
+    }
+
+    @Test
+    public void testDoesNotAttemptToRetryOnNonServiceException() {
+        RetryPolicy retry = neverRetry();
+
+        ServicePool<Service> pool = newPool();
+        try {
+            pool.execute(retry, new ServiceCallback<Service, Object>() {
+                @Override
+                public Object call(Service service) throws ServiceException {
+                    throw new NullPointerException();
+                }
+            });
+        } catch (NullPointerException expected) {
+            verifyZeroInteractions(retry);
+            return;
+        }
+
+        fail();
+    }
+
+    @Test
+    public void testKeepsRetryingUntilRetryPolicyReturnsFalse() {
+        RetryPolicy retry = mock(RetryPolicy.class);
+        when(retry.allowRetry(anyInt(), anyLong())).thenReturn(true, true, false);
+
+        ServicePool<Service> pool = newPool();
+        try {
+            pool.execute(retry, new ServiceCallback<Service, Object>() {
+                @Override
+                public Object call(Service service) throws ServiceException {
+                    throw new ServiceException();
+                }
+            });
+        } catch (ServiceException expected) {
+            // Make sure we tried 3 times.
+            verify(retry).allowRetry(eq(3), anyLong());
             return;
         }
 
