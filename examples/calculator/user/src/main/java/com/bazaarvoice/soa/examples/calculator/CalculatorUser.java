@@ -7,10 +7,8 @@ import com.bazaarvoice.soa.ServiceInstance;
 import com.bazaarvoice.soa.ServicePool;
 import com.bazaarvoice.soa.pool.ServicePoolBuilder;
 import com.bazaarvoice.soa.retry.RetryNTimes;
-import com.google.common.net.HostAndPort;
 
 import java.util.Collections;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class CalculatorUser {
     private final ServicePool<CalculatorService> _calculatorPool;
@@ -31,7 +29,7 @@ public class CalculatorUser {
 
     public static void main(String[] args) {
         HostDiscovery localDiscovery = new HostDiscovery() {
-            ServiceInstance LOCAL = new ServiceInstance("calculator", HostAndPort.fromParts("localhost", 8081));
+            ServiceInstance LOCAL = new ServiceInstance("calculator", "localhost", 8081);
 
             @Override
             public Iterable<ServiceInstance> getHosts() {
