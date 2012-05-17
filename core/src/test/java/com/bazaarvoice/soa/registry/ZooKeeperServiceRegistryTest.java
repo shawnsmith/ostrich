@@ -2,6 +2,7 @@ package com.bazaarvoice.soa.registry;
 
 import com.bazaarvoice.soa.ServiceInstance;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.google.common.net.HostAndPort;
 import com.netflix.curator.framework.CuratorFramework;
 import org.apache.zookeeper.WatchedEvent;
@@ -33,8 +34,8 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void testNullCurator() throws Exception {
-        new ZooKeeperServiceRegistry(null);
+    public void testNullConfig() throws Exception {
+        new ZooKeeperServiceRegistry((ZooKeeperConfiguration) null);
     }
 
     @Test(expected = NullPointerException.class)

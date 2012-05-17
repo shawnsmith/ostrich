@@ -2,10 +2,11 @@ package com.bazaarvoice.soa.discovery;
 
 import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.ServiceInstance;
+import com.bazaarvoice.soa.internal.CuratorConfiguration;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -20,6 +21,9 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadFactory;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * The <code>ZooKeeperHostDiscovery</code> class watches a service path in ZooKeeper and will monitor which hosts are
  * available.  As hosts come and go the results of calling the <code>#getHosts</code> method changes.
@@ -30,11 +34,16 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
     private final ConcurrentMap<ServiceInstance, Boolean> _instanceMap = Maps.newConcurrentMap();
     private final Iterable<ServiceInstance> _instances = Iterables.unmodifiableIterable(_instanceMap.keySet());
 
-    public ZooKeeperHostDiscovery(CuratorFramework curator, String serviceName) {
-        Preconditions.checkNotNull(curator);
-        Preconditions.checkNotNull(serviceName);
-        Preconditions.checkArgument(curator.isStarted());
-        Preconditions.checkArgument(!"".equals(serviceName));
+    public ZooKeeperHostDiscovery(ZooKeeperConfiguration config, String serviceName) {
+        this(((CuratorConfiguration) checkNotNull(config)).getCurator(), serviceName);
+    }
+
+    @VisibleForTesting
+    ZooKeeperHostDiscovery(CuratorFramework curator, String serviceName) {
+        checkNotNull(curator);
+        checkNotNull(serviceName);
+        checkArgument(curator.isStarted());
+        checkArgument(!"".equals(serviceName));
 
         ThreadFactory threadFactory = new ThreadFactoryBuilder()
                 .setNameFormat(getClass().getSimpleName() + "(" + serviceName + ")-%d")
@@ -68,9 +77,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
         return _curator;
     }
 
-    /**
-     * A curator <code>PathChildrenCacheListener</code>
-     */
+    /** A curator <code>PathChildrenCacheListener</code> */
     private final class ServiceListener implements PathChildrenCacheListener {
         @Override
         public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {

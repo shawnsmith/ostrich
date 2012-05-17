@@ -1,5 +1,7 @@
 package com.bazaarvoice.soa.test;
 
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConfigurationBuilder;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import com.netflix.curator.framework.CuratorFramework;
@@ -34,15 +36,20 @@ public abstract class ZooKeeperTest {
         Closeables.closeQuietly(_zooKeeperServer);
     }
 
+    public ZooKeeperConfiguration newZooKeeperConfiguration() throws Exception {
+        assertNotNull("ZooKeeper testing server is null, did you forget to call super.setup()", _zooKeeperServer);
+
+        return new ZooKeeperConfigurationBuilder()
+                .withConnectString(_zooKeeperServer.getConnectString())
+                .withRetryNTimes(0, 0)
+                .build();
+    }
+
     public CuratorFramework newCurator() throws Exception {
         return newCurator(new RetryNTimes(0, 0));
     }
 
-    public void killSession(CuratorFramework curator) throws Exception {
-        KillSession.kill(curator.getZookeeperClient().getZooKeeper(), _zooKeeperServer.getConnectString());
-    }
-
-    public CuratorFramework newCurator(com.netflix.curator.RetryPolicy retryPolicy) throws Exception {
+    private CuratorFramework newCurator(com.netflix.curator.RetryPolicy retryPolicy) throws Exception {
         assertNotNull("ZooKeeper testing server is null, did you forget to call super.setup()", _zooKeeperServer);
 
         CuratorFramework curator = CuratorFrameworkFactory.builder()
@@ -54,5 +61,9 @@ public abstract class ZooKeeperTest {
         _curatorInstances.add(curator);
 
         return curator;
+    }
+
+    public void killSession(CuratorFramework curator) throws Exception {
+        KillSession.kill(curator.getZookeeperClient().getZooKeeper(), _zooKeeperServer.getConnectString());
     }
 }

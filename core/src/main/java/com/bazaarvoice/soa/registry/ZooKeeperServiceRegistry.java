@@ -2,9 +2,10 @@ package com.bazaarvoice.soa.registry;
 
 import com.bazaarvoice.soa.ServiceInstance;
 import com.bazaarvoice.soa.ServiceRegistry;
+import com.bazaarvoice.soa.internal.CuratorConfiguration;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.netflix.curator.framework.CuratorFramework;
@@ -15,6 +16,9 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 
 import java.util.Map;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A <code>ServiceRegistry</code> implementation that uses ZooKeeper as its backing data store.
@@ -33,9 +37,14 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     /** The ephemeral data that's been written to ZooKeeper.  Saved in case the connection is lost and then regained. */
     private final Map<String, byte[]> _ephemeralData = Maps.newConcurrentMap();
 
-    public ZooKeeperServiceRegistry(CuratorFramework curator) {
-        Preconditions.checkNotNull(curator);
-        Preconditions.checkArgument(curator.isStarted());
+    public ZooKeeperServiceRegistry(ZooKeeperConfiguration config) {
+        this(((CuratorConfiguration) checkNotNull(config)).getCurator());
+    }
+
+    @VisibleForTesting
+    ZooKeeperServiceRegistry(CuratorFramework curator) {
+        checkNotNull(curator);
+        checkArgument(curator.isStarted());
 
         _curator = curator;
 
@@ -59,7 +68,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     /** {@inheritDoc} */
     @Override
     public boolean register(ServiceInstance instance) {
-        Preconditions.checkNotNull(instance);
+        checkNotNull(instance);
 
         String path = makeInstancePath(instance);
         byte[] data = instance.toJson().getBytes(Charsets.UTF_16);
@@ -100,7 +109,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     /** {@inheritDoc} */
     @Override
     public boolean unregister(ServiceInstance instance) {
-        Preconditions.checkNotNull(instance);
+        checkNotNull(instance);
 
         String path = makeInstancePath(instance);
 
@@ -148,8 +157,8 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
      * @return The ZooKeeper path.
      */
     public static String makeServicePath(String serviceName) {
-        Preconditions.checkNotNull(serviceName);
-        Preconditions.checkArgument(!"".equals(serviceName));
+        checkNotNull(serviceName);
+        checkArgument(!"".equals(serviceName));
         return ZKPaths.makePath(ROOT_SERVICES_PATH, serviceName);
     }
 

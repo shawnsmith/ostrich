@@ -3,6 +3,7 @@ package com.bazaarvoice.soa.discovery;
 import com.bazaarvoice.soa.ServiceInstance;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.google.common.collect.Iterables;
 import com.google.common.net.HostAndPort;
 import org.junit.Test;
@@ -20,13 +21,13 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
     @Override
     public void setup() throws Exception {
         super.setup();
-        _registry = new ZooKeeperServiceRegistry(newCurator());
+        _registry = new ZooKeeperServiceRegistry(newZooKeeperConfiguration());
         _discovery = new ZooKeeperHostDiscovery(newCurator(), FOO.getServiceName());
     }
 
     @Test(expected = NullPointerException.class)
-    public void testNullCurator() {
-        new ZooKeeperHostDiscovery(null, FOO.getServiceName());
+    public void testNullConfiguration() {
+        new ZooKeeperHostDiscovery((ZooKeeperConfiguration)null, FOO.getServiceName());
     }
 
     @Test(expected = NullPointerException.class)
