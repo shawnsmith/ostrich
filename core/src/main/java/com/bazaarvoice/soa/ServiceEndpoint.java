@@ -38,7 +38,7 @@ public final class ServiceEndpoint
     static final DateTimeFormatter ISO8601 = ISODateTimeFormat.dateTime().withZoneUTC();
 
     // ZooKeeper has a 1MB limit on the size of node data, so we need to make sure that our payload isn't too large.
-    // We reserve 100KB for internal use by the SOA framework and allow the remaining 900KB to be used by our payload.
+    // We reserve 100KB for internal use by the SOA library and allow the remaining 900KB to be used by our payload.
     // Strings in java are UTF-16 so each character takes 2 bytes.
     @VisibleForTesting
     static final int MAX_PAYLOAD_SIZE_IN_CHARACTERS = 900*1024/2;
