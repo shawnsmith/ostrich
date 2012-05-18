@@ -1,7 +1,7 @@
 package com.bazaarvoice.soa.loadbalance;
 
 import com.bazaarvoice.soa.LoadBalanceAlgorithm;
-import com.bazaarvoice.soa.ServiceInstance;
+import com.bazaarvoice.soa.ServiceEndpoint;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -13,13 +13,13 @@ public class RandomAlgorithm implements LoadBalanceAlgorithm {
     private final Random _rnd = new Random();
 
     @Override
-    public ServiceInstance choose(Iterable<ServiceInstance> instances) {
-        Preconditions.checkNotNull(instances);
+    public ServiceEndpoint choose(Iterable<ServiceEndpoint> endpoints) {
+        Preconditions.checkNotNull(endpoints);
 
-        Iterator<ServiceInstance> iter = instances.iterator();
+        Iterator<ServiceEndpoint> iter = endpoints.iterator();
         Preconditions.checkArgument(iter.hasNext());
 
-        List<ServiceInstance> list = Lists.newArrayList(iter);
+        List<ServiceEndpoint> list = Lists.newArrayList(iter);
         return list.get(_rnd.nextInt(list.size()));
     }
 }

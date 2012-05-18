@@ -1,6 +1,6 @@
 package com.bazaarvoice.soa.registry;
 
-import com.bazaarvoice.soa.ServiceInstance;
+import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.ServiceRegistry;
 import com.bazaarvoice.soa.internal.CuratorConfiguration;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
@@ -67,11 +67,11 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
 
     /** {@inheritDoc} */
     @Override
-    public boolean register(ServiceInstance instance) {
-        checkNotNull(instance);
+    public boolean register(ServiceEndpoint endpoint) {
+        checkNotNull(endpoint);
 
-        String path = makeInstancePath(instance);
-        byte[] data = instance.toJson().getBytes(Charsets.UTF_16);
+        String path = makeEndpointPath(endpoint);
+        byte[] data = endpoint.toJson().getBytes(Charsets.UTF_16);
 
         // Record the fact that we're interested in publishing this path as ephemeral node data...
         _ephemeralData.put(path, data);
@@ -108,10 +108,10 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
 
     /** {@inheritDoc} */
     @Override
-    public boolean unregister(ServiceInstance instance) {
-        checkNotNull(instance);
+    public boolean unregister(ServiceEndpoint endpoint) {
+        checkNotNull(endpoint);
 
-        String path = makeInstancePath(instance);
+        String path = makeEndpointPath(endpoint);
 
         // Remove the ephemeral data that we're tracking...
         _ephemeralData.remove(path);
@@ -163,16 +163,16 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     }
 
     /**
-     * Convert a <code>ServiceInstance</code> into the path in ZooKeeper where it will be registered.
-     * @param instance The service instance to get the ZooKeeper path for.
+     * Convert a <code>ServiceEndpoint</code> into the path in ZooKeeper where it will be registered.
+     * @param endpoint The service endpoint to get the ZooKeeper path for.
      * @return The ZooKeeper path.
      */
     @VisibleForTesting
-    static String makeInstancePath(ServiceInstance instance) {
-        return makeInstancePath(instance.getServiceName(), instance.getServiceAddress());
+    static String makeEndpointPath(ServiceEndpoint endpoint) {
+        return makeEndpointPart(endpoint.getServiceName(), endpoint.getServiceAddress());
     }
 
-    private static String makeInstancePath(String serviceName, String serviceAddress) {
+    private static String makeEndpointPart(String serviceName, String serviceAddress) {
         return ZKPaths.makePath(makeServicePath(serviceName), serviceAddress);
     }
 }

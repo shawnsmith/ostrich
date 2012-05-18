@@ -7,7 +7,7 @@ import com.bazaarvoice.soa.Service;
 import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServiceException;
 import com.bazaarvoice.soa.ServiceFactory;
-import com.bazaarvoice.soa.ServiceInstance;
+import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.ServicePool;
 import com.google.common.base.Ticker;
 import org.junit.Before;
@@ -38,7 +38,7 @@ public class ServicePoolTest {
     public void testCallInvokedWithCorrectService() {
         final Service expectedService = mock(Service.class);
 
-        // Don't leak service instances in real code!!!  This is just a test case.
+        // Don't leak service endpoints in real code!!!  This is just a test case.
         Service actualService = newPool(expectedService).execute(neverRetry(), new ServiceCallback<Service, Service>() {
             @Override
             public Service call(Service s) {
@@ -136,21 +136,21 @@ public class ServicePoolTest {
     @SuppressWarnings("unchecked")
     private <S extends Service> ServicePool<S> newPool(S service) {
         // TODO: If this were an interface we could mock it...
-        ServiceInstance instance = new ServiceInstance("service", "server", 8080);
+        ServiceEndpoint endpoint = new ServiceEndpoint("service", "server", 8080);
 
-        // A host discovery implementation that only ever finds a single service instance -- the one backing the
+        // A host discovery implementation that only ever finds a single service endpoint -- the one backing the
         // service provided by our caller
         HostDiscovery discovery = mock(HostDiscovery.class);
-        when(discovery.getHosts()).thenReturn(Collections.singleton(instance));
+        when(discovery.getHosts()).thenReturn(Collections.singleton(endpoint));
 
-        // A load balance algorithm that always returns our specific instance
+        // A load balance algorithm that always returns our specific endpoint
         LoadBalanceAlgorithm loadBalanceAlgorithm = mock(LoadBalanceAlgorithm.class);
-        when(loadBalanceAlgorithm.choose(anyCollection())).thenReturn(instance);
+        when(loadBalanceAlgorithm.choose(anyCollection())).thenReturn(endpoint);
 
-        // A service factory that only knows how to create our service instance
+        // A service factory that only knows how to create our service endpoint
         ServiceFactory<S> factory = (ServiceFactory<S>) mock(ServiceFactory.class);
         when(factory.getLoadBalanceAlgorithm()).thenReturn(loadBalanceAlgorithm);
-        when(factory.create(instance)).thenReturn(service);
+        when(factory.create(endpoint)).thenReturn(service);
 
         return new ServicePoolBuilder<S>()
                 .withHostDiscovery(discovery)

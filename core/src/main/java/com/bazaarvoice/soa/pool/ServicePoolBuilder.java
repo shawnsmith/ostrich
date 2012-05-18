@@ -7,7 +7,7 @@ import com.bazaarvoice.soa.Service;
 import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServiceException;
 import com.bazaarvoice.soa.ServiceFactory;
-import com.bazaarvoice.soa.ServiceInstance;
+import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.ServicePool;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
@@ -47,7 +47,7 @@ public class ServicePoolBuilder<S extends Service> {
             LoadBalanceAlgorithm _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm());
 
             // TODO: It feels like this implementation has too many concerns going on.  Specifically the flow of
-            // TODO: ServiceInstance objects moving from HostDiscovery to the LoadBalanceAlgorithm to the
+            // TODO: ServiceEndpoint objects moving from HostDiscovery to the LoadBalanceAlgorithm to the
             // TODO: ServiceFactory.  Perhaps these can all be combined in some way?
 
             @Override
@@ -57,9 +57,9 @@ public class ServicePoolBuilder<S extends Service> {
 
                 int numAttempts = 0;
                 do {
-                    Iterable<ServiceInstance> hosts = _hostDiscovery.getHosts();
-                    ServiceInstance instance = _loadBalanceAlgorithm.choose(hosts);
-                    S service = _serviceFactory.create(instance);
+                    Iterable<ServiceEndpoint> hosts = _hostDiscovery.getHosts();
+                    ServiceEndpoint endpoint = _loadBalanceAlgorithm.choose(hosts);
+                    S service = _serviceFactory.create(endpoint);
 
                     try {
                         return callback.call(service);

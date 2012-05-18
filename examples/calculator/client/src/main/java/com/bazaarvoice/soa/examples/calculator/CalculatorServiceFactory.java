@@ -1,8 +1,8 @@
 package com.bazaarvoice.soa.examples.calculator;
 
 import com.bazaarvoice.soa.LoadBalanceAlgorithm;
+import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.ServiceFactory;
-import com.bazaarvoice.soa.ServiceInstance;
 import com.bazaarvoice.soa.loadbalance.RandomAlgorithm;
 
 public class CalculatorServiceFactory implements ServiceFactory<CalculatorService> {
@@ -17,7 +17,7 @@ public class CalculatorServiceFactory implements ServiceFactory<CalculatorServic
     }
 
     @Override
-    public CalculatorService create(ServiceInstance instance) {
-        return new CalculatorClient(instance);
+    public CalculatorService create(ServiceEndpoint endpoint) {
+        return new CalculatorClient(endpoint);
     }
 }

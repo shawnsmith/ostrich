@@ -10,5 +10,5 @@ public interface HostDiscovery {
      * Retrieve the available hosts.
      * @return The available hosts.
      */
-    Iterable<ServiceInstance> getHosts();
+    Iterable<ServiceEndpoint> getHosts();
 }

@@ -1,6 +1,6 @@
 package com.bazaarvoice.soa.registry;
 
-import com.bazaarvoice.soa.ServiceInstance;
+import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.netflix.curator.framework.CuratorFramework;
@@ -18,7 +18,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
-    private static final ServiceInstance FOO = new ServiceInstance("Foo", "server", 8080);
+    private static final ServiceEndpoint FOO = new ServiceEndpoint("Foo", "server", 8080);
 
     /** All verifications are done using this curator instance to ensure session isolation from the registry. */
     private CuratorFramework _curator;
@@ -48,8 +48,8 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void testMakeInstancePathNullService() throws Exception {
-        ZooKeeperServiceRegistry.makeInstancePath(null);
+    public void testMakeEndpointPathNullService() throws Exception {
+        ZooKeeperServiceRegistry.makeEndpointPath(null);
     }
 
     @Test(expected = NullPointerException.class)
@@ -98,7 +98,7 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
 
     @Test
     public void testServiceNodeIsDeletedWhenSessionDisconnects() throws Exception {
-        String path = ZooKeeperServiceRegistry.makeInstancePath(FOO);
+        String path = ZooKeeperServiceRegistry.makeEndpointPath(FOO);
         _registry.register(FOO);
 
         CountDownLatch latch = new CountDownLatch(1);
@@ -115,7 +115,7 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
 
     @Test
     public void testServiceNodeIsRecreatedWhenSessionReconnects() throws Exception {
-        String path = ZooKeeperServiceRegistry.makeInstancePath(FOO);
+        String path = ZooKeeperServiceRegistry.makeEndpointPath(FOO);
         _registry.register(FOO);
 
         CountDownLatch deletionLatch = new CountDownLatch(1);
@@ -142,22 +142,22 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
         assertTrue(creationLatch.await(10, TimeUnit.SECONDS));
     }
 
-    private void assertRegistered(ServiceInstance instance) throws Exception {
-        assertRegistered(instance, _curator);
+    private void assertRegistered(ServiceEndpoint endpoint) throws Exception {
+        assertRegistered(endpoint, _curator);
     }
 
-    private void assertRegistered(ServiceInstance instance, CuratorFramework curator) throws Exception {
-        String path = ZooKeeperServiceRegistry.makeInstancePath(instance);
+    private void assertRegistered(ServiceEndpoint endpoint, CuratorFramework curator) throws Exception {
+        String path = ZooKeeperServiceRegistry.makeEndpointPath(endpoint);
         Stat stat = curator.checkExists().forPath(path);
         assertNotNull(stat);
     }
 
-    private void assertNotRegistered(ServiceInstance instance) throws Exception {
-        assertNotRegistered(instance, _curator);
+    private void assertNotRegistered(ServiceEndpoint endpoint) throws Exception {
+        assertNotRegistered(endpoint, _curator);
     }
 
-    private void assertNotRegistered(ServiceInstance instance, CuratorFramework curator) throws Exception {
-        String path = ZooKeeperServiceRegistry.makeInstancePath(instance);
+    private void assertNotRegistered(ServiceEndpoint endpoint, CuratorFramework curator) throws Exception {
+        String path = ZooKeeperServiceRegistry.makeEndpointPath(endpoint);
         Stat stat = curator.checkExists().forPath(path);
         assertNull(stat);
     }

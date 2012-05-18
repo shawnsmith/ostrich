@@ -15,13 +15,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
-public class ServiceInstanceTest {
-    private static final int MAX_PAYLOAD_SIZE_IN_CHARACTERS = ServiceInstance.MAX_PAYLOAD_SIZE_IN_CHARACTERS;
-    private static final DateTimeFormatter ISO8601 = ServiceInstance.ISO8601;
+public class ServiceEndpointTest
+{
+    private static final int MAX_PAYLOAD_SIZE_IN_CHARACTERS = ServiceEndpoint.MAX_PAYLOAD_SIZE_IN_CHARACTERS;
+    private static final DateTimeFormatter ISO8601 = ServiceEndpoint.ISO8601;
 
     @Test
     public void testInvalidServiceNames() {
-        ServiceInstanceBuilder base = new ServiceInstanceBuilder();
+        ServiceEndpointBuilder base = new ServiceEndpointBuilder();
 
         assertThrows(base.withName("Foo$Bar"), IllegalArgumentException.class);
         assertThrows(base.withName("%"), IllegalArgumentException.class);
@@ -34,7 +35,7 @@ public class ServiceInstanceTest {
 
     @Test
     public void testInvalidHostNames() {
-        ServiceInstanceBuilder base = new ServiceInstanceBuilder();
+        ServiceEndpointBuilder base = new ServiceEndpointBuilder();
 
         assertThrows(base.withAddress(null, 8080), IllegalArgumentException.class);
         assertThrows(base.withAddress("", 8080), IllegalArgumentException.class);
@@ -42,7 +43,7 @@ public class ServiceInstanceTest {
 
     @Test
     public void testInvalidPorts() {
-        ServiceInstanceBuilder base = new ServiceInstanceBuilder();
+        ServiceEndpointBuilder base = new ServiceEndpointBuilder();
 
         assertThrows(base.withAddress("localhost", -1), IllegalArgumentException.class);
         assertThrows(base.withAddress("localhost", -2), IllegalArgumentException.class);
@@ -51,7 +52,7 @@ public class ServiceInstanceTest {
 
     @Test
     public void testPayloadSize() {
-        ServiceInstanceBuilder base = new ServiceInstanceBuilder();
+        ServiceEndpointBuilder base = new ServiceEndpointBuilder();
 
         assertThrows(base.withPayload(string(MAX_PAYLOAD_SIZE_IN_CHARACTERS + 1)), IllegalArgumentException.class);
         base.withPayload(string(MAX_PAYLOAD_SIZE_IN_CHARACTERS)).build(); // small enough, doesn't throw
@@ -60,71 +61,71 @@ public class ServiceInstanceTest {
 
     @Test
     public void testToJson() throws Exception {
-        ServiceInstance instance = new ServiceInstance("FooService", "server", 8080);
-        assertJson(instance.toJson(), instance);
+        ServiceEndpoint endpoint = new ServiceEndpoint("FooService", "server", 8080);
+        assertJson(endpoint.toJson(), endpoint);
     }
 
     @Test
     public void testToJsonWithPayload() throws Exception {
-        ServiceInstance instance = new ServiceInstance("FooService", "server", 8080, "payload");
-        assertJson(instance.toJson(), instance);
+        ServiceEndpoint endpoint = new ServiceEndpoint("FooService", "server", 8080, "payload");
+        assertJson(endpoint.toJson(), endpoint);
     }
 
     @Test
     public void testToJsonWithEmptyPayload() throws Exception {
-        ServiceInstance instance = new ServiceInstance("FooService", "server", 8080, "");
-        assertJson(instance.toJson(), instance);
+        ServiceEndpoint endpoint = new ServiceEndpoint("FooService", "server", 8080, "");
+        assertJson(endpoint.toJson(), endpoint);
     }
 
     @Test
     public void testFromJson() throws Exception {
-        ServiceInstance instance = new ServiceInstance("FooService", "server", 8080);
-        assertEquals(instance, ServiceInstance.fromJson(instance.toJson()));
+        ServiceEndpoint endpoint = new ServiceEndpoint("FooService", "server", 8080);
+        assertEquals(endpoint, ServiceEndpoint.fromJson(endpoint.toJson()));
     }
 
     @Test
     public void testFromJsonWithPayload() throws Exception {
-        ServiceInstance instance = new ServiceInstance("FooService", "server", 8080, "payload");
-        assertEquals(instance, ServiceInstance.fromJson(instance.toJson()));
+        ServiceEndpoint endpoint = new ServiceEndpoint("FooService", "server", 8080, "payload");
+        assertEquals(endpoint, ServiceEndpoint.fromJson(endpoint.toJson()));
     }
 
     @Test
     public void testFromJsonWithEmptyPayload() throws Exception {
-        ServiceInstance instance = new ServiceInstance("FooService", "server", 8080, "");
-        assertEquals(instance, ServiceInstance.fromJson(instance.toJson()));
+        ServiceEndpoint endpoint = new ServiceEndpoint("FooService", "server", 8080, "");
+        assertEquals(endpoint, ServiceEndpoint.fromJson(endpoint.toJson()));
     }
 
     @Test(expected = RuntimeException.class)
     public void testFromJsonWithMalformedJson() throws Exception {
-        ServiceInstance.fromJson("{");
+        ServiceEndpoint.fromJson("{");
     }
 
     @Test(expected = NullPointerException.class)
     public void testFromJsonWithMissingName() throws Exception {
-        ServiceInstance.fromJson(buildJson("name"));
+        ServiceEndpoint.fromJson(buildJson("name"));
     }
 
     @Test(expected = NullPointerException.class)
     public void testFromJsonWithMissingHost() throws Exception {
-        ServiceInstance.fromJson(buildJson("host"));
+        ServiceEndpoint.fromJson(buildJson("host"));
     }
 
     @Test(expected = NullPointerException.class)
     public void testFromJsonWithMissingPort() throws Exception {
-        ServiceInstance.fromJson(buildJson("port"));
+        ServiceEndpoint.fromJson(buildJson("port"));
     }
 
     @Test(expected = NullPointerException.class)
     public void testFromJsonWithMissingRegistrationTime() throws Exception {
-        ServiceInstance.fromJson(buildJson("registration-time"));
+        ServiceEndpoint.fromJson(buildJson("registration-time"));
     }
 
     @Test(expected = NullPointerException.class)
     public void testFromJsonWithMissingPayload() throws Exception {
-        ServiceInstance.fromJson(buildJson("payload"));
+        ServiceEndpoint.fromJson(buildJson("payload"));
     }
 
-    private void assertThrows(ServiceInstanceBuilder builder, Class<? extends Throwable> cls) {
+    private void assertThrows(ServiceEndpointBuilder builder, Class<? extends Throwable> cls) {
         String expectedClassName = cls.getSimpleName();
 
         try {
@@ -141,16 +142,16 @@ public class ServiceInstanceTest {
         }
     }
 
-    private void assertJson(String json, ServiceInstance instance) throws Exception {
+    private void assertJson(String json, ServiceEndpoint endpoint) throws Exception {
         JsonNode root = new ObjectMapper().readTree(json);
 
-        assertEquals(instance.getServiceName(), root.get("name").textValue());
-        assertEquals(instance.getHostname(), root.get("host").textValue());
-        assertEquals(instance.getPort(), root.get("port").intValue());
-        assertEquals(instance.getRegistrationTime(), ISO8601.parseDateTime(root.get("registration-time").textValue()));
+        assertEquals(endpoint.getServiceName(), root.get("name").textValue());
+        assertEquals(endpoint.getHostname(), root.get("host").textValue());
+        assertEquals(endpoint.getPort(), root.get("port").intValue());
+        assertEquals(endpoint.getRegistrationTime(), ISO8601.parseDateTime(root.get("registration-time").textValue()));
 
-        if (instance.getPayload() != null) {
-            assertEquals(instance.getPayload(), root.get("payload").textValue());
+        if (endpoint.getPayload() != null) {
+            assertEquals(endpoint.getPayload(), root.get("payload").textValue());
         } else {
             assertNull(root.get("payload").textValue());
         }
@@ -194,37 +195,38 @@ public class ServiceInstanceTest {
         return writer.toString();
     }
 
-    private static final class ServiceInstanceBuilder {
+    private static final class ServiceEndpointBuilder
+    {
         private final String _serviceName;
         private final String _hostname;
         private final int _port;
         private final String _payload;
 
-        public ServiceInstanceBuilder() {
+        public ServiceEndpointBuilder() {
             this("Foo", "localhost", 8080, null);
         }
 
-        public ServiceInstanceBuilder(String serviceName, String hostname, int port, String payload) {
+        public ServiceEndpointBuilder(String serviceName, String hostname, int port, String payload) {
             _serviceName = serviceName;
             _hostname = hostname;
             _port = port;
             _payload = payload;
         }
 
-        public ServiceInstanceBuilder withName(String serviceName) {
-            return new ServiceInstanceBuilder(serviceName, _hostname, _port, _payload);
+        public ServiceEndpointBuilder withName(String serviceName) {
+            return new ServiceEndpointBuilder(serviceName, _hostname, _port, _payload);
         }
 
-        public ServiceInstanceBuilder withAddress(String hostname, int port) {
-            return new ServiceInstanceBuilder(_serviceName, hostname, port, _payload);
+        public ServiceEndpointBuilder withAddress(String hostname, int port) {
+            return new ServiceEndpointBuilder(_serviceName, hostname, port, _payload);
         }
 
-        public ServiceInstanceBuilder withPayload(String payload) {
-            return new ServiceInstanceBuilder(_serviceName, _hostname, _port, payload);
+        public ServiceEndpointBuilder withPayload(String payload) {
+            return new ServiceEndpointBuilder(_serviceName, _hostname, _port, payload);
         }
 
-        public ServiceInstance build() {
-            return new ServiceInstance(_serviceName, _hostname, _port, _payload);
+        public ServiceEndpoint build() {
+            return new ServiceEndpoint(_serviceName, _hostname, _port, _payload);
         }
     }
 }

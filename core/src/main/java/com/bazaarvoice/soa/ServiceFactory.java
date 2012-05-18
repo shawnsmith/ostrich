@@ -6,5 +6,5 @@ public interface ServiceFactory<S extends Service> {
 
     LoadBalanceAlgorithm getLoadBalanceAlgorithm();
 
-    S create(ServiceInstance instance);
+    S create(ServiceEndpoint endpoint);
 }

@@ -2,8 +2,8 @@ package com.bazaarvoice.soa.examples.calculator;
 
 import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.ServiceCallback;
+import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.ServiceException;
-import com.bazaarvoice.soa.ServiceInstance;
 import com.bazaarvoice.soa.ServicePool;
 import com.bazaarvoice.soa.pool.ServicePoolBuilder;
 import com.bazaarvoice.soa.retry.RetryNTimes;
@@ -29,10 +29,10 @@ public class CalculatorUser {
 
     public static void main(String[] args) {
         HostDiscovery localDiscovery = new HostDiscovery() {
-            ServiceInstance LOCAL = new ServiceInstance("calculator", "localhost", 8081);
+            ServiceEndpoint LOCAL = new ServiceEndpoint("calculator", "localhost", 8081);
 
             @Override
-            public Iterable<ServiceInstance> getHosts() {
+            public Iterable<ServiceEndpoint> getHosts() {
                 return Collections.singleton(LOCAL);
             }
         };

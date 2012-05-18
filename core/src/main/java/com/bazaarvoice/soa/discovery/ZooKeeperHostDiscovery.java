@@ -1,7 +1,7 @@
 package com.bazaarvoice.soa.discovery;
 
 import com.bazaarvoice.soa.HostDiscovery;
-import com.bazaarvoice.soa.ServiceInstance;
+import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.internal.CuratorConfiguration;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
@@ -31,8 +31,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
     private final CuratorFramework _curator;
     private final PathChildrenCache _pathCache;
-    private final ConcurrentMap<ServiceInstance, Boolean> _instanceMap = Maps.newConcurrentMap();
-    private final Iterable<ServiceInstance> _instances = Iterables.unmodifiableIterable(_instanceMap.keySet());
+    private final ConcurrentMap<ServiceEndpoint, Boolean> _endpointMap = Maps.newConcurrentMap();
+    private final Iterable<ServiceEndpoint> _endpoints = Iterables.unmodifiableIterable(_endpointMap.keySet());
 
     public ZooKeeperHostDiscovery(ZooKeeperConfiguration config, String serviceName) {
         this(((CuratorConfiguration) checkNotNull(config)).getCurator(), serviceName);
@@ -62,14 +62,14 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
     }
 
     @Override
-    public Iterable<ServiceInstance> getHosts() {
-        return _instances;
+    public Iterable<ServiceEndpoint> getHosts() {
+        return _endpoints;
     }
 
     @Override
     public void close() throws IOException {
         _pathCache.close();
-        _instanceMap.clear();
+        _endpointMap.clear();
     }
 
     @VisibleForTesting
@@ -82,19 +82,19 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
         @Override
         public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {
             if (event.getType() == PathChildrenCacheEvent.Type.RESET) {
-                _instanceMap.clear();
+                _endpointMap.clear();
             }
 
             String json = new String(event.getData().getData(), Charsets.UTF_16);
-            ServiceInstance instance = ServiceInstance.fromJson(json);
+            ServiceEndpoint endpoint = ServiceEndpoint.fromJson(json);
 
             switch (event.getType()) {
                 case CHILD_ADDED:
-                    _instanceMap.put(instance, Boolean.TRUE);
+                    _endpointMap.put(endpoint, Boolean.TRUE);
                     break;
 
                 case CHILD_REMOVED:
-                    _instanceMap.remove(instance);
+                    _endpointMap.remove(endpoint);
                     break;
 
                 case CHILD_UPDATED:

@@ -1,7 +1,7 @@
 package com.bazaarvoice.soa.examples.calculator;
 
+import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.ServiceException;
-import com.bazaarvoice.soa.ServiceInstance;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.io.ByteStreams;
@@ -15,8 +15,8 @@ import java.net.URL;
 public class CalculatorClient implements CalculatorService {
     private final String _baseUrl;
 
-    public CalculatorClient(ServiceInstance instance) {
-        _baseUrl = "http://" + instance.getServiceAddress() + "/calculator";
+    public CalculatorClient(ServiceEndpoint endpoint) {
+        _baseUrl = "http://" + endpoint.getServiceAddress() + "/calculator";
     }
 
     @Override

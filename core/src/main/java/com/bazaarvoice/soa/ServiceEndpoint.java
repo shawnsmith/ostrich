@@ -20,8 +20,9 @@ import java.io.StringWriter;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-// TODO: ServiceInstance feels like the wrong name for this.  Maybe ServiceEndpoint instead?
-public final class ServiceInstance {
+// TODO: ServiceEndpoint feels like the wrong name for this.  Maybe ServiceEndpoint instead?
+public final class ServiceEndpoint
+{
     // Service names and versions have a restricted set of valid characters in them for simplicity.  These are the
     // characters that can appear in a URL without needing escaping.  This will let us refer to services with a URL
     // looking structure (e.g. prod://services/profile-v1)
@@ -47,15 +48,15 @@ public final class ServiceInstance {
     private final DateTime _registrationTime;
     private final String _payload;
 
-    public ServiceInstance(String serviceName, String hostname, int port) {
+    public ServiceEndpoint(String serviceName, String hostname, int port) {
         this(serviceName, hostname, port, DateTime.now(), null);
     }
 
-    public ServiceInstance(String serviceName, String hostname, int port, String payload) {
+    public ServiceEndpoint(String serviceName, String hostname, int port, String payload) {
         this(serviceName, hostname, port, DateTime.now(), payload);
     }
 
-    private ServiceInstance(String serviceName, String hostname, int port, DateTime registrationTime, String payload) {
+    private ServiceEndpoint(String serviceName, String hostname, int port, DateTime registrationTime, String payload) {
         checkArgument(serviceName != null && serviceName.length() > 0);
         checkArgument(VALID_CHARACTERS.matchesAllOf(serviceName));
         checkArgument(hostname != null && hostname.length() > 0);
@@ -99,9 +100,9 @@ public final class ServiceInstance {
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (!(obj instanceof ServiceInstance)) return false;
+        if (!(obj instanceof ServiceEndpoint)) return false;
 
-        ServiceInstance that = (ServiceInstance) obj;
+        ServiceEndpoint that = (ServiceEndpoint) obj;
         return Objects.equal(_serviceName, that._serviceName)
                 && Objects.equal(_address, that._address)
                 && Objects.equal(_registrationTime, that._registrationTime)
@@ -138,7 +139,7 @@ public final class ServiceInstance {
         return writer.toString();
     }
 
-    public static ServiceInstance fromJson(String json) {
+    public static ServiceEndpoint fromJson(String json) {
         try {
             JsonNode root = new ObjectMapper().readTree(json);
             JsonNode nameNode = checkNotNull(root.get("name"));
@@ -153,7 +154,7 @@ public final class ServiceInstance {
             DateTime registrationTime = ISO8601.parseDateTime(registrationTimeNode.textValue());
             String payload = !payloadNode.isNull() ? payloadNode.textValue() : null;
 
-            return new ServiceInstance(name, hostname, port, registrationTime, payload);
+            return new ServiceEndpoint(name, hostname, port, registrationTime, payload);
         } catch (IOException e) {
             // TODO: Is propagating the right thing to do here?
             throw Throwables.propagate(e);

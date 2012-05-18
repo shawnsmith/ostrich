@@ -1,6 +1,6 @@
 package com.bazaarvoice.soa.discovery;
 
-import com.bazaarvoice.soa.ServiceInstance;
+import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertTrue;
 
 public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
-    private static final ServiceInstance FOO = new ServiceInstance("Foo", "server", 8080);
+    private static final ServiceEndpoint FOO = new ServiceEndpoint("Foo", "server", 8080);
 
     private ZooKeeperServiceRegistry _registry;
     private ZooKeeperHostDiscovery _discovery;
