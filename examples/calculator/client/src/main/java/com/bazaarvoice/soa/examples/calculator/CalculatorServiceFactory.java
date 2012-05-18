@@ -20,4 +20,9 @@ public class CalculatorServiceFactory implements ServiceFactory<CalculatorServic
     public CalculatorService create(ServiceEndpoint endpoint) {
         return new CalculatorClient(endpoint);
     }
+
+    @Override
+    public boolean isHealthy(ServiceEndpoint endpoint) {
+        return false;
+    }
 }

@@ -39,11 +39,6 @@ public class CalculatorClient implements CalculatorService {
         return Integer.parseInt(GET("/div/" + a + "/" + b));
     }
 
-    @Override
-    public boolean isHealthy() {
-        return false;
-    }
-
     private String GET(String resource) {
         URL url;
         try {
