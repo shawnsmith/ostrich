@@ -20,7 +20,6 @@ import java.io.StringWriter;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-// TODO: ServiceEndpoint feels like the wrong name for this.  Maybe ServiceEndpoint instead?
 public final class ServiceEndpoint
 {
     // Service names and versions have a restricted set of valid characters in them for simplicity.  These are the
