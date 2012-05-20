@@ -29,7 +29,7 @@ public class CalculatorUser {
 
     public static void main(String[] args) {
         HostDiscovery localDiscovery = new HostDiscovery() {
-            ServiceEndpoint LOCAL = new ServiceEndpoint("calculator", "localhost", 8081);
+            ServiceEndpoint LOCAL = new ServiceEndpoint("calculator", "localhost", 8080);
 
             @Override
             public Iterable<ServiceEndpoint> getHosts() {

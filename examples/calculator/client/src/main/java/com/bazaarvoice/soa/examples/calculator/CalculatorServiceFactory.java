@@ -23,6 +23,11 @@ public class CalculatorServiceFactory implements ServiceFactory<CalculatorServic
 
     @Override
     public boolean isHealthy(ServiceEndpoint endpoint) {
-        return false;
+        // CalculatorService has the convention that the admin port is always one greater than the service port,
+        // ideally this information would be conveyed in the payload of the service endpoint.
+        int adminPort = endpoint.getPort() + 1;
+        Http http = new Http("http://" + endpoint.getHostname() + ":" + adminPort);
+
+        return http.HEAD("/healthcheck") == 200;
     }
 }
