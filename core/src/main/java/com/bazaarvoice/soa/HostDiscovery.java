@@ -8,7 +8,28 @@ package com.bazaarvoice.soa;
 public interface HostDiscovery {
     /**
      * Retrieve the available hosts.
+     *
      * @return The available hosts.
      */
     Iterable<ServiceEndpoint> getHosts();
+
+    /**
+     * Add an endpoint listener.
+     *
+     * @param listener The endpoint listener to add.
+     */
+    void addListener(EndpointListener listener);
+
+    /**
+     * Remove an endpoint listener.
+     *
+     * @param listener The endpoint listener to remove.
+     */
+    void removeListener(EndpointListener listener);
+
+    /** Listener interface that is notified when endpoints are added and removed. */
+    interface EndpointListener {
+        void onEndpointAdded(ServiceEndpoint endpoint);
+        void onEndpointRemoved(ServiceEndpoint endpoint);
+    }
 }

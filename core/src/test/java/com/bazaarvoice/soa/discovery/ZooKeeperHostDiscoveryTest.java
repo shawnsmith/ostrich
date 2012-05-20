@@ -1,5 +1,6 @@
 package com.bazaarvoice.soa.discovery;
 
+import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
@@ -8,6 +9,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.io.Closeables;
 import org.junit.Test;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertTrue;
@@ -33,7 +35,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
     @Test(expected = NullPointerException.class)
     public void testNullConfiguration() {
-        new ZooKeeperHostDiscovery((ZooKeeperConfiguration)null, FOO.getServiceName());
+        new ZooKeeperHostDiscovery((ZooKeeperConfiguration) null, FOO.getServiceName());
     }
 
     @Test(expected = NullPointerException.class)
@@ -70,7 +72,6 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
         // The entry gets cleaned up because we've lost contact with ZooKeeper
         assertTrue(waitUntilSize(_discovery.getHosts(), 0));
-
     }
 
     @Test
@@ -85,6 +86,78 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
         // Then it automatically gets created when the connection is re-established with ZooKeeper
         assertTrue(waitUntilSize(_discovery.getHosts(), 1));
+    }
+
+    @Test
+    public void testRegisterServiceCallsListener() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        _discovery.addListener(new CountDownListener(latch, null));
+
+        _registry.register(FOO);
+        assertTrue(latch.await(10, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testUnregisterServiceCallsListener() throws Exception {
+        CountDownLatch addLatch = new CountDownLatch(1);
+        CountDownLatch removeLatch = new CountDownLatch(1);
+        _discovery.addListener(new CountDownListener(addLatch, removeLatch));
+
+        _registry.register(FOO);
+        assertTrue(addLatch.await(10, TimeUnit.SECONDS));
+
+        _registry.unregister(FOO);
+        assertTrue(removeLatch.await(10, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testListenerCalledWhenSessionKilled() throws Exception {
+        CountDownLatch addLatch = new CountDownLatch(1);
+        CountDownLatch removeLatch = new CountDownLatch(1);
+        _discovery.addListener(new CountDownListener(addLatch, removeLatch));
+
+        _registry.register(FOO);
+        assertTrue(addLatch.await(10, TimeUnit.SECONDS));
+
+        killSession(_discovery.getCurator());
+
+        // The entry gets cleaned up because we've lost contact with ZooKeeper
+        assertTrue(removeLatch.await(10, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testListenerCalledWhenServiceIsReregisteredAfterSessionKilled() throws Exception {
+        CountDownLatch addLatch = new CountDownLatch(1);
+        _discovery.addListener(new CountDownListener(addLatch, null));
+
+        _registry.register(FOO);
+        assertTrue(addLatch.await(10, TimeUnit.SECONDS));
+
+        CountDownLatch reAddLatch = new CountDownLatch(1);
+        CountDownLatch removeLatch = new CountDownLatch(1);
+        _discovery.addListener(new CountDownListener(reAddLatch, removeLatch));
+
+        killSession(_discovery.getCurator());
+
+        // The entry gets cleaned up because we've lost contact with ZooKeeper
+        assertTrue(removeLatch.await(10, TimeUnit.SECONDS));
+
+        // Then it automatically gets created when the connection is re-established with ZooKeeper
+        assertTrue(reAddLatch.await(10, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testMultipleListeners() throws Exception {
+        CountDownLatch addLatch = new CountDownLatch(2);
+        CountDownLatch removeLatch = new CountDownLatch(2);
+        _discovery.addListener(new CountDownListener(addLatch, removeLatch));
+        _discovery.addListener(new CountDownListener(addLatch, removeLatch));
+
+        _registry.register(FOO);
+        assertTrue(addLatch.await(10, TimeUnit.SECONDS));
+
+        _registry.unregister(FOO);
+        assertTrue(removeLatch.await(10, TimeUnit.SECONDS));
     }
 
     private static <T> boolean waitUntilSize(Iterable<T> iterable, int size, long timeout, TimeUnit unit) {
@@ -102,5 +175,29 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
     private static <T> boolean waitUntilSize(Iterable<T> iterable, int size) {
         return waitUntilSize(iterable, size, 10, TimeUnit.SECONDS);
+    }
+
+    private static final class CountDownListener implements HostDiscovery.EndpointListener {
+        private final CountDownLatch _addLatch;
+        private final CountDownLatch _removeLatch;
+
+        public CountDownListener(CountDownLatch addLatch, CountDownLatch removeLatch) {
+            _addLatch = addLatch;
+            _removeLatch = removeLatch;
+        }
+
+        @Override
+        public void onEndpointAdded(ServiceEndpoint endpoint) {
+            if (_addLatch != null) {
+                _addLatch.countDown();
+            }
+        }
+
+        @Override
+        public void onEndpointRemoved(ServiceEndpoint endpoint) {
+            if (_removeLatch != null) {
+                _removeLatch.countDown();
+            }
+        }
     }
 }

@@ -35,6 +35,16 @@ public class CalculatorUser {
             public Iterable<ServiceEndpoint> getHosts() {
                 return Collections.singleton(LOCAL);
             }
+
+            @Override
+            public void addListener(EndpointListener listener) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void removeListener(EndpointListener listener) {
+                throw new UnsupportedOperationException();
+            }
         };
 
         ServicePool<CalculatorService> pool = new ServicePoolBuilder<CalculatorService>()

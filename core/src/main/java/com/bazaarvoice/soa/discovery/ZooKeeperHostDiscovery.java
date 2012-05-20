@@ -8,6 +8,7 @@ import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -18,6 +19,7 @@ import com.netflix.curator.framework.recipes.cache.PathChildrenCacheListener;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadFactory;
 
@@ -33,6 +35,8 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
     private final PathChildrenCache _pathCache;
     private final ConcurrentMap<ServiceEndpoint, Boolean> _endpointMap = Maps.newConcurrentMap();
     private final Iterable<ServiceEndpoint> _endpoints = Iterables.unmodifiableIterable(_endpointMap.keySet());
+    private final ConcurrentMap<EndpointListener, Boolean> _endpointListenerMap = Maps.newConcurrentMap();
+    private final Iterable<EndpointListener> _listeners = Iterables.unmodifiableIterable(_endpointListenerMap.keySet());
 
     public ZooKeeperHostDiscovery(ZooKeeperConfiguration config, String serviceName) {
         this(((CuratorConfiguration) checkNotNull(config)).getCurator(), serviceName);
@@ -67,6 +71,16 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
     }
 
     @Override
+    public void addListener(EndpointListener listener) {
+        _endpointListenerMap.put(listener, Boolean.TRUE);
+    }
+
+    @Override
+    public void removeListener(EndpointListener listener) {
+        _endpointListenerMap.remove(listener);
+    }
+
+    @Override
     public void close() throws IOException {
         _pathCache.close();
         _endpointMap.clear();
@@ -77,12 +91,29 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
         return _curator;
     }
 
+    private void fireAddEvent(ServiceEndpoint endpoint) {
+        for (EndpointListener listener : _listeners) {
+          listener.onEndpointAdded(endpoint);
+        }
+    }
+
+    private void fireRemoveEvent(ServiceEndpoint endpoint) {
+        for (EndpointListener listener : _listeners) {
+            listener.onEndpointRemoved(endpoint);
+        }
+    }
+
     /** A curator <code>PathChildrenCacheListener</code> */
     private final class ServiceListener implements PathChildrenCacheListener {
         @Override
         public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {
             if (event.getType() == PathChildrenCacheEvent.Type.RESET) {
+                Collection<ServiceEndpoint> endpoints = ImmutableList.copyOf(_endpoints);
                 _endpointMap.clear();
+                for (ServiceEndpoint endpoint : endpoints) {
+                    fireRemoveEvent(endpoint);
+                }
+                return;
             }
 
             String json = new String(event.getData().getData(), Charsets.UTF_16);
@@ -91,10 +122,12 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
             switch (event.getType()) {
                 case CHILD_ADDED:
                     _endpointMap.put(endpoint, Boolean.TRUE);
+                    fireAddEvent(endpoint);
                     break;
 
                 case CHILD_REMOVED:
                     _endpointMap.remove(endpoint);
+                    fireRemoveEvent(endpoint);
                     break;
 
                 case CHILD_UPDATED:
