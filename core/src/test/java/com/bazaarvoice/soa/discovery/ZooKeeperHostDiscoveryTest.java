@@ -13,6 +13,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
     private static final ServiceEndpoint FOO = new ServiceEndpoint("Foo", "server", 8080);
@@ -111,6 +112,23 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
     }
 
     @Test
+    public void testRemovedListenerDoesNotSeeEvents() throws Exception {
+        CountDownLatch addLatch = new CountDownLatch(1);
+        CountDownLatch removeLatch = new CountDownLatch(1);
+        _discovery.addListener(new CountDownListener(addLatch, removeLatch));
+
+        HostDiscovery.EndpointListener listener = new FailListener();
+        _discovery.addListener(listener);
+        _discovery.removeListener(listener);
+
+        _registry.register(FOO);
+        assertTrue(addLatch.await(10, TimeUnit.SECONDS));
+
+        _registry.unregister(FOO);
+        assertTrue(removeLatch.await(10, TimeUnit.SECONDS));
+    }
+
+    @Test
     public void testListenerCalledWhenSessionKilled() throws Exception {
         CountDownLatch addLatch = new CountDownLatch(1);
         CountDownLatch removeLatch = new CountDownLatch(1);
@@ -198,6 +216,18 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
             if (_removeLatch != null) {
                 _removeLatch.countDown();
             }
+        }
+    }
+
+    private static final class FailListener implements HostDiscovery.EndpointListener {
+        @Override
+        public void onEndpointAdded(ServiceEndpoint endpoint) {
+            fail();
+        }
+
+        @Override
+        public void onEndpointRemoved(ServiceEndpoint endpoint) {
+            fail();
         }
     }
 }
