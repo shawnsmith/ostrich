@@ -4,7 +4,6 @@ import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
-import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Closeables;
 import org.junit.Test;
@@ -25,7 +24,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
     public void setup() throws Exception {
         super.setup();
         _registry = new ZooKeeperServiceRegistry(newZooKeeperConfiguration());
-        _discovery = new ZooKeeperHostDiscovery(newCurator(), FOO.getServiceName());
+        _discovery = new ZooKeeperHostDiscovery(newCurator(), FOO.getServiceName(), false);
     }
 
     @Override
@@ -36,17 +35,17 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
     @Test(expected = NullPointerException.class)
     public void testNullConfiguration() {
-        new ZooKeeperHostDiscovery((ZooKeeperConfiguration) null, FOO.getServiceName());
+        new ZooKeeperHostDiscovery(null, FOO.getServiceName());
     }
 
     @Test(expected = NullPointerException.class)
     public void testNullServiceName() throws Exception {
-        new ZooKeeperHostDiscovery(newCurator(), null);
+        new ZooKeeperHostDiscovery(newCurator(), null, false);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testEmptyServiceName() throws Exception {
-        new ZooKeeperHostDiscovery(newCurator(), "");
+        new ZooKeeperHostDiscovery(newCurator(), "", false);
     }
 
     @Test

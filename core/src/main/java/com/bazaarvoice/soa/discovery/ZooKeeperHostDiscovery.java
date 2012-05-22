@@ -21,7 +21,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -31,17 +33,19 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * available.  As hosts come and go the results of calling the <code>#getHosts</code> method changes.
  */
 public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
+    private static final long WAIT_FOR_DATA_TIMEOUT_IN_SECONDS = 10;
+
     private final CuratorFramework _curator;
     private final Set<ServiceEndpoint> _endpoints;
     private final Set<EndpointListener> _listeners;
     private final PathChildrenCache _pathCache;
 
     public ZooKeeperHostDiscovery(ZooKeeperConfiguration config, String serviceName) {
-        this(((CuratorConfiguration) checkNotNull(config)).getCurator(), serviceName);
+        this(((CuratorConfiguration) checkNotNull(config)).getCurator(), serviceName, true);
     }
 
     @VisibleForTesting
-    ZooKeeperHostDiscovery(CuratorFramework curator, String serviceName) {
+    ZooKeeperHostDiscovery(CuratorFramework curator, String serviceName, boolean waitForData) {
         checkNotNull(curator);
         checkNotNull(serviceName);
         checkArgument(curator.isStarted());
@@ -59,10 +63,34 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
 
         _pathCache = new PathChildrenCache(_curator, servicePath, true, threadFactory);
         _pathCache.getListenable().addListener(new ServiceListener());
+
+        PathChildrenCacheListener waitListener = null;
+        CountDownLatch waitLatch = new CountDownLatch(1);
+        if (waitForData) {
+            // It takes a little bit of time before the Path Cache sees data.  We're going to attempt to block until we
+            // know for certain that the cache has read some data from ZooKeeper, but we don't want to block
+            // indefinitely because it's possible that there's just no data available.  We'll use a latch to wait just
+            // until data is available or up to some maximum amount otherwise.  At that point host discovery should be
+            // usable.
+            waitListener = new LatchListener(waitLatch);
+            _pathCache.getListenable().addListener(waitListener);
+        }
+
         try {
             _pathCache.start();
         } catch (Exception e) {
             throw Throwables.propagate(e);
+        }
+
+        if (waitForData) {
+            try {
+                waitLatch.await(WAIT_FOR_DATA_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                throw Throwables.propagate(e);
+            }
+
+            // Remove the listener we registered above...
+            _pathCache.getListenable().removeListener(waitListener);
         }
     }
 
@@ -94,7 +122,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
 
     private void fireAddEvent(ServiceEndpoint endpoint) {
         for (EndpointListener listener : _listeners) {
-          listener.onEndpointAdded(endpoint);
+            listener.onEndpointAdded(endpoint);
         }
     }
 
@@ -134,6 +162,21 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
                 case CHILD_UPDATED:
                     // TODO: This should never happen.  Assert?  Log?
                     break;
+            }
+        }
+    }
+
+    private static final class LatchListener implements PathChildrenCacheListener {
+        private final CountDownLatch _latch;
+
+        public LatchListener(CountDownLatch latch) {
+            _latch = checkNotNull(latch);
+        }
+
+        @Override
+        public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {
+            if (event.getType() != PathChildrenCacheEvent.Type.RESET) {
+                _latch.countDown();
             }
         }
     }
