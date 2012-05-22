@@ -49,6 +49,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
 
         ThreadFactory threadFactory = new ThreadFactoryBuilder()
                 .setNameFormat(getClass().getSimpleName() + "(" + serviceName + ")-%d")
+                .setDaemon(true)
                 .build();
         String servicePath = ZooKeeperServiceRegistry.makeServicePath(serviceName);
 

@@ -3,11 +3,13 @@ package com.bazaarvoice.soa.internal;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.netflix.curator.RetryPolicy;
 import com.netflix.curator.framework.CuratorFramework;
 import com.netflix.curator.framework.CuratorFrameworkFactory;
 
 import java.io.IOException;
+import java.util.concurrent.ThreadFactory;
 
 /**
  * <b>NOTE: This is an INTERNAL class to the SOA library.  You should not be using this directly!!!!</b>
@@ -30,10 +32,17 @@ public class CuratorConfiguration implements ZooKeeperConfiguration {
 
     public synchronized CuratorFramework getCurator() {
         if (_curator == null) {
+            // Make all of the curator threads daemon threads so they don't block the JVM from terminating.
+            ThreadFactory threadFactory = new ThreadFactoryBuilder()
+                    .setNameFormat("CuratorFramework[" + _connectString + "]-%d")
+                    .setDaemon(true)
+                    .build();
+
             try {
                 _curator = CuratorFrameworkFactory.builder()
                         .connectString(_connectString)
                         .retryPolicy(_retryPolicy)
+                        .threadFactory(threadFactory)
                         .build();
                 _curator.start();
             } catch (IOException e) {
