@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 public class RandomAlgorithmTest {
     @Test(expected = NullPointerException.class)
@@ -17,9 +18,10 @@ public class RandomAlgorithmTest {
         new RandomAlgorithm().choose(null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testEmptyIterable() {
-        new RandomAlgorithm().choose(Collections.<ServiceEndpoint>emptyList());
+        ServiceEndpoint endpoint = new RandomAlgorithm().choose(Collections.<ServiceEndpoint>emptyList());
+        assertNull(endpoint);
     }
 
     @Test

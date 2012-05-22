@@ -17,7 +17,9 @@ public class RandomAlgorithm implements LoadBalanceAlgorithm {
         Preconditions.checkNotNull(endpoints);
 
         Iterator<ServiceEndpoint> iter = endpoints.iterator();
-        Preconditions.checkArgument(iter.hasNext());
+        if (!iter.hasNext()) {
+            return null;
+        }
 
         List<ServiceEndpoint> list = Lists.newArrayList(iter);
         return list.get(_rnd.nextInt(list.size()));
