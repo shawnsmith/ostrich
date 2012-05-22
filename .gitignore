@@ -11,3 +11,6 @@
 # Build outputs
 target/
 reports/
+
+# Vagrant outputs
+.vagrant
