@@ -10,6 +10,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <groupId>com.bazaarvoice.soa.examples.calculator</groupId>
     <artifactId>calculator-user</artifactId>
     <version>0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
@@ -28,11 +29,6 @@
             <groupId>com.bazaarvoice.soa.examples.calculator</groupId>
             <artifactId>calculator-client</artifactId>
             <version>0.1-SNAPSHOT</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
         </dependency>
     </dependencies>
 </project>

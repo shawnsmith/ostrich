@@ -10,6 +10,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <groupId>com.bazaarvoice.soa</groupId>
     <artifactId>soa-core</artifactId>
     <version>0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
