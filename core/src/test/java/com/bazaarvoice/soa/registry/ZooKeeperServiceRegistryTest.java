@@ -64,42 +64,42 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
 
     @Test
     public void testRegister() throws Exception {
-        _registry.register(FOO);
+        assertTrue(_registry.register(FOO));
         assertRegistered(FOO);
     }
 
     @Test
     public void testDuplicateRegister() throws Exception {
-        _registry.register(FOO);
-        _registry.register(FOO);
+        assertTrue(_registry.register(FOO));
+        assertTrue(_registry.register(FOO));
         assertRegistered(FOO);
     }
 
     @Test
     public void testUnregister() throws Exception {
-        _registry.register(FOO);
-        _registry.unregister(FOO);
+        assertTrue(_registry.register(FOO));
+        assertTrue(_registry.unregister(FOO));
         assertNotRegistered(FOO);
     }
 
     @Test
     public void testUnregisterWithoutFirstRegistering() throws Exception {
-        _registry.unregister(FOO);
+        assertTrue(_registry.unregister(FOO));
         assertNotRegistered(FOO);
     }
 
     @Test
     public void testDuplicateUnregister() throws Exception {
-        _registry.register(FOO);
-        _registry.unregister(FOO);
-        _registry.unregister(FOO);
+        assertTrue(_registry.register(FOO));
+        assertTrue(_registry.unregister(FOO));
+        assertTrue(_registry.unregister(FOO));
         assertNotRegistered(FOO);
     }
 
     @Test
     public void testServiceNodeIsDeletedWhenSessionDisconnects() throws Exception {
         String path = ZooKeeperServiceRegistry.makeEndpointPath(FOO);
-        _registry.register(FOO);
+        assertTrue(_registry.register(FOO));
 
         CountDownLatch latch = new CountDownLatch(1);
         _curator.checkExists().usingWatcher(new CountDownWatcher(latch)).forPath(path);
@@ -116,7 +116,7 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
     @Test
     public void testServiceNodeIsRecreatedWhenSessionReconnects() throws Exception {
         String path = ZooKeeperServiceRegistry.makeEndpointPath(FOO);
-        _registry.register(FOO);
+        assertTrue(_registry.register(FOO));
 
         CountDownLatch deletionLatch = new CountDownLatch(1);
         _curator.checkExists().usingWatcher(new CountDownWatcher(deletionLatch)).forPath(path);
