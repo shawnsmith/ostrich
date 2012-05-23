@@ -1,19 +1,27 @@
 package com.bazaarvoice.soa.retry;
 
-import com.bazaarvoice.soa.RetryPolicy;
 import com.google.common.base.Preconditions;
 
+import java.util.concurrent.TimeUnit;
+
 /** A retry policy that permits a fixed number of attempts at executing an operation. */
-public class RetryNTimes implements RetryPolicy {
-    private final int _maxNumAttempts;
+public class RetryNTimes extends SleepingRetry {
+    private final long _sleepTimeBetweenAttemptsMillis;
 
     public RetryNTimes(int maxNumAttempts) {
-        Preconditions.checkArgument(maxNumAttempts > 0);
-        _maxNumAttempts = maxNumAttempts;
+        this(maxNumAttempts, 0, TimeUnit.MILLISECONDS);
+    }
+
+    public RetryNTimes(int maxNumAttempts, long sleepTimeBetweenRetries, TimeUnit unit) {
+        super(maxNumAttempts);
+
+        Preconditions.checkArgument(sleepTimeBetweenRetries >= 0);
+        Preconditions.checkNotNull(unit);
+        _sleepTimeBetweenAttemptsMillis = unit.toMillis(sleepTimeBetweenRetries);
     }
 
     @Override
-    public boolean allowRetry(int numAttempts, long elapsedTimeMs) {
-        return numAttempts < _maxNumAttempts;
+    protected long getSleepTimeMs(int numAttempts, long elapsedTimeMs) {
+        return _sleepTimeBetweenAttemptsMillis;
     }
 }

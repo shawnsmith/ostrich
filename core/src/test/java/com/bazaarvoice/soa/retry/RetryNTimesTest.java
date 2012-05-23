@@ -13,9 +13,10 @@ public class RetryNTimesTest {
         new RetryNTimes(-1);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testZeroNumberOfTimesTimes() {
-        new RetryNTimes(0);
+    @Test
+    public void testZeroNumberOfTimes() {
+        RetryNTimes retry = new RetryNTimes(0);
+        assertFalse(retry.allowRetry(0, 0));
     }
 
     @Test
