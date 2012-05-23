@@ -154,4 +154,15 @@
         <module>core</module>
         <module>examples</module>
     </modules>
+
+    <distributionManagement>
+        <repository>
+            <id>bazaarvoice-deploy</id>
+            <url>https://repo.bazaarvoice.com/nexus/content/repositories/releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>bazaarvoice-deploy</id>
+            <url>https://repo.bazaarvoice.com/nexus/content/repositories/snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
 </project>
