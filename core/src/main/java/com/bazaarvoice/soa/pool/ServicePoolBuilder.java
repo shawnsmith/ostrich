@@ -1,20 +1,12 @@
 package com.bazaarvoice.soa.pool;
 
 import com.bazaarvoice.soa.HostDiscovery;
-import com.bazaarvoice.soa.LoadBalanceAlgorithm;
-import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.Service;
-import com.bazaarvoice.soa.ServiceCallback;
-import com.bazaarvoice.soa.ServiceException;
 import com.bazaarvoice.soa.ServiceFactory;
-import com.bazaarvoice.soa.ServiceEndpoint;
-import com.bazaarvoice.soa.ServicePool;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Throwables;
 import com.google.common.base.Ticker;
 
-import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -22,6 +14,7 @@ public class ServicePoolBuilder<S extends Service> {
     private Ticker _ticker = Ticker.systemTicker();
     private HostDiscovery _hostDiscovery;
     private ServiceFactory<S> _serviceFactory;
+    private ScheduledExecutorService _healthCheckExecutor;
 
     @VisibleForTesting
     ServicePoolBuilder<S> withTicker(Ticker ticker) {
@@ -39,44 +32,16 @@ public class ServicePoolBuilder<S extends Service> {
         return this;
     }
 
-    public ServicePool<S> build() {
+    public ServicePoolBuilder<S> withHealthCheckExecutor(ScheduledExecutorService executor) {
+        _healthCheckExecutor = checkNotNull(executor);
+        return this;
+    }
+
+    public com.bazaarvoice.soa.ServicePool<S> build() {
         checkNotNull(_hostDiscovery);
         checkNotNull(_serviceFactory);
+        checkNotNull(_healthCheckExecutor);
 
-        return new ServicePool<S>() {
-            LoadBalanceAlgorithm _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm());
-
-            // TODO: It feels like this implementation has too many concerns going on.  Specifically the flow of
-            // TODO: ServiceEndpoint objects moving from HostDiscovery to the LoadBalanceAlgorithm to the
-            // TODO: ServiceFactory.  Perhaps these can all be combined in some way?
-
-            @Override
-            public <R> R execute(RetryPolicy retry, ServiceCallback<S, R> callback) {
-                Stopwatch sw = new Stopwatch(_ticker);
-                sw.start();
-
-                int numAttempts = 0;
-                do {
-                    Iterable<ServiceEndpoint> hosts = _hostDiscovery.getHosts();
-                    ServiceEndpoint endpoint = _loadBalanceAlgorithm.choose(hosts);
-                    S service = _serviceFactory.create(endpoint);
-
-                    try {
-                        return callback.call(service);
-                    } catch (ServiceException e) {
-                        // This is a known and supported exception.  Retry.
-                    } catch (Exception e) {
-                        throw Throwables.propagate(e);
-                    }
-                } while (retry.allowRetry(++numAttempts, sw.elapsedMillis()));
-
-                throw new ServiceException();
-            }
-
-            @Override
-            public <R> Future<R> executeAsync(RetryPolicy retry, ServiceCallback<S, R> callback) {
-                throw new UnsupportedOperationException();
-            }
-        };
+        return new ServicePool<S>(_ticker, _hostDiscovery, _serviceFactory, _healthCheckExecutor);
     }
 }
