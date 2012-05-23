@@ -8,6 +8,12 @@
     <version>0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
+    <scm>
+        <url>https://github.com/bazaarvoice/ostrich</url>
+        <connection>scm:git:git@github.com:bazaarvoice/ostrich.git</connection>
+        <developerConnection>scm:git:git@github.com:bazaarvoice/ostrich.git</developerConnection>
+    </scm>
+
     <name>soa</name>
 
     <properties>
