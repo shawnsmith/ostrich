@@ -48,7 +48,7 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void testMakeEndpointPathNullService() throws Exception {
+    public void testMakeEndpointPathNullEndpoint() throws Exception {
         ZooKeeperServiceRegistry.makeEndpointPath(null);
     }
 

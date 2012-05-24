@@ -169,10 +169,10 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
      */
     @VisibleForTesting
     static String makeEndpointPath(ServiceEndpoint endpoint) {
-        return makeEndpointPart(endpoint.getServiceName(), endpoint.getServiceAddress());
-    }
+        checkNotNull(endpoint);
 
-    private static String makeEndpointPart(String serviceName, String serviceAddress) {
-        return ZKPaths.makePath(makeServicePath(serviceName), serviceAddress);
+        String servicePath = makeServicePath(endpoint.getServiceName());
+        String serviceAddress = endpoint.getServiceAddress();
+        return ZKPaths.makePath(servicePath, serviceAddress);
     }
 }
