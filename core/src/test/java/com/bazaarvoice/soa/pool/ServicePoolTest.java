@@ -10,20 +10,26 @@ import com.bazaarvoice.soa.ServiceException;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.ServicePool;
 import com.google.common.base.Ticker;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.Futures;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
-import java.util.Arrays;
 import java.util.Set;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyCollection;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
@@ -34,19 +40,81 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 public class ServicePoolTest {
-    private Ticker _ticker;
+    private static final ServiceEndpoint FOO_ENDPOINT = new ServiceEndpoint("FooService", "localhost", 80);
+    private static final ServiceEndpoint BAR_ENDPOINT = new ServiceEndpoint("BarService", "localhost", 81);
+    private static final ServiceEndpoint BAZ_ENDPOINT = new ServiceEndpoint("BazService", "localhost", 82);
 
+    private static final Service FOO_SERVICE = mock(Service.class);
+    private static final Service BAR_SERVICE = mock(Service.class);
+    private static final Service BAZ_SERVICE = mock(Service.class);
+
+    private static final RetryPolicy NEVER_RETRY = new RetryPolicy() {
+        @Override
+        public boolean allowRetry(int numAttempts, long elapsedTimeMs) {
+            return false;
+        }
+    };
+
+    private HostDiscovery _hostDiscovery;
+    private ServiceFactory<Service> _serviceFactory;
+    private ScheduledExecutorService _healthCheckExecutor;
+    private ServicePool<Service> _pool;
+
+    @SuppressWarnings("unchecked")
     @Before
     public void setup() {
-        _ticker = mock(Ticker.class);
+        //
+        // This setup method takes the approach of building a reasonably useful ServicePool using mocks that can then be
+        // customized by individual test methods to add whatever functionality they need to (or ignored completely).
+        //
+
+        _hostDiscovery = mock(HostDiscovery.class);
+        when(_hostDiscovery.getHosts()).thenReturn(ImmutableList.of(FOO_ENDPOINT, BAR_ENDPOINT, BAZ_ENDPOINT));
+
+        _serviceFactory = (ServiceFactory<Service>) mock(ServiceFactory.class);
+        when(_serviceFactory.create(eq(FOO_ENDPOINT))).thenReturn(FOO_SERVICE);
+        when(_serviceFactory.create(eq(BAR_ENDPOINT))).thenReturn(BAR_SERVICE);
+        when(_serviceFactory.create(eq(BAZ_ENDPOINT))).thenReturn(BAZ_SERVICE);
+        when(_serviceFactory.getLoadBalanceAlgorithm()).thenReturn(new LoadBalanceAlgorithm() {
+            @Override
+            public ServiceEndpoint choose(Iterable<ServiceEndpoint> endpoints) {
+                // Always choose the first endpoint.  This is probably fine since most tests will have just a single
+                // endpoint available anyways.
+                return endpoints.iterator().next();
+            }
+        });
+
+        _healthCheckExecutor = mock(ScheduledExecutorService.class);
+        when(_healthCheckExecutor.submit(any(Runnable.class))).then(new Answer<Future<?>>() {
+            @Override
+            public Future<?> answer(InvocationOnMock invocation) throws Throwable {
+                // Execute the runnable on this thread...
+                Runnable runnable = (Runnable) invocation.getArguments()[0];
+                runnable.run();
+
+                // The task is already complete, so the future should return null as per the ScheduledExecutorService
+                // contract.
+                return Futures.immediateFuture(null);
+            }
+        });
+
+        _pool = new ServicePoolBuilder<Service>()
+                .withHostDiscovery(_hostDiscovery)
+                .withServiceFactory(_serviceFactory)
+                .withHealthCheckExecutor(_healthCheckExecutor)
+                .withTicker(mock(Ticker.class))
+                .build();
     }
 
     @Test
     public void testCallInvokedWithCorrectService() {
-        final Service expectedService = mock(Service.class);
+        Service expectedService = mock(Service.class);
+
+        // Wire our expected service into the system
+        when(_serviceFactory.create(FOO_ENDPOINT)).thenReturn(expectedService);
 
         // Don't leak service endpoints in real code!!!  This is just a test case.
-        Service actualService = newPool(expectedService).execute(neverRetry(), new ServiceCallback<Service, Service>() {
+        Service actualService = _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Service>() {
             @Override
             public Service call(Service s) {
                 return s;
@@ -56,10 +124,39 @@ public class ServicePoolTest {
         assertSame(expectedService, actualService);
     }
 
+    @Test(expected = ServiceException.class)
+    public void testThrowsServiceExceptionWhenNoEndpointsAvailable() {
+        // Host discovery sees no endpoints...
+        when(_hostDiscovery.getHosts()).thenReturn(ImmutableList.<ServiceEndpoint>of());
+        _pool.execute(NEVER_RETRY, null);
+    }
+
+    @Test(expected = ServiceException.class)
+    public void testThrowsServiceExceptionWhenOnlyBadEndpointsAvailable() {
+        // Exhaust all of the endpoints...
+        int numEndpointsAvailable = Iterables.size(_hostDiscovery.getHosts());
+        for (int i = 0; i < numEndpointsAvailable; i++) {
+            try {
+                _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
+                    @Override
+                    public Void call(Service service) throws ServiceException {
+                        throw new ServiceException();
+                    }
+                });
+                fail();  // should have propagated service exception
+            } catch (ServiceException e) {
+                // Expected
+            }
+        }
+
+        // This should trigger a service exception because there are no more available endpoints.
+        _pool.execute(NEVER_RETRY, null);
+    }
+
     @Test
     public void testDoesNotRetryOnCallbackSuccess() {
-        RetryPolicy retry = neverRetry();
-        newPool().execute(retry, new ServiceCallback<Service, Void>() {
+        RetryPolicy retry = mock(RetryPolicy.class);
+        _pool.execute(retry, new ServiceCallback<Service, Void>() {
             @Override
             public Void call(Service service) {
                 return null;
@@ -73,10 +170,11 @@ public class ServicePoolTest {
 
     @Test
     public void testAttemptsToRetryOnServiceException() {
-        RetryPolicy retry = neverRetry();
-        ServicePool<Service> pool = newPool();
+        RetryPolicy retry = mock(RetryPolicy.class);
+        when(retry.allowRetry(anyInt(), anyLong())).thenReturn(false);
+
         try {
-            pool.execute(retry, new ServiceCallback<Service, Void>() {
+            _pool.execute(retry, new ServiceCallback<Service, Void>() {
                 @Override
                 public Void call(Service service) {
                     throw new ServiceException();
@@ -93,12 +191,11 @@ public class ServicePoolTest {
 
     @Test
     public void testDoesNotAttemptToRetryOnNonServiceException() {
-        RetryPolicy retry = neverRetry();
-        ServicePool<Service> pool = newPool();
+        RetryPolicy retry = mock(RetryPolicy.class);
         try {
-            pool.execute(retry, new ServiceCallback<Service, Object>() {
+            _pool.execute(retry, new ServiceCallback<Service, Void>() {
                 @Override
-                public Object call(Service service) throws ServiceException {
+                public Void call(Service service) throws ServiceException {
                     throw new NullPointerException();
                 }
             });
@@ -114,11 +211,10 @@ public class ServicePoolTest {
         RetryPolicy retry = mock(RetryPolicy.class);
         when(retry.allowRetry(anyInt(), anyLong())).thenReturn(true, true, false);
 
-        ServicePool<Service> pool = newPool(3);
         try {
-            pool.execute(retry, new ServiceCallback<Service, Object>() {
+            _pool.execute(retry, new ServiceCallback<Service, Void>() {
                 @Override
-                public Object call(Service service) throws ServiceException {
+                public Void call(Service service) throws ServiceException {
                     throw new ServiceException();
                 }
             });
@@ -135,16 +231,14 @@ public class ServicePoolTest {
         RetryPolicy retry = mock(RetryPolicy.class);
         when(retry.allowRetry(anyInt(), anyLong())).thenReturn(true, true, false);
 
-        // We don't have a great way to check which ServiceEndpoints are being used, but we know that a new service
-        // is created for each one.  So let's return the services shown to the callback, and make sure they're all
-        // different.
+        // Each endpoint has a specific service that it's supposed to return.  Remember each service we've seen so
+        // that we can make sure we saw the correct ones.
         final Set<Service> seenServices = Sets.newHashSet();
 
-        ServicePool<Service> pool = newPool(3);
         try {
-            pool.execute(retry, new ServiceCallback<Service, Set<Service>>() {
+            _pool.execute(retry, new ServiceCallback<Service, Void>() {
                 @Override
-                public Set<Service> call(Service service) throws ServiceException {
+                public Void call(Service service) throws ServiceException {
                     seenServices.add(service);
                     throw new ServiceException();
                 }
@@ -152,20 +246,16 @@ public class ServicePoolTest {
 
             fail();
         } catch (ServiceException expected) {
-            // Make sure we saw 3 different service instances.
-            assertEquals(3, seenServices.size());
+            assertEquals(Sets.newHashSet(FOO_SERVICE, BAR_SERVICE, BAZ_SERVICE), seenServices);
         }
     }
 
     @Test
     public void testSubmitsHealthCheckOnServiceException() {
-        ScheduledExecutorService healthCheckExecutor = mock(ScheduledExecutorService.class);
-
-        ServicePool<Service> pool = newPool(healthCheckExecutor);
         try {
-            pool.execute(neverRetry(), new ServiceCallback<Service, Object>() {
+            _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
                 @Override
-                public Object call(Service service) throws ServiceException {
+                public Void call(Service service) throws ServiceException {
                     throw new ServiceException();
                 }
             });
@@ -176,17 +266,15 @@ public class ServicePoolTest {
         }
 
         // Make sure we added a health check.
-        verify(healthCheckExecutor).submit(any(com.bazaarvoice.soa.pool.ServicePool.HealthCheck.class));
+        verify(_healthCheckExecutor).submit(any(com.bazaarvoice.soa.pool.ServicePool.HealthCheck.class));
     }
 
     @Test
     public void testDoesNotSubmitHealthCheckOnNonServiceException() {
-        ScheduledExecutorService healthCheckExecutor = mock(ScheduledExecutorService.class);
-        ServicePool<Service> pool = newPool(healthCheckExecutor);
         try {
-            pool.execute(neverRetry(), new ServiceCallback<Service, Object>() {
+            _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
                 @Override
-                public Object call(Service service) throws ServiceException {
+                public Void call(Service service) throws ServiceException {
                     throw new NullPointerException();
                 }
             });
@@ -197,90 +285,101 @@ public class ServicePoolTest {
         }
 
         // Make sure we didn't add a health check.
-        verify(healthCheckExecutor, never()).submit(any(com.bazaarvoice.soa.pool.ServicePool.HealthCheck.class));
+        verify(_healthCheckExecutor, never()).submit(any(com.bazaarvoice.soa.pool.ServicePool.HealthCheck.class));
     }
 
     @Test
-    public void testSchedulesHealthCheckUponCreation() {
-        ScheduledExecutorService healthCheckExecutor = mock(ScheduledExecutorService.class);
-        newPool(healthCheckExecutor);
+    public void testSchedulesPeriodicHealthCheckUponCreation() {
+        // The pool was already created so the health check executor should have been used already.
 
-        verify(healthCheckExecutor).scheduleAtFixedRate(
+        verify(_healthCheckExecutor).scheduleAtFixedRate(
                 any(com.bazaarvoice.soa.pool.ServicePool.BatchHealthChecks.class),
                 eq(com.bazaarvoice.soa.pool.ServicePool.HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS),
                 eq(com.bazaarvoice.soa.pool.ServicePool.HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS),
                 eq(TimeUnit.SECONDS));
     }
 
-    // TODO: I'm not very happy with the various newPool methods here, maybe a builder class would be better.
+    @Test
+    public void testCallsHealthCheckAfterServiceException() throws InterruptedException {
+        final AtomicBoolean healthCheckCalled = new AtomicBoolean(false);
+        when(_serviceFactory.isHealthy(any(ServiceEndpoint.class))).then(new Answer<Boolean>() {
+            @Override
+            public Boolean answer(InvocationOnMock invocation) throws Throwable {
+                healthCheckCalled.set(true);
+                return false;
+            }
+        });
 
-    private ServicePool<Service> newPool() {
-        return newPool(1);
-    }
+        try {
+            _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
+                @Override
+                public Void call(Service service) throws ServiceException {
+                    throw new ServiceException();
+                }
+            });
 
-    private ServicePool<Service> newPool(int n) {
-        Service[] services = new Service[n];
-        for (int i = 0; i < n; i++) {
-            services[i] = mock(Service.class);
-        }
-        return newPool(services);
-    }
-
-    @SuppressWarnings("unchecked")
-    private <S extends Service> ServicePool<S> newPool(S... services) {
-        // A do-nothing executor service for dealing with health checks
-        ScheduledExecutorService healthCheckExecutor = mock(ScheduledExecutorService.class);
-
-        return newPool(healthCheckExecutor, services);
-    }
-
-    private ServicePool<Service> newPool(ScheduledExecutorService healthCheckExecutor) {
-        Service service = mock(Service.class);
-        return newPool(healthCheckExecutor, service);
-    }
-
-    @SuppressWarnings("unchecked")
-    private <S extends Service> ServicePool<S> newPool(ScheduledExecutorService healthCheckExecutor, S... services) {
-        ServiceEndpoint[] endpoints = new ServiceEndpoint[services.length];
-        for (int i = 0; i < services.length; i++) {
-            // TODO: If this were an interface we could mock it...
-            endpoints[i] = new ServiceEndpoint("service", "server", 8080 + i);
+            fail();
+        } catch (ServiceException expected) {
+            // Expected exception
         }
 
-        // A host discovery implementation that only ever finds the endpoints corresponding to the passed in services
-        HostDiscovery discovery = mock(HostDiscovery.class);
-        when(discovery.getHosts()).thenReturn(Arrays.asList(endpoints));
+        // A health check should have been called...we use the equivalent of a same thread executor, so we know that
+        // it's been called already.  No need to wait.
+        assertTrue(healthCheckCalled.get());
+    }
 
-        // A load balance algorithm that always returns our specific endpoint
-        LoadBalanceAlgorithm loadBalanceAlgorithm = mock(LoadBalanceAlgorithm.class);
-        when(loadBalanceAlgorithm.choose(anyCollection())).thenReturn(first(endpoints), rest(endpoints));
+    @Test
+    public void testDoesNotCallHealthCheckAfterNonServiceException() throws InterruptedException {
+        try {
+            _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
+                @Override
+                public Void call(Service service) throws ServiceException {
+                    throw new NullPointerException();
+                }
+            });
 
-        // A service factory that only knows how to create our service endpoints
-        ServiceFactory<S> factory = (ServiceFactory<S>) mock(ServiceFactory.class);
-        when(factory.getLoadBalanceAlgorithm()).thenReturn(loadBalanceAlgorithm);
-        for (int i = 0; i < services.length; i++) {
-            when(factory.create(endpoints[i])).thenReturn(services[i]);
+            fail();
+        } catch (NullPointerException expected) {
+            // Expected exception
         }
 
-        return new ServicePoolBuilder<S>()
-                .withHostDiscovery(discovery)
-                .withServiceFactory(factory)
-                .withHealthCheckExecutor(healthCheckExecutor)
-                .withTicker(_ticker)
-                .build();
+        // Make sure we never tried to call any health checks
+        verify(_serviceFactory, never()).isHealthy(any(ServiceEndpoint.class));
     }
 
-    private RetryPolicy neverRetry() {
-        RetryPolicy policy = mock(RetryPolicy.class);
-        when(policy.allowRetry(anyInt(), anyLong())).thenReturn(false);
-        return policy;
-    }
+    @Test
+    public void testAllowsEndpointToBeUsedAgainAfterSuccessfulHealthCheck() {
+        when(_serviceFactory.isHealthy(any(ServiceEndpoint.class))).then(new Answer<Boolean>() {
+            @Override
+            public Boolean answer(InvocationOnMock invocation) throws Throwable {
+                // Only allow BAZ to have a valid health check -- we know based on the load balance strategy that this
+                // will be the last failed endpoint
+                return (invocation.getArguments()[0] == BAZ_ENDPOINT);
+            }
+        });
 
-    private <T> T first(T[] array) {
-        return array[0];
-    }
+        // Exhaust all of the endpoints...
+        int numEndpointsAvailable = Iterables.size(_hostDiscovery.getHosts());
+        for (int i = 0; i < numEndpointsAvailable; i++) {
+            try {
+                _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Object>() {
+                    @Override
+                    public Object call(Service service) throws ServiceException {
+                        throw new ServiceException();
+                    }
+                });
+                fail();  // should have propagated service exception
+            } catch (ServiceException e) {
+                // Expected
+            }
+        }
 
-    private <T> T[] rest(T[] array) {
-        return Arrays.copyOfRange(array, 1, array.length);
+        // BAZ should still be healthy, so this shouldn't throw an exception.
+        _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
+            @Override
+            public Void call(Service service) throws ServiceException {
+                return null;
+            }
+        });
     }
 }
