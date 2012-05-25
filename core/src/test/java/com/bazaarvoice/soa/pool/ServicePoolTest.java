@@ -16,6 +16,7 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -35,6 +36,7 @@ import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
@@ -349,22 +351,17 @@ public class ServicePoolTest {
 
     @Test
     public void testAllowsEndpointToBeUsedAgainAfterSuccessfulHealthCheck() {
-        when(_serviceFactory.isHealthy(any(ServiceEndpoint.class))).then(new Answer<Boolean>() {
-            @Override
-            public Boolean answer(InvocationOnMock invocation) throws Throwable {
-                // Only allow BAZ to have a valid health check -- we know based on the load balance strategy that this
-                // will be the last failed endpoint
-                return (invocation.getArguments()[0] == BAZ_ENDPOINT);
-            }
-        });
+        // Only allow BAZ to have a valid health check -- we know based on the load balance strategy that this
+        // will be the last failed endpoint
+        when(_serviceFactory.isHealthy(eq(BAZ_ENDPOINT))).thenReturn(true);
 
         // Exhaust all of the endpoints...
         int numEndpointsAvailable = Iterables.size(_hostDiscovery.getHosts());
         for (int i = 0; i < numEndpointsAvailable; i++) {
             try {
-                _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Object>() {
+                _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
                     @Override
-                    public Object call(Service service) throws ServiceException {
+                    public Void call(Service service) throws ServiceException {
                         throw new ServiceException();
                     }
                 });
@@ -375,11 +372,92 @@ public class ServicePoolTest {
         }
 
         // BAZ should still be healthy, so this shouldn't throw an exception.
-        _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
+        Service usedService = _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Service>() {
             @Override
-            public Void call(Service service) throws ServiceException {
-                return null;
+            public Service call(Service service) throws ServiceException {
+                return service;
             }
         });
+        assertSame(BAZ_SERVICE, usedService);
+    }
+
+    @Test
+    public void testBatchHealthCheckAllowsEndpointToBeUsedAgainAfterSuccessfulHealthCheck() {
+        // Exhaust all of the endpoints...
+        int numEndpointsAvailable = Iterables.size(_hostDiscovery.getHosts());
+        for (int i = 0; i < numEndpointsAvailable; i++) {
+            try {
+                _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
+                    @Override
+                    public Void call(Service service) throws ServiceException {
+                        throw new ServiceException();
+                    }
+                });
+                fail();  // should have propagated service exception
+            } catch (ServiceException e) {
+                // Expected
+            }
+        }
+
+        // Set it up so that when we health check FOO, that it becomes healthy.
+        when(_serviceFactory.isHealthy(eq(FOO_ENDPOINT))).thenReturn(true);
+
+        // Capture the BatchHealthChecks runnable that was registered with the executor so that we can execute it.
+        ArgumentCaptor<Runnable> check = ArgumentCaptor.forClass(Runnable.class);
+        verify(_healthCheckExecutor).scheduleAtFixedRate(check.capture(), anyLong(), anyLong(), any(TimeUnit.class));
+
+        // Execute the background health checks, this should make FOO healthy again.
+        check.getValue().run();
+
+        // FOO should be healthy so we shouldn't get an exception.
+        Service usedService = _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Service>() {
+            @Override
+            public Service call(Service service) throws ServiceException {
+                return service;
+            }
+        });
+        assertSame(FOO_SERVICE, usedService);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testBadEndpointIsNoLongerHealthCheckedAfterHostDiscoveryRemovesIt() {
+        // Redefine the endpoints that HostDiscovery knows about to be only FOO
+        when(_hostDiscovery.getHosts()).thenReturn(ImmutableList.of(FOO_ENDPOINT));
+
+        // Make it so that FOO is considered bad...
+        try {
+            _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
+                @Override
+                public Void call(Service service) throws ServiceException {
+                    throw new ServiceException();
+                }
+            });
+            fail();  // should have propagated service exception
+        } catch (ServiceException e) {
+            // Expected
+        }
+
+        // At this point the health check for FOO would have been executed since it just failed.  We're going to
+        // reset the serviceFactory mock at this point so that we forget that that has happened.  Once we reset it,
+        // it's not going to be good for much, but the rest of this test fortunately doesn't interact with it.
+        reset(_serviceFactory);
+
+        // Capture the endpoint listener that was registered with HostDiscovery
+        ArgumentCaptor<HostDiscovery.EndpointListener> listener = ArgumentCaptor.forClass(
+                HostDiscovery.EndpointListener.class);
+        verify(_hostDiscovery).addListener(listener.capture());
+
+        // Now, have HostDiscovery fire an event saying that FOO has been removed
+        listener.getValue().onEndpointRemoved(FOO_ENDPOINT);
+
+        // Capture the BatchHealthChecks runnable that was registered with the executor so that we can execute it.
+        ArgumentCaptor<Runnable> check = ArgumentCaptor.forClass(Runnable.class);
+        verify(_healthCheckExecutor).scheduleAtFixedRate(check.capture(), anyLong(), anyLong(), any(TimeUnit.class));
+
+        // Execute the background health checks, this shouldn't check FOO at all
+        check.getValue().run();
+
+        verify(_serviceFactory, never()).isHealthy(eq(FOO_ENDPOINT));
     }
 }
