@@ -27,16 +27,28 @@ public class Http {
             throw Throwables.propagate(e);
         }
 
-        InputStream stream = null;
+        HttpURLConnection connection = null;
         try {
-            stream = url.openStream();
-            byte[] bytes = ByteStreams.toByteArray(stream);
-            return new String(bytes, Charsets.UTF_8);
+            connection = (HttpURLConnection) url.openConnection();
+            if (connection.getResponseCode() != 200) {
+                // The server returned an error -- retrying with another server could get a successful response.
+                throw new ServiceException();
+            }
+
+            InputStream stream = connection.getInputStream();
+            try {
+                byte[] bytes = ByteStreams.toByteArray(stream);
+                return new String(bytes, Charsets.UTF_8);
+            } finally {
+                Closeables.closeQuietly(stream);
+            }
         } catch (IOException e) {
             // Was an exception processing the request -- retrying could solve it.
             throw new ServiceException(e);
         } finally {
-            Closeables.closeQuietly(stream);
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 

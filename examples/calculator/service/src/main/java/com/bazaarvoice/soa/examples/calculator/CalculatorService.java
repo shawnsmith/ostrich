@@ -12,6 +12,8 @@ import com.yammer.dropwizard.config.Environment;
 import java.net.InetAddress;
 
 public class CalculatorService extends Service<Configuration> {
+    public static boolean IS_HEALTHY = true;
+
     public CalculatorService() {
         super("calculator");
     }
@@ -19,6 +21,8 @@ public class CalculatorService extends Service<Configuration> {
     @Override
     protected void initialize(Configuration config, Environment env) throws Exception {
         env.addResource(CalculatorResource.class);
+        env.addResource(ToggleHealthResource.class);
+        env.addHealthCheck(new CalculatorHealthCheck());
 
         String hostname = InetAddress.getLocalHost().getHostName();
         int port = config.getHttpConfiguration().getPort();

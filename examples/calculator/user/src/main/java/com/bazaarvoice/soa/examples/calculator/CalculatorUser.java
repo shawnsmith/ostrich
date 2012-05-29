@@ -26,15 +26,20 @@ public class CalculatorUser {
 
         //noinspection InfiniteLoopStatement
         while (true) {
-            int sum = _calculatorPool.execute(new RetryNTimes(3, 100, TimeUnit.MILLISECONDS),
-                    new ServiceCallback<CalculatorService, Integer>() {
-                        @Override
-                        public Integer call(CalculatorService service) throws ServiceException {
-                            return service.add(1, 2);
-                        }
-                    });
-            System.out.println("i: " + i + ", sum: " + sum);
-            Thread.sleep(100);
+            try {
+                int sum = _calculatorPool.execute(new RetryNTimes(3, 100, TimeUnit.MILLISECONDS),
+                        new ServiceCallback<CalculatorService, Integer>() {
+                            @Override
+                            public Integer call(CalculatorService service) throws ServiceException {
+                                return service.add(1, 2);
+                            }
+                        });
+                System.out.println("i: " + i + ", sum: " + sum);
+            } catch (Exception e) {
+                System.out.println("i: " + i + ", " + e.getClass().getCanonicalName());
+            }
+
+            Thread.sleep(500);
             i++;
         }
     }
