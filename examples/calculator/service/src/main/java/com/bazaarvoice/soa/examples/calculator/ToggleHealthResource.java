@@ -14,7 +14,7 @@ public class ToggleHealthResource {
     @GET
     @Timed
     @Path("/{state}")
-    public boolean add(@PathParam("state") boolean newState) {
+    public boolean toggle(@PathParam("state") boolean newState) {
         CalculatorService.IS_HEALTHY = newState;
         return CalculatorService.IS_HEALTHY;
     }

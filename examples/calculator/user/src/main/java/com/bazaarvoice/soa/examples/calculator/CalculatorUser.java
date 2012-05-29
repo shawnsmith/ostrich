@@ -10,6 +10,7 @@ import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfigurationBuilder;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -22,19 +23,31 @@ public class CalculatorUser {
     }
 
     public void use() throws InterruptedException {
+        final Random rnd = new Random();
         int i = 0;
 
         //noinspection InfiniteLoopStatement
         while (true) {
             try {
-                int sum = _calculatorPool.execute(new RetryNTimes(3, 100, TimeUnit.MILLISECONDS),
+                int result = _calculatorPool.execute(new RetryNTimes(3, 100, TimeUnit.MILLISECONDS),
                         new ServiceCallback<CalculatorService, Integer>() {
                             @Override
                             public Integer call(CalculatorService service) throws ServiceException {
-                                return service.add(1, 2);
+                                int a = rnd.nextInt(10);
+                                int b = 1 + rnd.nextInt(9);
+                                int op = rnd.nextInt(4);
+                                if (op == 0) {
+                                    return service.add(a, b);
+                                } else if (op == 1) {
+                                    return service.sub(a, b);
+                                } else if (op == 2) {
+                                    return service.mul(a, b);
+                                } else {
+                                    return service.div(a, b);
+                                }
                             }
                         });
-                System.out.println("i: " + i + ", sum: " + sum);
+                System.out.println("i: " + i + ", result: " + result);
             } catch (Exception e) {
                 System.out.println("i: " + i + ", " + e.getClass().getCanonicalName());
             }
@@ -45,8 +58,10 @@ public class CalculatorUser {
     }
 
     public static void main(String[] args) throws InterruptedException {
+        String connectString = (args.length > 0) ? args[0] : "localhost:2181";
+
         ZooKeeperConfiguration config = new ZooKeeperConfigurationBuilder()
-                .withConnectString("localhost:2181")
+                .withConnectString(connectString)
                 .withRetryNTimes(3, 100)
                 .build();
 

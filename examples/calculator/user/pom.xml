@@ -17,6 +17,31 @@
     <name>calculator-user</name>
     <description>Calculator example showing usage of the client API</description>
 
+    <build>
+        <plugins>
+            <plugin>
+                <!-- Shade the output jars so they contain all dependencies -->
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.bazaarvoice.soa.examples.calculator.CalculatorUser</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
     <dependencies>
         <dependency>
             <groupId>com.bazaarvoice.soa</groupId>
