@@ -14,6 +14,8 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.base.Ticker;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -26,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<S> {
-    // By default check every minute to see if an previously unhealthy endpoint has become healthy.
+    // By default check every minute to see if a previously unhealthy endpoint has become healthy.
     @VisibleForTesting
     static final long HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS = 60;
 
@@ -37,6 +39,7 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
     private final LoadBalanceAlgorithm _loadBalanceAlgorithm;
     private final Set<ServiceEndpoint> _badEndpoints;
     private final Predicate<ServiceEndpoint> _badEndpointFilter;
+    private final Set<ServiceEndpoint> _recentlyRemovedEndpoints;
 
     public ServicePool(Ticker ticker, HostDiscovery hostDiscovery, ServiceFactory<S> serviceFactory,
                        ScheduledExecutorService healthCheckExecutor) {
@@ -47,6 +50,11 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
         _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm());
         _badEndpoints = Sets.newSetFromMap(Maps.<ServiceEndpoint, Boolean>newConcurrentMap());
         _badEndpointFilter = Predicates.not(Predicates.in(_badEndpoints));
+        _recentlyRemovedEndpoints = Sets.newSetFromMap(CacheBuilder.newBuilder()
+                .ticker(_ticker)
+                .expireAfterWrite(10, TimeUnit.MINUTES)  // TODO: Make this a constant
+                .<ServiceEndpoint, Boolean>build()
+                .asMap());
 
         // Watch endpoints as they are removed from host discovery so that we can remove them from our set of bad
         // endpoints as well.  This will prevent the badEndpoints set from growing in an unbounded fashion.  There is a
@@ -60,14 +68,12 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
         _hostDiscovery.addListener(new HostDiscovery.EndpointListener() {
             @Override
             public void onEndpointAdded(ServiceEndpoint endpoint) {
-                // If we wanted to assume that all new endpoints were bad until verified, we could add them to the
-                // bad endpoints set here and schedule an immediate health check for them.  That way we wouldn't ever
-                // use an endpoint until it was known to be good.
+                addEndpoint(endpoint);
             }
 
             @Override
             public void onEndpointRemoved(ServiceEndpoint endpoint) {
-                _badEndpoints.remove(endpoint);
+                removeEndpoint(endpoint);
             }
         });
 
@@ -95,8 +101,7 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
                 // This is a known and supported exception indicating that something went wrong somewhere in the service
                 // layer while trying to communicate with the endpoint.  These errors are often transient, so we enqueue
                 // a health check for the endpoint and mark it as unavailable for the time being.
-                _badEndpoints.add(endpoint);
-                _healthCheckExecutor.submit(new HealthCheck(endpoint));
+                markEndpointAsBad(endpoint);
             } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
@@ -108,6 +113,37 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
     @Override
     public <R> Future<R> executeAsync(RetryPolicy retry, ServiceCallback<S, R> callback) {
         throw new UnsupportedOperationException();
+    }
+
+    @VisibleForTesting
+    Set<ServiceEndpoint> getBadEndpoints() {
+        return ImmutableSet.copyOf(_badEndpoints);
+    }
+
+    private synchronized void addEndpoint(ServiceEndpoint endpoint) {
+        _recentlyRemovedEndpoints.remove(endpoint);
+        _badEndpoints.remove(endpoint);
+    }
+
+    private synchronized void removeEndpoint(ServiceEndpoint endpoint) {
+        // Mark this endpoint as recently removed.  We do this in order to keep a positive set of removed
+        // endpoints so that we avoid a potential race condition where someone was using this endpoint while
+        // we noticed it was disappeared from host discovery.  In that case there is the potential that they
+        // would add it to the bad endpoints set after we've already processed the removal, thus leading to a
+        // memory leak in the bad endpoints set.  Having this time-limited view of the recently removed
+        // endpoints ensures that this memory leak doesn't happen.
+        _recentlyRemovedEndpoints.add(endpoint);
+        _badEndpoints.remove(endpoint);
+    }
+
+    private synchronized void markEndpointAsBad(ServiceEndpoint endpoint) {
+        if (_recentlyRemovedEndpoints.contains(endpoint)) {
+            // Nothing to do, we've already removed this endpoint
+            return;
+        }
+
+        _badEndpoints.add(endpoint);
+        _healthCheckExecutor.submit(new HealthCheck(endpoint));
     }
 
     @VisibleForTesting

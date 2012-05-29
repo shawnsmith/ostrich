@@ -8,7 +8,6 @@ import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.ServiceException;
 import com.bazaarvoice.soa.ServiceFactory;
-import com.bazaarvoice.soa.ServicePool;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -100,7 +99,7 @@ public class ServicePoolTest {
             }
         });
 
-        _pool = new ServicePoolBuilder<Service>()
+        _pool = (ServicePool) new ServicePoolBuilder<Service>()
                 .withHostDiscovery(_hostDiscovery)
                 .withServiceFactory(_serviceFactory)
                 .withHealthCheckExecutor(_healthCheckExecutor)
@@ -459,5 +458,35 @@ public class ServicePoolTest {
         check.getValue().run();
 
         verify(_serviceFactory, never()).isHealthy(eq(FOO_ENDPOINT));
+    }
+
+    @Test
+    public void testBadEndpointDisappearingFromHostDiscoveryDuringCallback() {
+        // Redefine the endpoints that HostDiscovery knows about to be only FOO
+        when(_hostDiscovery.getHosts()).thenReturn(ImmutableList.of(FOO_ENDPOINT));
+
+        // Capture the endpoint listener that was registered with HostDiscovery
+        final ArgumentCaptor<HostDiscovery.EndpointListener> listener = ArgumentCaptor.forClass(
+                HostDiscovery.EndpointListener.class);
+        verify(_hostDiscovery).addListener(listener.capture());
+
+        try {
+            _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
+                @Override
+                public Void call(Service service) throws ServiceException {
+                    // Have HostDiscovery tell the ServicePool that FOO is gone.
+                    listener.getValue().onEndpointRemoved(FOO_ENDPOINT);
+
+                    // Now fail this request, this shouldn't result with any bad endpoints
+                    throw new ServiceException();
+                }
+            });
+            fail();  // should have propagated service exception
+        } catch (ServiceException e) {
+            // Expected
+        }
+
+        // At this point the bad endpoints list should be empty
+        assertTrue(_pool.getBadEndpoints().isEmpty());
     }
 }
