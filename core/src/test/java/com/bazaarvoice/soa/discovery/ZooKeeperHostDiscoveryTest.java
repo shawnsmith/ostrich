@@ -87,7 +87,6 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
         assertTrue(waitUntilSize(discovery.getHosts(), 0));
 
         assertEquals(0, eventCounter.getNumAdds());  // endpoints initially visible never fire add events
-        assertEquals(1, eventCounter.getNumRemoves());
     }
 
     @Test

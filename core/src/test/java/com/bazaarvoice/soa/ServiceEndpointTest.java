@@ -17,7 +17,6 @@ import static org.junit.Assert.fail;
 
 public class ServiceEndpointTest
 {
-    private static final int MAX_PAYLOAD_SIZE_IN_CHARACTERS = ServiceEndpoint.MAX_PAYLOAD_SIZE_IN_CHARACTERS;
     private static final DateTimeFormatter ISO8601 = ServiceEndpoint.ISO8601;
 
     @Test
@@ -48,15 +47,6 @@ public class ServiceEndpointTest
         assertThrows(base.withAddress("localhost", -1), IllegalArgumentException.class);
         assertThrows(base.withAddress("localhost", -2), IllegalArgumentException.class);
         assertThrows(base.withAddress("localhost", 65536), IllegalArgumentException.class);
-    }
-
-    @Test
-    public void testPayloadSize() {
-        ServiceEndpointBuilder base = new ServiceEndpointBuilder();
-
-        assertThrows(base.withPayload(string(MAX_PAYLOAD_SIZE_IN_CHARACTERS + 1)), IllegalArgumentException.class);
-        base.withPayload(string(MAX_PAYLOAD_SIZE_IN_CHARACTERS)).build(); // small enough, doesn't throw
-        base.withPayload("").build(); // doesn't throw
     }
 
     @Test
@@ -95,7 +85,7 @@ public class ServiceEndpointTest
         assertEquals(endpoint, ServiceEndpoint.fromJson(endpoint.toJson()));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = AssertionError.class)
     public void testFromJsonWithMalformedJson() throws Exception {
         ServiceEndpoint.fromJson("{");
     }
@@ -157,14 +147,6 @@ public class ServiceEndpointTest
         }
     }
 
-    private String string(int length) {
-        StringBuilder sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            sb.append('x');
-        }
-        return sb.toString();
-    }
-
     private String buildJson(String without) throws IOException {
         StringWriter writer = new StringWriter();
 
@@ -219,10 +201,6 @@ public class ServiceEndpointTest
 
         public ServiceEndpointBuilder withAddress(String hostname, int port) {
             return new ServiceEndpointBuilder(_serviceName, hostname, port, _payload);
-        }
-
-        public ServiceEndpointBuilder withPayload(String payload) {
-            return new ServiceEndpointBuilder(_serviceName, _hostname, _port, payload);
         }
 
         public ServiceEndpoint build() {

@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Objects;
-import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -36,12 +35,6 @@ public final class ServiceEndpoint
     @VisibleForTesting
     static final DateTimeFormatter ISO8601 = ISODateTimeFormat.dateTime().withZoneUTC();
 
-    // ZooKeeper has a 1MB limit on the size of node data, so we need to make sure that our payload isn't too large.
-    // We reserve 100KB for internal use by the SOA library and allow the remaining 900KB to be used by our payload.
-    // Strings in java are UTF-16 so each character takes 2 bytes.
-    @VisibleForTesting
-    static final int MAX_PAYLOAD_SIZE_IN_CHARACTERS = 900*1024/2;
-
     private final String _serviceName;
     private final HostAndPort _address;
     private final DateTime _registrationTime;
@@ -59,7 +52,6 @@ public final class ServiceEndpoint
         checkArgument(serviceName != null && serviceName.length() > 0);
         checkArgument(VALID_CHARACTERS.matchesAllOf(serviceName));
         checkArgument(hostname != null && hostname.length() > 0);
-        checkArgument(payload == null || payload.length() <= MAX_PAYLOAD_SIZE_IN_CHARACTERS);
 
         _serviceName = serviceName;
         _address = HostAndPort.fromParts(hostname, port);
@@ -131,8 +123,7 @@ public final class ServiceEndpoint
             generator.close();
         } catch (IOException e) {
             // We're writing primitives to an in-memory stream -- we should never have an exception thrown.
-            // TODO: Log?
-            throw Throwables.propagate(e);
+            throw new AssertionError(e);
         }
 
         return writer.toString();
@@ -155,8 +146,7 @@ public final class ServiceEndpoint
 
             return new ServiceEndpoint(name, hostname, port, registrationTime, payload);
         } catch (IOException e) {
-            // TODO: Is propagating the right thing to do here?
-            throw Throwables.propagate(e);
+            throw new AssertionError(e);  // Shouldn't get IO errors reading from a string
         }
     }
 }

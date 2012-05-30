@@ -112,7 +112,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
     }
 
     private ServiceEndpoint toEndpoint(ChildData data) {
-        String json = new String(data.getData(), Charsets.UTF_16);
+        String json = new String(data.getData(), Charsets.UTF_8);
         return ServiceEndpoint.fromJson(json);
     }
 

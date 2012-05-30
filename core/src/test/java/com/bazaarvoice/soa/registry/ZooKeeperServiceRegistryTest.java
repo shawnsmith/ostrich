@@ -3,6 +3,8 @@ package com.bazaarvoice.soa.registry;
 import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
+import com.google.common.base.Charsets;
+import com.google.common.base.Strings;
 import com.netflix.curator.framework.CuratorFramework;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -13,6 +15,7 @@ import org.junit.Test;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry.MAX_DATA_SIZE;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -60,6 +63,23 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
     @Test(expected = IllegalArgumentException.class)
     public void testMakeServicePathEmptyName() throws Exception {
         ZooKeeperServiceRegistry.makeServicePath("");
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testLargeEndpointSize() {
+        int padding = new ServiceEndpoint("Foo", "server", 80, "").toJson().getBytes(Charsets.UTF_8).length;
+        _registry.register(new ServiceEndpoint("Foo", "server", 80, Strings.repeat("x", MAX_DATA_SIZE - padding)));
+    }
+
+    @Test
+    public void testMediumEndpointSize() {
+        int padding = new ServiceEndpoint("Foo", "server", 80, "").toJson().getBytes(Charsets.UTF_8).length;
+        _registry.register(new ServiceEndpoint("Foo", "server", 80, Strings.repeat("x", MAX_DATA_SIZE - padding - 1)));
+    }
+
+    @Test
+    public void testEmptyPayload() {
+        _registry.register(new ServiceEndpoint("Foo", "server", 80, ""));
     }
 
     @Test
