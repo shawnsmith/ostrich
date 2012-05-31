@@ -2,8 +2,8 @@ package com.bazaarvoice.soa.registry;
 
 import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.ServiceRegistry;
-import com.bazaarvoice.soa.internal.CuratorConfiguration;
-import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
+import com.bazaarvoice.soa.internal.CuratorConnectionFactory;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConnectionFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
@@ -42,8 +42,8 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     /** The ephemeral data that's been written to ZooKeeper.  Saved in case the connection is lost and then regained. */
     private final Map<String, byte[]> _ephemeralData = Maps.newConcurrentMap();
 
-    public ZooKeeperServiceRegistry(ZooKeeperConfiguration config) {
-        this(((CuratorConfiguration) checkNotNull(config)).getCurator());
+    public ZooKeeperServiceRegistry(ZooKeeperConnectionFactory connectionFactory) {
+        this(((CuratorConnectionFactory) checkNotNull(connectionFactory)).getCurator());
     }
 
     @VisibleForTesting

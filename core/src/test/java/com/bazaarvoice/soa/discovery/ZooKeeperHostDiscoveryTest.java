@@ -4,7 +4,7 @@ import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
-import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConnectionFactory;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Closeables;
 import com.netflix.curator.framework.CuratorFramework;
@@ -25,7 +25,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
     @Override
     public void setup() throws Exception {
         super.setup();
-        _registry = new ZooKeeperServiceRegistry(newZooKeeperConfiguration());
+        _registry = new ZooKeeperServiceRegistry(newZooKeeperConnectionFactory());
         _discovery = new ZooKeeperHostDiscovery(newCurator(), FOO.getServiceName());
     }
 
@@ -37,7 +37,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
     @Test(expected = NullPointerException.class)
     public void testNullConfiguration() {
-        new ZooKeeperHostDiscovery((ZooKeeperConfiguration) null, FOO.getServiceName());
+        new ZooKeeperHostDiscovery((ZooKeeperConnectionFactory) null, FOO.getServiceName());
     }
 
     @Test(expected = NullPointerException.class)

@@ -1,26 +1,21 @@
 package com.bazaarvoice.soa;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Objects;
+import com.google.common.collect.Maps;
 import com.google.common.net.HostAndPort;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
-import java.io.IOException;
-import java.io.StringWriter;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public final class ServiceEndpoint
-{
+public final class ServiceEndpoint {
     // Service names and versions have a restricted set of valid characters in them for simplicity.  These are the
     // characters that can appear in a URL without needing escaping.  This will let us refer to services with a URL
     // looking structure (e.g. prod://services/profile-v1)
@@ -108,44 +103,23 @@ public final class ServiceEndpoint
     }
 
     public String toJson() {
-        StringWriter writer = new StringWriter();
-
-        try {
-            JsonGenerator generator = new JsonFactory().createJsonGenerator(writer);
-            generator.writeStartObject();
-            generator.writeStringField("registration-time", ISO8601.print(_registrationTime));
-            generator.writeStringField("name", _serviceName);
-            generator.writeStringField("host", _address.getHostText());
-            generator.writeNumberField("port", _address.getPort());
-            generator.writeStringField("payload", _payload);
-            generator.writeEndObject();
-            generator.close();
-        } catch (IOException e) {
-            // We're writing primitives to an in-memory stream -- we should never have an exception thrown.
-            throw new AssertionError(e);
-        }
-
-        return writer.toString();
+        Map<String, Object> data = Maps.newLinkedHashMap();
+        data.put("registration-time", ISO8601.print(_registrationTime));
+        data.put("name", _serviceName);
+        data.put("host", _address.getHostText());
+        data.put("port", _address.getPort());
+        data.put("payload", _payload);
+        return JsonHelper.toJson(data);
     }
 
     public static ServiceEndpoint fromJson(String json) {
-        try {
-            JsonNode root = new ObjectMapper().readTree(json);
-            JsonNode nameNode = checkNotNull(root.get("name"));
-            JsonNode hostNode = checkNotNull(root.get("host"));
-            JsonNode portNode = checkNotNull(root.get("port"));
-            JsonNode registrationTimeNode = checkNotNull(root.get("registration-time"));
-            JsonNode payloadNode = checkNotNull(root.get("payload"));
+        Map<?, ?> data = JsonHelper.fromJson(json, Map.class);
+        String name = (String) checkNotNull(data.get("name"));
+        String host = (String) checkNotNull(data.get("host"));
+        int port = ((Number) checkNotNull(data.get("port"))).intValue();
+        DateTime registrationTime = ISO8601.parseDateTime((String) checkNotNull(data.get("registration-time")));
+        String payload = (String) data.get("payload");
 
-            String name = nameNode.textValue();
-            String hostname = hostNode.textValue();
-            int port = portNode.intValue();
-            DateTime registrationTime = ISO8601.parseDateTime(registrationTimeNode.textValue());
-            String payload = !payloadNode.isNull() ? payloadNode.textValue() : null;
-
-            return new ServiceEndpoint(name, hostname, port, registrationTime, payload);
-        } catch (IOException e) {
-            throw new AssertionError(e);  // Shouldn't get IO errors reading from a string
-        }
+        return new ServiceEndpoint(name, host, port, registrationTime, payload);
     }
 }

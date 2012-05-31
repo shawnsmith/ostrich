@@ -1,6 +1,6 @@
 package com.bazaarvoice.soa.internal;
 
-import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConnectionFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -18,14 +18,14 @@ import java.util.concurrent.ThreadFactory;
  * internal package to avoid users from using it.  Curator should not appear anywhere in the public interface of the SOA
  * library.
  *
- * @see com.bazaarvoice.soa.zookeeper.ZooKeeperConfigurationBuilder
+ * @see com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration
  */
-public class CuratorConfiguration implements ZooKeeperConfiguration {
+public class CuratorConnectionFactory implements ZooKeeperConnectionFactory {
     private final String _connectString;
     private final RetryPolicy _retryPolicy;
     private CuratorFramework _curator;
 
-    public CuratorConfiguration(String connectString, RetryPolicy retryPolicy) {
+    public CuratorConnectionFactory(String connectString, RetryPolicy retryPolicy) {
         _connectString = Preconditions.checkNotNull(connectString);
         _retryPolicy = Preconditions.checkNotNull(retryPolicy);
     }

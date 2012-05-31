@@ -2,9 +2,9 @@ package com.bazaarvoice.soa.discovery;
 
 import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.ServiceEndpoint;
-import com.bazaarvoice.soa.internal.CuratorConfiguration;
+import com.bazaarvoice.soa.internal.CuratorConnectionFactory;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
-import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConnectionFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
@@ -45,8 +45,8 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
     private final Set<EndpointListener> _listeners;
     private final PathChildrenCache _pathCache;
 
-    public ZooKeeperHostDiscovery(ZooKeeperConfiguration config, String serviceName) {
-        this(((CuratorConfiguration) checkNotNull(config)).getCurator(), serviceName);
+    public ZooKeeperHostDiscovery(ZooKeeperConnectionFactory cxnFactory, String serviceName) {
+        this(((CuratorConnectionFactory) checkNotNull(cxnFactory)).getCurator(), serviceName);
     }
 
     @VisibleForTesting

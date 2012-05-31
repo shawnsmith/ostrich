@@ -1,9 +1,9 @@
 package com.bazaarvoice.soa;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.JsonGenerator;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 import org.junit.Test;
@@ -11,7 +11,10 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.StringWriter;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class ServiceEndpointTest
 {
@@ -127,9 +130,9 @@ public class ServiceEndpointTest
         ServiceEndpoint.fromJson(buildJson("registration-time"));
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testFromJsonWithMissingPayload() throws Exception {
-        ServiceEndpoint.fromJson(buildJson("payload"));
+        assertEquals(null, ServiceEndpoint.fromJson(buildJson("payload")).getPayload());
     }
 
     private void assertThrows(ServiceEndpointBuilder builder, Class<? extends Throwable> cls) {
@@ -157,15 +160,15 @@ public class ServiceEndpointTest
     private void assertJson(String json, ServiceEndpoint endpoint) throws Exception {
         JsonNode root = new ObjectMapper().readTree(json);
 
-        assertEquals(endpoint.getServiceName(), root.get("name").textValue());
-        assertEquals(endpoint.getHostname(), root.get("host").textValue());
-        assertEquals(endpoint.getPort(), root.get("port").intValue());
-        assertEquals(endpoint.getRegistrationTime(), ISO8601.parseDateTime(root.get("registration-time").textValue()));
+        assertEquals(endpoint.getServiceName(), root.get("name").getTextValue());
+        assertEquals(endpoint.getHostname(), root.get("host").getTextValue());
+        assertEquals(endpoint.getPort(), root.get("port").getIntValue());
+        assertEquals(endpoint.getRegistrationTime(), ISO8601.parseDateTime(root.get("registration-time").getTextValue()));
 
         if (endpoint.getPayload() != null) {
-            assertEquals(endpoint.getPayload(), root.get("payload").textValue());
+            assertEquals(endpoint.getPayload(), root.get("payload").getTextValue());
         } else {
-            assertNull(root.get("payload").textValue());
+            assertNull(root.get("payload").getTextValue());
         }
     }
 
