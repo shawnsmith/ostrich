@@ -11,9 +11,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.StringWriter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 public class ServiceEndpointTest
 {
@@ -47,6 +45,25 @@ public class ServiceEndpointTest
         assertThrows(base.withAddress("localhost", -1), IllegalArgumentException.class);
         assertThrows(base.withAddress("localhost", -2), IllegalArgumentException.class);
         assertThrows(base.withAddress("localhost", 65536), IllegalArgumentException.class);
+    }
+
+    @Test
+    public void testEqualityHashCode() {
+        ServiceEndpoint endpoint = new ServiceEndpoint("Foo", "server", 80);
+        assertHashCodeAndEquals(endpoint, new ServiceEndpoint("Foo", "server", 80));
+        assertTrue(!endpoint.equals(new ServiceEndpoint("Foo", "server", 81)));
+        assertTrue(!endpoint.equals(new ServiceEndpoint("Foo", "server2", 80)));
+        assertTrue(!endpoint.equals(new ServiceEndpoint("Goo", "server", 80)));
+        assertTrue(!endpoint.equals(new ServiceEndpoint("Foo", "server", 80, "")));
+        assertTrue(!endpoint.equals(new ServiceEndpoint("Foo", "server", 80, "payload")));
+    }
+
+    @Test
+    public void testPayloadEqualityHashCode() {
+        ServiceEndpoint endpoint = new ServiceEndpoint("Foo", "server", 80, "payload");
+        assertHashCodeAndEquals(endpoint, new ServiceEndpoint("Foo", "server", 80, "payload"));
+        assertTrue(!endpoint.equals(new ServiceEndpoint("Foo", "server", 80, "")));
+        assertTrue(!endpoint.equals(new ServiceEndpoint("Foo", "server", 80)));
     }
 
     @Test
@@ -130,6 +147,11 @@ public class ServiceEndpointTest
                 fail("Expected " + expectedClassName + " to be thrown, instead " + actualClassName + " was thrown.");
             }
         }
+    }
+
+    private void assertHashCodeAndEquals(Object expected, Object actual) {
+        assertEquals(expected, actual);
+        assertEquals(expected.hashCode(), actual.hashCode());
     }
 
     private void assertJson(String json, ServiceEndpoint endpoint) throws Exception {

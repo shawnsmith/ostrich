@@ -85,7 +85,7 @@ public final class ServiceEndpoint
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(_serviceName, _address, _registrationTime, _payload);
+        return Objects.hashCode(_serviceName, _address, _payload);
     }
 
     @Override
@@ -96,7 +96,6 @@ public final class ServiceEndpoint
         ServiceEndpoint that = (ServiceEndpoint) obj;
         return Objects.equal(_serviceName, that._serviceName)
                 && Objects.equal(_address, that._address)
-                && Objects.equal(_registrationTime, that._registrationTime)
                 && Objects.equal(_payload, that._payload);
     }
 
