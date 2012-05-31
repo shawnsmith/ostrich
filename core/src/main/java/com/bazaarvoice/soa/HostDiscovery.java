@@ -7,6 +7,12 @@ package com.bazaarvoice.soa;
  */
 public interface HostDiscovery {
     /**
+     * Ensure the set of hosts is up-to-date with respect to new hosts.  This method does not guarantee that old hosts
+     * have been removed.
+     */
+    void refresh();
+
+    /**
      * Retrieve the available hosts.
      *
      * @return The available hosts.
