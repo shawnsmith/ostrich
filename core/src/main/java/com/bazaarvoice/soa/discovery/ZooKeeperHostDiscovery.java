@@ -140,6 +140,11 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
     }
 
     @Override
+    public boolean isHost(ServiceEndpoint endpoint) {
+        return _endpoints.contains(endpoint);
+    }
+
+    @Override
     public void addListener(EndpointListener listener) {
         _listeners.add(listener);
     }

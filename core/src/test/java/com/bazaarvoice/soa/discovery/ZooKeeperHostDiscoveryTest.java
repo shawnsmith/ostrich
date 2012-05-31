@@ -74,6 +74,14 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
     }
 
     @Test
+    public void testMembershipCheck() {
+        _registry.register(FOO);
+        assertTrue(waitUntilSize(_discovery.getHosts(), 1));
+        assertTrue(_discovery.isHost(FOO));
+        assertTrue(!_discovery.isHost(new ServiceEndpoint("Foo", "server2", 8080)));
+    }
+
+    @Test
     public void testAlreadyExistingEndpointsDoNotFireEvents() throws Exception {
         _registry.register(FOO);
 
