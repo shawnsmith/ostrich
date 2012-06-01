@@ -7,7 +7,7 @@ import com.bazaarvoice.soa.discovery.ZooKeeperHostDiscovery;
 import com.bazaarvoice.soa.pool.ServicePoolBuilder;
 import com.bazaarvoice.soa.retry.RetryNTimes;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
-import com.bazaarvoice.soa.zookeeper.ZooKeeperConnectionFactory;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperFactory;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.util.Random;
@@ -60,7 +60,7 @@ public class CalculatorUser {
     public static void main(String[] args) throws InterruptedException {
         String connectString = (args.length > 0) ? args[0] : "localhost:2181";
 
-        ZooKeeperConnectionFactory zkCxnFactory = new ZooKeeperConfiguration()
+        ZooKeeperFactory factory = new ZooKeeperConfiguration()
                 .setConnectString(connectString)
                 .setRetryNTimes(new com.bazaarvoice.soa.zookeeper.RetryNTimes(3, 100))
                 .toFactory();
@@ -70,7 +70,7 @@ public class CalculatorUser {
                 .build();
 
         ServicePool<CalculatorService> pool = new ServicePoolBuilder<CalculatorService>()
-                .withHostDiscovery(new ZooKeeperHostDiscovery(zkCxnFactory, "calculator"))
+                .withHostDiscovery(new ZooKeeperHostDiscovery(factory, "calculator"))
                 .withServiceFactory(new CalculatorServiceFactory())
                 .withHealthCheckExecutor(Executors.newScheduledThreadPool(1, daemonThreadFactory))
                 .build();

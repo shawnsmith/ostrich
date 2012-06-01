@@ -1,6 +1,6 @@
 package com.bazaarvoice.soa.internal;
 
-import com.bazaarvoice.soa.zookeeper.ZooKeeperConnectionFactory;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -20,12 +20,12 @@ import java.util.concurrent.ThreadFactory;
  *
  * @see com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration
  */
-public class CuratorConnectionFactory implements ZooKeeperConnectionFactory {
+public class CuratorFactory implements ZooKeeperFactory {
     private final String _connectString;
     private final RetryPolicy _retryPolicy;
     private CuratorFramework _curator;
 
-    public CuratorConnectionFactory(String connectString, RetryPolicy retryPolicy) {
+    public CuratorFactory(String connectString, RetryPolicy retryPolicy) {
         _connectString = Preconditions.checkNotNull(connectString);
         _retryPolicy = Preconditions.checkNotNull(retryPolicy);
     }
@@ -51,5 +51,13 @@ public class CuratorConnectionFactory implements ZooKeeperConnectionFactory {
         }
 
         return _curator;
+    }
+
+    @Override
+    public synchronized void close() throws IOException {
+        if (_curator != null) {
+            _curator.close();
+            _curator = null;
+        }
     }
 }
