@@ -8,8 +8,8 @@ import java.io.Closeable;
  * change libraries at will.  Currently this just serves as a marker interface with all of the useful functionality
  * hidden inside of an internal implementation class.  In the future this will likely have to change.
  * <p>
- * This class is thread-safe.  It's relatively expensive to initialize a <code>ZooKeeperFactory</code>, so it's best to
- * share one instance among multiple threads and multiple users.
+ * This class is thread-safe and should be shared among multiple users.  Ideally, there is one per VM per ZooKeeper
+ * ensemble.
  */
-public interface ZooKeeperFactory extends Closeable {
+public interface ZooKeeperConnection extends Closeable {
 }

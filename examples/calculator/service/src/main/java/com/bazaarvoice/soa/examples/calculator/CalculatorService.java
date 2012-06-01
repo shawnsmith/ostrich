@@ -3,7 +3,7 @@ package com.bazaarvoice.soa.examples.calculator;
 import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.ServiceRegistry;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
-import com.bazaarvoice.soa.zookeeper.ZooKeeperFactory;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
 import com.google.common.collect.ImmutableMap;
 import com.yammer.dropwizard.Service;
 import com.yammer.dropwizard.config.Environment;
@@ -36,8 +36,8 @@ public class CalculatorService extends Service<CalculatorConfiguration> {
         ServiceEndpoint endpoint = new ServiceEndpoint(getName(), hostname, port, JsonHelper.toJson(payload));
 
         // Register with ZooKeeper
-        ZooKeeperFactory factory = config.getZooKeeperConfiguration().toFactory();
-        ServiceRegistry registry = new ZooKeeperServiceRegistry(factory);
+        ZooKeeperConnection connection = config.getZooKeeperConfiguration().connect();
+        ServiceRegistry registry = new ZooKeeperServiceRegistry(connection);
         registry.register(endpoint);
     }
 

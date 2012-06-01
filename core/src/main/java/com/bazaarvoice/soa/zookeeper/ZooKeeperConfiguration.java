@@ -1,6 +1,6 @@
 package com.bazaarvoice.soa.zookeeper;
 
-import com.bazaarvoice.soa.internal.CuratorFactory;
+import com.bazaarvoice.soa.internal.CuratorConnection;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -14,11 +14,11 @@ public class ZooKeeperConfiguration {
     private RetryPolicy _retryPolicy = new RetryNTimes(3, 100);
 
     /**
-     * Returns a new {@link ZooKeeperFactory} with the current configuration settings.
-     * @return A new {@link ZooKeeperFactory} with the current configuration settings.
+     * Returns a new {@link ZooKeeperConnection} with the current configuration settings.
+     * @return A new {@link ZooKeeperConnection} with the current configuration settings.
      */
-    public ZooKeeperFactory toFactory() {
-        return new CuratorFactory(_connectString, _retryPolicy.get());
+    public ZooKeeperConnection connect() {
+        return new CuratorConnection(_connectString, _retryPolicy.get());
     }
 
     @VisibleForTesting

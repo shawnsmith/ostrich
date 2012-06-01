@@ -35,16 +35,6 @@ public interface HostDiscovery {
      */
     void removeListener(EndpointListener listener);
 
-    /**
-     * Ensure the set of hosts is up-to-date with respect to new hosts.  This method does not guarantee that old hosts
-     * have been removed.
-     * <p>
-     * It's not normally necessary to call this method.  The HostDiscovery object will automatically track changes to
-     * the set of available hosts.  You should only call the <code>refresh()</code> method when you really must
-     * guarantee that the {@link #getHosts()} method returns the most accurate picture possible.
-     */
-    void refresh();
-
     /** Listener interface that is notified when endpoints are added and removed. */
     interface EndpointListener {
         void onEndpointAdded(ServiceEndpoint endpoint);

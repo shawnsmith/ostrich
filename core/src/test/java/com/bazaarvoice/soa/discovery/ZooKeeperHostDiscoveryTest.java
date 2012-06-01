@@ -4,7 +4,7 @@ import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
-import com.bazaarvoice.soa.zookeeper.ZooKeeperFactory;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Closeables;
 import com.netflix.curator.framework.CuratorFramework;
@@ -39,7 +39,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
     @Test(expected = NullPointerException.class)
     public void testNullConfiguration() {
-        new ZooKeeperHostDiscovery((ZooKeeperFactory) null, FOO.getServiceName());
+        new ZooKeeperHostDiscovery((ZooKeeperConnection) null, FOO.getServiceName());
     }
 
     @Test(expected = NullPointerException.class)
@@ -225,15 +225,6 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
         _registry.unregister(FOO);
         assertTrue(removeLatch.await(10, TimeUnit.SECONDS));
-    }
-
-    @Test
-    public void testRefreshAddedEndpoint() {
-        // Force the ZooKeeperHostDiscovery to get updates via refresh(), not via PathChildrenCache listeners.
-        _discovery.stopWatchingForChanges();
-        _registry.register(FOO);
-        _discovery.refresh();
-        assertEquals(Iterables.size(_discovery.getHosts()), 1);
     }
 
     @Test
