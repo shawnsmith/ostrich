@@ -7,12 +7,6 @@ package com.bazaarvoice.soa;
  */
 public interface HostDiscovery {
     /**
-     * Ensure the set of hosts is up-to-date with respect to new hosts.  This method does not guarantee that old hosts
-     * have been removed.
-     */
-    void refresh();
-
-    /**
      * Retrieve the available hosts.
      *
      * @return The available hosts.
@@ -25,7 +19,7 @@ public interface HostDiscovery {
      * @param endpoint The endpoint to test.
      * @return True if the specified endpoint is a member of the set returned by {@link #getHosts()}.
      */
-    boolean isHost(ServiceEndpoint endpoint);
+    boolean contains(ServiceEndpoint endpoint);
 
     /**
      * Add an endpoint listener.
@@ -40,6 +34,16 @@ public interface HostDiscovery {
      * @param listener The endpoint listener to remove.
      */
     void removeListener(EndpointListener listener);
+
+    /**
+     * Ensure the set of hosts is up-to-date with respect to new hosts.  This method does not guarantee that old hosts
+     * have been removed.
+     * <p>
+     * It's not normally necessary to call this method.  The HostDiscovery object will automatically track changes to
+     * the set of available hosts.  You should only call the <code>refresh()</code> method when you really must
+     * guarantee that the {@link #getHosts()} method returns the most accurate picture possible.
+     */
+    void refresh();
 
     /** Listener interface that is notified when endpoints are added and removed. */
     interface EndpointListener {

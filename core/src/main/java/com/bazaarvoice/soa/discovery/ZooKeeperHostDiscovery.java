@@ -79,8 +79,8 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
     private synchronized void reload(boolean firstTime) {
         // This must be synchronized so async remove events aren't processed between the rebuild() and adding endpoints.
         // Use synchronous rebuild() instead of asynchronous refresh() so we can tell when it's done.
-        // Note: rebuild() doesn't fire events OR remove endpoints.  We'll fire add events ourselves,
-        // and just document that removed endpoints aren't necessarily removed...
+        // Note: start() and rebuild() don't fire events OR remove endpoints.  We'll fire add events ourselves,
+        // and document that refresh() won't necessarily reflect the removal of stale endpoints.
         try {
             if (firstTime) {
                 _pathCache.start(true);  // true means call rebuild() after other startup activity is done
@@ -96,10 +96,46 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
     }
 
     @Override
+    public Iterable<ServiceEndpoint> getHosts() {
+        return _endpoints;
+    }
+
+    @Override
+    public boolean contains(ServiceEndpoint endpoint) {
+        return _endpoints.contains(endpoint);
+    }
+
+    @Override
+    public void addListener(EndpointListener listener) {
+        _listeners.add(listener);
+    }
+
+    @Override
+    public void removeListener(EndpointListener listener) {
+        _listeners.remove(listener);
+    }
+
+    @Override
     public void refresh() {
         // Call sync() to ensure reads retrieve the most current state.
         sync();
         reload(false);
+    }
+
+    @Override
+    public void close() throws IOException {
+        _pathCache.close();
+        _endpoints.clear();
+    }
+
+    @VisibleForTesting
+    CuratorFramework getCurator() {
+        return _curator;
+    }
+
+    @VisibleForTesting
+    void stopWatchingForChanges() {
+        _pathCache.getListenable().clear();
     }
 
     private void sync() {
@@ -132,36 +168,6 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
         } finally {
             _curator.getCuratorListenable().removeListener(listener);
         }
-    }
-
-    @Override
-    public Iterable<ServiceEndpoint> getHosts() {
-        return _endpoints;
-    }
-
-    @Override
-    public boolean isHost(ServiceEndpoint endpoint) {
-        return _endpoints.contains(endpoint);
-    }
-
-    @Override
-    public void addListener(EndpointListener listener) {
-        _listeners.add(listener);
-    }
-
-    @Override
-    public void removeListener(EndpointListener listener) {
-        _listeners.remove(listener);
-    }
-
-    @Override
-    public void close() throws IOException {
-        _pathCache.close();
-    }
-
-    @VisibleForTesting
-    CuratorFramework getCurator() {
-        return _curator;
     }
 
     private synchronized void addEndpoint(ServiceEndpoint endpoint) {

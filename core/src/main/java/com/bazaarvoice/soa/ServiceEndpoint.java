@@ -43,7 +43,8 @@ public final class ServiceEndpoint {
         this(serviceName, hostname, port, DateTime.now(), payload);
     }
 
-    private ServiceEndpoint(String serviceName, String hostname, int port, DateTime registrationTime, String payload) {
+    @VisibleForTesting
+    ServiceEndpoint(String serviceName, String hostname, int port, DateTime registrationTime, String payload) {
         checkArgument(serviceName != null && serviceName.length() > 0);
         checkArgument(VALID_CHARACTERS.matchesAllOf(serviceName));
         checkArgument(hostname != null && hostname.length() > 0);

@@ -10,10 +10,12 @@ import com.google.common.io.Closeables;
 import com.netflix.curator.framework.CuratorFramework;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
@@ -66,6 +68,16 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
     }
 
     @Test
+    public void testClose() throws IOException {
+        // After closing, HostDiscovery returns no hosts so clients won't work if they accidentally keep using it.
+        _registry.register(FOO);
+        assertTrue(waitUntilSize(_discovery.getHosts(), 1));
+        _discovery.close();
+        assertTrue(Iterables.isEmpty(_discovery.getHosts()));
+        _discovery = null;
+    }
+
+    @Test
     public void testWaitForData() throws Exception {
         // Create the HostDiscovery after registration is done so there's at least one initial host
         _registry.register(FOO);
@@ -77,8 +89,8 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
     public void testMembershipCheck() {
         _registry.register(FOO);
         assertTrue(waitUntilSize(_discovery.getHosts(), 1));
-        assertTrue(_discovery.isHost(FOO));
-        assertTrue(!_discovery.isHost(new ServiceEndpoint("Foo", "server2", 8080)));
+        assertTrue(_discovery.contains(FOO));
+        assertFalse(_discovery.contains(new ServiceEndpoint("Foo", "server2", 8080)));
     }
 
     @Test
@@ -217,6 +229,8 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
     @Test
     public void testRefreshAddedEndpoint() {
+        // Force the ZooKeeperHostDiscovery to get updates via refresh(), not via PathChildrenCache listeners.
+        _discovery.stopWatchingForChanges();
         _registry.register(FOO);
         _discovery.refresh();
         assertEquals(Iterables.size(_discovery.getHosts()), 1);

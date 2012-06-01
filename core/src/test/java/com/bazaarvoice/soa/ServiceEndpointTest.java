@@ -12,8 +12,8 @@ import java.io.IOException;
 import java.io.StringWriter;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class ServiceEndpointTest
@@ -51,22 +51,32 @@ public class ServiceEndpointTest
     }
 
     @Test
-    public void testEqualityHashCode() {
+    public void testEquality() {
         ServiceEndpoint endpoint = new ServiceEndpoint("Foo", "server", 80);
-        assertHashCodeAndEquals(endpoint, new ServiceEndpoint("Foo", "server", 80));
-        assertTrue(!endpoint.equals(new ServiceEndpoint("Foo", "server", 81)));
-        assertTrue(!endpoint.equals(new ServiceEndpoint("Foo", "server2", 80)));
-        assertTrue(!endpoint.equals(new ServiceEndpoint("Goo", "server", 80)));
-        assertTrue(!endpoint.equals(new ServiceEndpoint("Foo", "server", 80, "")));
-        assertTrue(!endpoint.equals(new ServiceEndpoint("Foo", "server", 80, "payload")));
+        assertEquals(endpoint, endpoint);
+        assertEquals(endpoint, new ServiceEndpoint("Foo", "server", 80));
+        assertFalse(endpoint.equals(null));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Foo", "server", 81)));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Foo", "server2", 80)));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Goo", "server", 80)));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Foo", "server", 80, "")));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Foo", "server", 80, "payload")));
     }
 
     @Test
     public void testPayloadEqualityHashCode() {
         ServiceEndpoint endpoint = new ServiceEndpoint("Foo", "server", 80, "payload");
-        assertHashCodeAndEquals(endpoint, new ServiceEndpoint("Foo", "server", 80, "payload"));
-        assertTrue(!endpoint.equals(new ServiceEndpoint("Foo", "server", 80, "")));
-        assertTrue(!endpoint.equals(new ServiceEndpoint("Foo", "server", 80)));
+        testEquals(endpoint, new ServiceEndpoint("Foo", "server", 80, "payload"));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Foo", "server", 80, "")));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Foo", "server", 80)));
+    }
+
+    @Test
+    public void testRegistrationTimeEqualityHashCode() {
+        // The registrationTime should be ignored by the equals() and hashCode() methods since it doesn't
+        // distinguish two logical endpoints from each other.
+        ServiceEndpoint endpoint = new ServiceEndpoint("Foo", "server", 80);
+        testEquals(endpoint, new ServiceEndpoint("Foo", "server", 80, new DateTime(1234567890123L), null));
     }
 
     @Test
@@ -152,7 +162,7 @@ public class ServiceEndpointTest
         }
     }
 
-    private void assertHashCodeAndEquals(Object expected, Object actual) {
+    private void testEquals(Object expected, Object actual) {
         assertEquals(expected, actual);
         assertEquals(expected.hashCode(), actual.hashCode());
     }
