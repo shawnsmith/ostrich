@@ -1,9 +1,9 @@
 package com.bazaarvoice.soa;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.JsonGenerator;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 import org.junit.Test;
@@ -12,12 +12,12 @@ import java.io.IOException;
 import java.io.StringWriter;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
 public class ServiceEndpointTest
 {
-    private static final int MAX_PAYLOAD_SIZE_IN_CHARACTERS = ServiceEndpoint.MAX_PAYLOAD_SIZE_IN_CHARACTERS;
     private static final DateTimeFormatter ISO8601 = ServiceEndpoint.ISO8601;
 
     @Test
@@ -51,12 +51,32 @@ public class ServiceEndpointTest
     }
 
     @Test
-    public void testPayloadSize() {
-        ServiceEndpointBuilder base = new ServiceEndpointBuilder();
+    public void testEquality() {
+        ServiceEndpoint endpoint = new ServiceEndpoint("Foo", "server", 80);
+        assertEquals(endpoint, endpoint);
+        assertEquals(endpoint, new ServiceEndpoint("Foo", "server", 80));
+        assertFalse(endpoint.equals(null));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Foo", "server", 81)));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Foo", "server2", 80)));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Goo", "server", 80)));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Foo", "server", 80, "")));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Foo", "server", 80, "payload")));
+    }
 
-        assertThrows(base.withPayload(string(MAX_PAYLOAD_SIZE_IN_CHARACTERS + 1)), IllegalArgumentException.class);
-        base.withPayload(string(MAX_PAYLOAD_SIZE_IN_CHARACTERS)).build(); // small enough, doesn't throw
-        base.withPayload("").build(); // doesn't throw
+    @Test
+    public void testPayloadEqualityHashCode() {
+        ServiceEndpoint endpoint = new ServiceEndpoint("Foo", "server", 80, "payload");
+        testEquals(endpoint, new ServiceEndpoint("Foo", "server", 80, "payload"));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Foo", "server", 80, "")));
+        assertFalse(endpoint.equals(new ServiceEndpoint("Foo", "server", 80)));
+    }
+
+    @Test
+    public void testRegistrationTimeEqualityHashCode() {
+        // The registrationTime should be ignored by the equals() and hashCode() methods since it doesn't
+        // distinguish two logical endpoints from each other.
+        ServiceEndpoint endpoint = new ServiceEndpoint("Foo", "server", 80);
+        testEquals(endpoint, new ServiceEndpoint("Foo", "server", 80, new DateTime(1234567890123L), null));
     }
 
     @Test
@@ -95,7 +115,7 @@ public class ServiceEndpointTest
         assertEquals(endpoint, ServiceEndpoint.fromJson(endpoint.toJson()));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = AssertionError.class)
     public void testFromJsonWithMalformedJson() throws Exception {
         ServiceEndpoint.fromJson("{");
     }
@@ -120,9 +140,9 @@ public class ServiceEndpointTest
         ServiceEndpoint.fromJson(buildJson("registration-time"));
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testFromJsonWithMissingPayload() throws Exception {
-        ServiceEndpoint.fromJson(buildJson("payload"));
+        assertEquals(null, ServiceEndpoint.fromJson(buildJson("payload")).getPayload());
     }
 
     private void assertThrows(ServiceEndpointBuilder builder, Class<? extends Throwable> cls) {
@@ -142,27 +162,24 @@ public class ServiceEndpointTest
         }
     }
 
+    private void testEquals(Object expected, Object actual) {
+        assertEquals(expected, actual);
+        assertEquals(expected.hashCode(), actual.hashCode());
+    }
+
     private void assertJson(String json, ServiceEndpoint endpoint) throws Exception {
         JsonNode root = new ObjectMapper().readTree(json);
 
-        assertEquals(endpoint.getServiceName(), root.get("name").textValue());
-        assertEquals(endpoint.getHostname(), root.get("host").textValue());
-        assertEquals(endpoint.getPort(), root.get("port").intValue());
-        assertEquals(endpoint.getRegistrationTime(), ISO8601.parseDateTime(root.get("registration-time").textValue()));
+        assertEquals(endpoint.getServiceName(), root.get("name").getTextValue());
+        assertEquals(endpoint.getHostname(), root.get("host").getTextValue());
+        assertEquals(endpoint.getPort(), root.get("port").getIntValue());
+        assertEquals(endpoint.getRegistrationTime(), ISO8601.parseDateTime(root.get("registration-time").getTextValue()));
 
         if (endpoint.getPayload() != null) {
-            assertEquals(endpoint.getPayload(), root.get("payload").textValue());
+            assertEquals(endpoint.getPayload(), root.get("payload").getTextValue());
         } else {
-            assertNull(root.get("payload").textValue());
+            assertNull(root.get("payload").getTextValue());
         }
-    }
-
-    private String string(int length) {
-        StringBuilder sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            sb.append('x');
-        }
-        return sb.toString();
     }
 
     private String buildJson(String without) throws IOException {
@@ -219,10 +236,6 @@ public class ServiceEndpointTest
 
         public ServiceEndpointBuilder withAddress(String hostname, int port) {
             return new ServiceEndpointBuilder(_serviceName, hostname, port, _payload);
-        }
-
-        public ServiceEndpointBuilder withPayload(String payload) {
-            return new ServiceEndpointBuilder(_serviceName, _hostname, _port, payload);
         }
 
         public ServiceEndpoint build() {

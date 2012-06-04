@@ -2,8 +2,8 @@ package com.bazaarvoice.soa.registry;
 
 import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.ServiceRegistry;
-import com.bazaarvoice.soa.internal.CuratorConfiguration;
-import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
+import com.bazaarvoice.soa.internal.CuratorConnection;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
@@ -19,6 +19,7 @@ import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * A <code>ServiceRegistry</code> implementation that uses ZooKeeper as its backing data store.
@@ -29,6 +30,10 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     @VisibleForTesting
     static final String ROOT_SERVICES_PATH = "services";
 
+    /** Maximum number of bytes that can be stored on a node in ZooKeeper. */
+    @VisibleForTesting
+    static final int MAX_DATA_SIZE = 1024 * 1024;
+
     /** Number of attempts for the register and unregister operations to try to succeed. */
     private static final int NUM_ATTEMPTS = 3;
 
@@ -37,8 +42,8 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     /** The ephemeral data that's been written to ZooKeeper.  Saved in case the connection is lost and then regained. */
     private final Map<String, byte[]> _ephemeralData = Maps.newConcurrentMap();
 
-    public ZooKeeperServiceRegistry(ZooKeeperConfiguration config) {
-        this(((CuratorConfiguration) checkNotNull(config)).getCurator());
+    public ZooKeeperServiceRegistry(ZooKeeperConnection connection) {
+        this(((CuratorConnection) checkNotNull(connection)).getCurator());
     }
 
     @VisibleForTesting
@@ -71,7 +76,8 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
         checkNotNull(endpoint);
 
         String path = makeEndpointPath(endpoint);
-        byte[] data = endpoint.toJson().getBytes(Charsets.UTF_16);
+        byte[] data = endpoint.toJson().getBytes(Charsets.UTF_8);
+        checkState(data.length < MAX_DATA_SIZE, "Serialized form of ServiceEndpoint must be < 1MB.");
 
         // Record the fact that we're interested in publishing this path as ephemeral node data...
         _ephemeralData.put(path, data);

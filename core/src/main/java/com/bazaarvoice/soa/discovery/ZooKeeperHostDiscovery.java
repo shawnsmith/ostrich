@@ -2,9 +2,9 @@ package com.bazaarvoice.soa.discovery;
 
 import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.ServiceEndpoint;
-import com.bazaarvoice.soa.internal.CuratorConfiguration;
+import com.bazaarvoice.soa.internal.CuratorConnection;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
-import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
+import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
@@ -12,8 +12,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.io.Closeables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.netflix.curator.framework.CuratorFramework;
+import com.netflix.curator.framework.recipes.cache.ChildData;
 import com.netflix.curator.framework.recipes.cache.PathChildrenCache;
 import com.netflix.curator.framework.recipes.cache.PathChildrenCacheEvent;
 import com.netflix.curator.framework.recipes.cache.PathChildrenCacheListener;
@@ -22,9 +24,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -34,19 +34,17 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * available.  As hosts come and go the results of calling the <code>#getHosts</code> method changes.
  */
 public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
-    private static final long WAIT_FOR_DATA_TIMEOUT_IN_SECONDS = 10;
-
     private final CuratorFramework _curator;
     private final Set<ServiceEndpoint> _endpoints;
     private final Set<EndpointListener> _listeners;
     private final PathChildrenCache _pathCache;
 
-    public ZooKeeperHostDiscovery(ZooKeeperConfiguration config, String serviceName) {
-        this(((CuratorConfiguration) checkNotNull(config)).getCurator(), serviceName, true);
+    public ZooKeeperHostDiscovery(ZooKeeperConnection connection, String serviceName) {
+        this(((CuratorConnection) checkNotNull(connection)).getCurator(), serviceName);
     }
 
     @VisibleForTesting
-    ZooKeeperHostDiscovery(CuratorFramework curator, String serviceName, boolean waitForData) {
+    ZooKeeperHostDiscovery(CuratorFramework curator, String serviceName) {
         checkNotNull(curator);
         checkNotNull(serviceName);
         checkArgument(curator.isStarted());
@@ -63,41 +61,32 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
         _listeners = Sets.newSetFromMap(Maps.<EndpointListener, Boolean>newConcurrentMap());
 
         _pathCache = new PathChildrenCache(_curator, servicePath, true, threadFactory);
-        _pathCache.getListenable().addListener(new ServiceListener());
-
-        PathChildrenCacheListener waitListener = null;
-        CountDownLatch waitLatch = new CountDownLatch(1);
-        if (waitForData) {
-            // It takes a little bit of time before the Path Cache sees data.  We're going to attempt to block until we
-            // know for certain that the cache has read some data from ZooKeeper, but we don't want to block
-            // indefinitely because it's possible that there's just no data available.  We'll use a latch to wait just
-            // until data is available or up to some maximum amount otherwise.  At that point host discovery should be
-            // usable.
-            waitListener = new LatchListener(waitLatch);
-            _pathCache.getListenable().addListener(waitListener);
-        }
-
         try {
-            _pathCache.start();
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        }
+            _pathCache.getListenable().addListener(new ServiceListener());
 
-        if (waitForData) {
-            try {
-                waitLatch.await(WAIT_FOR_DATA_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                throw Throwables.propagate(e);
+            // This must be synchronized so async remove events aren't processed between start() and adding endpoints.
+            // Use synchronous start(true) instead of asynchronous start(false) so we can tell when it's done and the
+            // HostDiscovery set is usable.
+            synchronized (this) {
+                _pathCache.start(true);
+                for (ChildData childData : _pathCache.getCurrentData()) {
+                    addEndpoint(toEndpoint(childData));
+                }
             }
-
-            // Remove the listener we registered above...
-            _pathCache.getListenable().removeListener(waitListener);
+        } catch (Throwable t) {
+            Closeables.closeQuietly(this);
+            throw Throwables.propagate(t);
         }
     }
 
     @Override
     public Iterable<ServiceEndpoint> getHosts() {
         return Iterables.unmodifiableIterable(_endpoints);
+    }
+
+    @Override
+    public boolean contains(ServiceEndpoint endpoint) {
+        return _endpoints.contains(endpoint);
     }
 
     @Override
@@ -111,7 +100,8 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public synchronized void close() throws IOException {
+        _listeners.clear();
         _pathCache.close();
         _endpoints.clear();
     }
@@ -119,6 +109,32 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
     @VisibleForTesting
     CuratorFramework getCurator() {
         return _curator;
+   }
+
+    private synchronized void addEndpoint(ServiceEndpoint endpoint) {
+        // synchronize the modification of _endpoints and firing of events so listeners always receive events in the
+        // order they occur.
+        if (_endpoints.add(endpoint)) {
+            fireAddEvent(endpoint);
+        }
+    }
+
+    private synchronized void removeEndpoint(ServiceEndpoint endpoint) {
+        // synchronize the modification of _endpoints and firing of events so listeners always receive events in the
+        // order they occur.
+        if (_endpoints.remove(endpoint)) {
+            fireRemoveEvent(endpoint);
+        }
+    }
+
+    private synchronized void clearEndpoints() {
+        // synchronize the modification of _endpoints and firing of events so listeners always receive events in the
+        // order they occur.
+        Collection<ServiceEndpoint> endpoints = ImmutableList.copyOf(_endpoints);
+        _endpoints.clear();
+        for (ServiceEndpoint endpoint : endpoints) {
+            fireRemoveEvent(endpoint);
+        }
     }
 
     private void fireAddEvent(ServiceEndpoint endpoint) {
@@ -133,51 +149,34 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
         }
     }
 
+    private ServiceEndpoint toEndpoint(ChildData data) {
+        String json = new String(data.getData(), Charsets.UTF_8);
+        return ServiceEndpoint.fromJson(json);
+    }
+
     /** A curator <code>PathChildrenCacheListener</code> */
     private final class ServiceListener implements PathChildrenCacheListener {
         @Override
         public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {
             if (event.getType() == PathChildrenCacheEvent.Type.RESET) {
-                Collection<ServiceEndpoint> endpoints = ImmutableList.copyOf(_endpoints);
-                _endpoints.clear();
-                for (ServiceEndpoint endpoint : endpoints) {
-                    fireRemoveEvent(endpoint);
-                }
+                clearEndpoints();
                 return;
             }
 
-            String json = new String(event.getData().getData(), Charsets.UTF_16);
-            ServiceEndpoint endpoint = ServiceEndpoint.fromJson(json);
+            ServiceEndpoint endpoint = toEndpoint(event.getData());
 
             switch (event.getType()) {
                 case CHILD_ADDED:
-                    _endpoints.add(endpoint);
-                    fireAddEvent(endpoint);
+                    addEndpoint(endpoint);
                     break;
 
                 case CHILD_REMOVED:
-                    _endpoints.remove(endpoint);
-                    fireRemoveEvent(endpoint);
+                    removeEndpoint(endpoint);
                     break;
 
                 case CHILD_UPDATED:
                     // TODO: This should never happen.  Assert?  Log?
                     break;
-            }
-        }
-    }
-
-    private static final class LatchListener implements PathChildrenCacheListener {
-        private final CountDownLatch _latch;
-
-        public LatchListener(CountDownLatch latch) {
-            _latch = checkNotNull(latch);
-        }
-
-        @Override
-        public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {
-            if (event.getType() != PathChildrenCacheEvent.Type.RESET) {
-                _latch.countDown();
             }
         }
     }
