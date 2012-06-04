@@ -25,15 +25,15 @@ public class CalculatorService extends Service<CalculatorConfiguration> {
         env.addResource(ToggleHealthResource.class);
         env.addHealthCheck(new CalculatorHealthCheck());
 
-        String hostname = InetAddress.getLocalHost().getHostName();
+        String ip = InetAddress.getLocalHost().getHostAddress();
         int port = config.getHttpConfiguration().getPort();
         int adminPort = config.getHttpConfiguration().getAdminPort();
 
         Map<?,?> payload = ImmutableMap.builder()
-                .put("url", new URL("http", hostname, port, "/" + getName()))
-                .put("adminUrl", new URL("http", hostname, adminPort, ""))
+                .put("url", new URL("http", ip, port, "/" + getName()))
+                .put("adminUrl", new URL("http", ip, adminPort, ""))
                 .build();
-        ServiceEndpoint endpoint = new ServiceEndpoint(getName(), hostname, port, JsonHelper.toJson(payload));
+        ServiceEndpoint endpoint = new ServiceEndpoint(getName(), ip, port, JsonHelper.toJson(payload));
 
         // Register with ZooKeeper
         ZooKeeperConnection connection = config.getZooKeeperConfiguration().connect();
