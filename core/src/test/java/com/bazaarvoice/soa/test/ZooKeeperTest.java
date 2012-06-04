@@ -53,7 +53,7 @@ public abstract class ZooKeeperTest {
         assertNotNull("ZooKeeper testing server is null, did you forget to call super.setup()", _zooKeeperServer);
 
         CuratorFramework curator = CuratorFrameworkFactory.builder()
-                .connectString(_zooKeeperServer.getConnectString())
+                .connectString("127.0.0.1:" + _zooKeeperServer.getPort())
                 .retryPolicy(retryPolicy)
                 .build();
         curator.start();
