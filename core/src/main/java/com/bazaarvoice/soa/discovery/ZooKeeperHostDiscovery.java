@@ -9,6 +9,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -96,7 +97,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery, Closeable {
 
     @Override
     public Iterable<ServiceEndpoint> getHosts() {
-        return _endpoints;
+        return Iterables.unmodifiableIterable(_endpoints);
     }
 
     @Override
