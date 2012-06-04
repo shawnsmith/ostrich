@@ -12,7 +12,7 @@ public class CalculatorConfiguration extends Configuration {
         return _zooKeeperConfiguration;
     }
 
-    @JsonProperty("zookeeper")
+    @JsonProperty("zooKeeper")
     public void setZookeeperConfiguration(ZooKeeperConfiguration zooKeeperConfiguration) {
         _zooKeeperConfiguration = zooKeeperConfiguration;
     }
