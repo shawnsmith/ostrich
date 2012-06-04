@@ -7,10 +7,10 @@ import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
 import com.google.common.collect.ImmutableMap;
 import com.yammer.dropwizard.Service;
 import com.yammer.dropwizard.config.Environment;
+import com.yammer.dropwizard.lifecycle.Managed;
 
 import java.net.InetAddress;
 import java.net.URL;
-import java.util.Map;
 
 public class CalculatorService extends Service<CalculatorConfiguration> {
     public static boolean IS_HEALTHY = true;
@@ -29,16 +29,27 @@ public class CalculatorService extends Service<CalculatorConfiguration> {
         int port = config.getHttpConfiguration().getPort();
         int adminPort = config.getHttpConfiguration().getAdminPort();
 
-        Map<?,?> payload = ImmutableMap.builder()
+        // The client reads the URLs out of the payload to figure out how to connect to this server.
+        String payload = getJson().writeValueAsString(ImmutableMap.builder()
                 .put("url", new URL("http", hostname, port, "/" + getName()))
                 .put("adminUrl", new URL("http", hostname, adminPort, ""))
-                .build();
-        ServiceEndpoint endpoint = new ServiceEndpoint(getName(), hostname, port, JsonHelper.toJson(payload));
+                .build());
+        final ServiceEndpoint endpoint = new ServiceEndpoint(getName(), hostname, port, payload);
 
-        // Register with ZooKeeper
+        // Once everything has initialized successfully, register services with ZooKeeper where clients can find them.
         ZooKeeperConnection connection = config.getZooKeeperConfiguration().connect();
-        ServiceRegistry registry = new ZooKeeperServiceRegistry(connection);
-        registry.register(endpoint);
+        final ServiceRegistry registry = new ZooKeeperServiceRegistry(connection);
+        env.manage(new Managed() {
+            @Override
+            public void start() throws Exception {
+                registry.register(endpoint);
+            }
+
+            @Override
+            public void stop() throws Exception {
+                registry.unregister(endpoint);
+            }
+        });
     }
 
     public static void main(String[] args) throws Exception {
