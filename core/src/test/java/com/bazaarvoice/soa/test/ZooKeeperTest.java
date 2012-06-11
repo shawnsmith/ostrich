@@ -43,25 +43,31 @@ public abstract class ZooKeeperTest {
         Closeables.closeQuietly(_zooKeeperServer);
     }
 
-    public ZooKeeperConnection newZooKeeperConnectionFactory() throws Exception {
-        assertNotNull("ZooKeeper testing server is null, did you forget to call super.setup()", _zooKeeperServer);
+    public ZooKeeperConnection newZooKeeperConnection() throws Exception {
+        return newZooKeeperConnection(new ZooKeeperConfiguration()
+                .setRetryNTimes(new com.bazaarvoice.soa.zookeeper.RetryNTimes(0, 0)));
+    }
 
-        return new ZooKeeperConfiguration()
+    public ZooKeeperConnection newZooKeeperConnection(ZooKeeperConfiguration configuration) {
+        assertNotNull("ZooKeeper testing server is null, did you forget to call super.setup()", _zooKeeperServer);
+        return configuration
                 .setConnectString("127.0.0.1:" + _zooKeeperServer.getPort())
-                .setRetryNTimes(new com.bazaarvoice.soa.zookeeper.RetryNTimes(0, 0))
                 .connect();
     }
 
     public CuratorFramework newCurator() throws Exception {
-        return newCurator(new RetryNTimes(0, 0));
+        return newCurator(CuratorFrameworkFactory.builder().retryPolicy(new RetryNTimes(0, 0)));
     }
 
-    public CuratorFramework newCurator(com.netflix.curator.RetryPolicy retryPolicy) throws Exception {
+    public CuratorFramework newCurator(CuratorFrameworkFactory.Builder builder) throws Exception {
         assertNotNull("ZooKeeper testing server is null, did you forget to call super.setup()", _zooKeeperServer);
 
-        CuratorFramework curator = CuratorFrameworkFactory.builder()
+        if (builder == null) {
+            builder = CuratorFrameworkFactory.builder();
+        }
+
+        CuratorFramework curator = builder
                 .connectString("127.0.0.1:" + _zooKeeperServer.getPort())
-                .retryPolicy(retryPolicy)
                 .build();
         curator.start();
 
