@@ -4,11 +4,11 @@
 Vagrant::Config.run do |config|
   config.vm.define :zookeeper do |zookeeper_config|
     # Every Vagrant virtual environment requires a box to build off of.
-    zookeeper_config.vm.box = "ubuntu-11.10-server-64bit"
+    zookeeper_config.vm.box = "ubuntu-12.04-server-64bit"
 
     # The url from where the 'config.vm.box' box will be fetched if it
     # doesn't already exist on the user's system.
-    zookeeper_config.vm.box_url = "http://timhuegdon.com/vagrant-boxes/ubuntu-11.10.box"
+    zookeeper_config.vm.box_url = "http://files.vagrantup.com/precise64.box"
 
     # Forward a port from the guest to the host, which allows for outside
     # computers to access the VM, whereas host only networking does not.
@@ -40,7 +40,10 @@ Vagrant::Config.run do |config|
 
         # Install zookeeper
         cpad Installing ZooKeeper
-        DEBIAN_FRONTEND="noninteractive" sudo apt-get --assume-yes install zookeeperd
+        DEBIAN_FRONTEND="noninteractive" sudo apt-get --assume-yes install python-software-properties
+        sudo add-apt-repository --yes ppa:hadoop-ubuntu/dev
+        DEBIAN_FRONTEND="noninteractive" sudo apt-get --assume-yes update
+        DEBIAN_FRONTEND="noninteractive" sudo apt-get --assume-yes install hadoop-zookeeper-server
         echo
       eos
     end

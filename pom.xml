@@ -33,70 +33,6 @@
                         <showDeprecation>true</showDeprecation>
                     </configuration>
                 </plugin>
-
-                <!-- Build an uber-jar with all of our dependencies bundled in.  Shade 3rd party libraries into a    -->
-                <!-- custom package so that we can use exactly the versions of jars we want without impacting        -->
-                <!-- anyone.  The goal should be to have a completely self contained jar that includes all of our    -->
-                <!-- dependencies in a namespace that's local to our code.  This may be a bit too idealistic         -->
-                <!-- however because it seems that we're pulling in *A LOT* of dependencies transitively.            -->
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-shade-plugin</artifactId>
-                    <version>1.4</version>
-                    <configuration>
-                        <createDependencyReducedPom>true</createDependencyReducedPom>
-                        <filters>
-                            <filter>
-                                <artifact>*:*</artifact>
-                                <excludes>
-                                    <exclude>META-INF/*.SF</exclude>
-                                    <exclude>META-INF/*.DSA</exclude>
-                                    <exclude>META-INF/*.RSA</exclude>
-                                </excludes>
-                            </filter>
-                        </filters>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <phase>package</phase>
-                            <goals>
-                                <goal>shade</goal>
-                            </goals>
-                            <configuration>
-                                <transformers>
-                                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                                </transformers>
-
-                                <relocations>
-                                    <relocation>
-                                        <pattern>com.codehaus.jackson</pattern>
-                                        <shadedPattern>com.bazaarvoice.soa.shaded.com.codehaus.jackson</shadedPattern>
-                                    </relocation>
-                                    <relocation>
-                                        <pattern>com.google.common</pattern>
-                                        <shadedPattern>com.bazaarvoice.soa.shaded.com.google.common</shadedPattern>
-                                    </relocation>
-                                    <relocation>
-                                        <pattern>com.netflix.curator</pattern>
-                                        <shadedPattern>com.bazaarvoice.soa.shaded.com.netflix.curator</shadedPattern>
-                                    </relocation>
-                                    <relocation>
-                                        <pattern>org.apache.jute</pattern>
-                                        <shadedPattern>com.bazaarvoice.soa.shaded.org.apache.jute</shadedPattern>
-                                    </relocation>
-                                    <relocation>
-                                        <pattern>org.apache.zookeeper</pattern>
-                                        <shadedPattern>com.bazaarvoice.soa.shaded.org.apache.zookeeper</shadedPattern>
-                                    </relocation>
-                                    <relocation>
-                                        <pattern>org.joda.time</pattern>
-                                        <shadedPattern>com.bazaarvoice.soa.shaded.org.joda.time</shadedPattern>
-                                    </relocation>
-                                </relocations>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
             </plugins>
         </pluginManagement>
     </build>
@@ -109,6 +45,10 @@
                 <version>3.4.3</version>
 
                 <exclusions>
+                    <exclusion>
+                        <groupId>jline</groupId>
+                        <artifactId>jline</artifactId>
+                    </exclusion>
                     <exclusion>
                         <groupId>log4j</groupId>
                         <artifactId>log4j</artifactId>
@@ -127,11 +67,13 @@
                     </exclusion>
                 </exclusions>
             </dependency>
+
             <dependency>
                 <groupId>com.netflix.curator</groupId>
                 <artifactId>curator-recipes</artifactId>
                 <version>1.1.12</version>
             </dependency>
+
             <dependency>
                 <groupId>com.netflix.curator</groupId>
                 <artifactId>curator-test</artifactId>

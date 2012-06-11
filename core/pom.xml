@@ -17,15 +17,6 @@
     <name>core</name>
     <description>Core implementation of SOA</description>
 
-    <build>
-        <plugins>
-            <plugin>
-                <!-- Shade the output jars so they contain all dependencies -->
-                <artifactId>maven-shade-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
-
     <dependencies>
         <dependency>
             <groupId>com.netflix.curator</groupId>
