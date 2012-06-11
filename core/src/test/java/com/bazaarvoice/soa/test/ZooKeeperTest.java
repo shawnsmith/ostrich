@@ -29,6 +29,9 @@ public abstract class ZooKeeperTest {
     /** All of the curator instances that we've created running the test. */
     private List<CuratorFramework> _curatorInstances = Lists.newArrayList();
 
+    /** All of the connection instances that we've created running the test. */
+    private List<ZooKeeperConnection> _connections = Lists.newArrayList();
+
     @Before
     public void setup() throws Exception {
         _zooKeeperServer = new TestingServer();
@@ -36,6 +39,9 @@ public abstract class ZooKeeperTest {
 
     @After
     public void teardown() throws Exception {
+        for (ZooKeeperConnection connection : _connections) {
+            Closeables.closeQuietly(connection);
+        }
         for (CuratorFramework curator : _curatorInstances) {
             Closeables.closeQuietly(curator);
         }
@@ -50,9 +56,14 @@ public abstract class ZooKeeperTest {
 
     public ZooKeeperConnection newZooKeeperConnection(ZooKeeperConfiguration configuration) {
         assertNotNull("ZooKeeper testing server is null, did you forget to call super.setup()", _zooKeeperServer);
-        return configuration
+
+        ZooKeeperConnection connection = configuration
                 .setConnectString("127.0.0.1:" + _zooKeeperServer.getPort())
                 .connect();
+
+        _connections.add(connection);
+
+        return connection;
     }
 
     public CuratorFramework newCurator() throws Exception {
@@ -61,10 +72,6 @@ public abstract class ZooKeeperTest {
 
     public CuratorFramework newCurator(CuratorFrameworkFactory.Builder builder) throws Exception {
         assertNotNull("ZooKeeper testing server is null, did you forget to call super.setup()", _zooKeeperServer);
-
-        if (builder == null) {
-            builder = CuratorFrameworkFactory.builder();
-        }
 
         CuratorFramework curator = builder
                 .connectString("127.0.0.1:" + _zooKeeperServer.getPort())

@@ -6,7 +6,6 @@ import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
-import com.google.common.io.Closeables;
 import com.netflix.curator.framework.CuratorFramework;
 import org.apache.zookeeper.data.Stat;
 import org.junit.Before;
@@ -175,30 +174,22 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
 
     @Test
     public void testNamespace() throws Exception {
-        ZooKeeperConnection cxn = newZooKeeperConnection(new ZooKeeperConfiguration().setNamespace("/datacenter1"));
-        try {
-            ZooKeeperServiceRegistry registry = new ZooKeeperServiceRegistry(cxn);
-            registry.register(FOO);
+        ZooKeeperConnection connection = newZooKeeperConnection(new ZooKeeperConfiguration().setNamespace("/datacenter1"));
+        ZooKeeperServiceRegistry registry = new ZooKeeperServiceRegistry(connection);
+        registry.register(FOO);
 
-            // Use a non-namespaced curator to check that the path was created in the correct namespace
-            assertNotNull(newCurator().checkExists().forPath("/datacenter1" + registry.getRegisteredEndpointPath(FOO)));
-        } finally {
-            Closeables.closeQuietly(cxn);
-        }
+        // Use a non-namespaced curator to check that the path was created in the correct namespace
+        assertNotNull(newCurator().checkExists().forPath("/datacenter1" + registry.getRegisteredEndpointPath(FOO)));
     }
 
     @Test
     public void testEmptyNamespace() throws Exception {
-        ZooKeeperConnection cxn = newZooKeeperConnection(new ZooKeeperConfiguration().setNamespace(""));
-        try {
-            ZooKeeperServiceRegistry registry = new ZooKeeperServiceRegistry(cxn);
-            registry.register(FOO);
+        ZooKeeperConnection connection = newZooKeeperConnection(new ZooKeeperConfiguration().setNamespace(""));
+        ZooKeeperServiceRegistry registry = new ZooKeeperServiceRegistry(connection);
+        registry.register(FOO);
 
-            // Use a non-namespaced curator to check that the path was created in the correct namespace
-            assertNotNull(newCurator().checkExists().forPath(registry.getRegisteredEndpointPath(FOO)));
-        } finally {
-            Closeables.closeQuietly(cxn);
-        }
+        // Use a non-namespaced curator to check that the path was created in the correct namespace
+        assertNotNull(newCurator().checkExists().forPath(registry.getRegisteredEndpointPath(FOO)));
     }
 
     private void assertRegistered(ServiceEndpoint endpoint, CuratorFramework curator) throws Exception {
