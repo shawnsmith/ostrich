@@ -1,7 +1,10 @@
 package com.bazaarvoice.soa.test;
 
+import com.bazaarvoice.soa.HostDiscovery;
+import com.bazaarvoice.soa.ServiceEndpoint;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import com.netflix.curator.framework.CuratorFramework;
@@ -9,10 +12,14 @@ import com.netflix.curator.framework.CuratorFrameworkFactory;
 import com.netflix.curator.retry.RetryNTimes;
 import com.netflix.curator.test.KillSession;
 import com.netflix.curator.test.TestingServer;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
 import org.junit.After;
 import org.junit.Before;
 
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertNotNull;
 
@@ -40,7 +47,7 @@ public abstract class ZooKeeperTest {
         assertNotNull("ZooKeeper testing server is null, did you forget to call super.setup()", _zooKeeperServer);
 
         return new ZooKeeperConfiguration()
-                .setConnectString(_zooKeeperServer.getConnectString())
+                .setConnectString("127.0.0.1:" + _zooKeeperServer.getPort())
                 .setRetryNTimes(new com.bazaarvoice.soa.zookeeper.RetryNTimes(0, 0))
                 .connect();
     }
@@ -49,7 +56,7 @@ public abstract class ZooKeeperTest {
         return newCurator(new RetryNTimes(0, 0));
     }
 
-    private CuratorFramework newCurator(com.netflix.curator.RetryPolicy retryPolicy) throws Exception {
+    public CuratorFramework newCurator(com.netflix.curator.RetryPolicy retryPolicy) throws Exception {
         assertNotNull("ZooKeeper testing server is null, did you forget to call super.setup()", _zooKeeperServer);
 
         CuratorFramework curator = CuratorFrameworkFactory.builder()
@@ -65,5 +72,36 @@ public abstract class ZooKeeperTest {
 
     public void killSession(CuratorFramework curator) throws Exception {
         KillSession.kill(curator.getZookeeperClient().getZooKeeper(), _zooKeeperServer.getConnectString());
+    }
+
+    protected static class Trigger implements Watcher, HostDiscovery.EndpointListener {
+        private final CountDownLatch _latch;
+
+        public Trigger() {
+            _latch = new CountDownLatch(1);
+        }
+
+        @Override
+        public void process(WatchedEvent event) {
+            _latch.countDown();
+        }
+
+        @Override
+        public void onEndpointAdded(ServiceEndpoint endpoint) {
+            _latch.countDown();
+        }
+
+        @Override
+        public void onEndpointRemoved(ServiceEndpoint endpoint) {
+            _latch.countDown();
+        }
+
+        public boolean firedWithin(long duration, TimeUnit unit) {
+            try {
+                return _latch.await(duration, unit);
+            } catch (InterruptedException e) {
+                throw Throwables.propagate(e);
+            }
+        }
     }
 }

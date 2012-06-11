@@ -11,7 +11,6 @@ import com.netflix.curator.framework.CuratorFramework;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -138,93 +137,91 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
     @Test
     public void testRegisterServiceCallsListener() throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        _discovery.addListener(new CountDownListener(latch, null));
+        EndpointTrigger trigger = new EndpointTrigger();
+        _discovery.addListener(trigger);
 
         _registry.register(FOO);
-        assertTrue(latch.await(10, TimeUnit.SECONDS));
+        assertTrue(trigger.addedWithin(10, TimeUnit.SECONDS));
     }
 
     @Test
     public void testUnregisterServiceCallsListener() throws Exception {
-        CountDownLatch addLatch = new CountDownLatch(1);
-        CountDownLatch removeLatch = new CountDownLatch(1);
-        _discovery.addListener(new CountDownListener(addLatch, removeLatch));
+        EndpointTrigger trigger = new EndpointTrigger();
+        _discovery.addListener(trigger);
 
         _registry.register(FOO);
-        assertTrue(addLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(trigger.addedWithin(10, TimeUnit.SECONDS));
 
         _registry.unregister(FOO);
-        assertTrue(removeLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(trigger.removedWithin(10, TimeUnit.SECONDS));
     }
 
     @Test
     public void testRemovedListenerDoesNotSeeEvents() throws Exception {
-        CountDownLatch addLatch = new CountDownLatch(1);
-        CountDownLatch removeLatch = new CountDownLatch(1);
-        _discovery.addListener(new CountDownListener(addLatch, removeLatch));
+        EndpointTrigger trigger = new EndpointTrigger();
+        _discovery.addListener(trigger);
 
         CountingListener eventCounter = new CountingListener();
         _discovery.addListener(eventCounter);
         _discovery.removeListener(eventCounter);
 
         _registry.register(FOO);
-        assertTrue(addLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(trigger.addedWithin(10, TimeUnit.SECONDS));
 
         _registry.unregister(FOO);
-        assertTrue(removeLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(trigger.removedWithin(10, TimeUnit.SECONDS));
 
         assertEquals(0, eventCounter.getNumEvents());
     }
 
     @Test
     public void testListenerCalledWhenSessionKilled() throws Exception {
-        CountDownLatch addLatch = new CountDownLatch(1);
-        CountDownLatch removeLatch = new CountDownLatch(1);
-        _discovery.addListener(new CountDownListener(addLatch, removeLatch));
+        EndpointTrigger trigger = new EndpointTrigger();
+        _discovery.addListener(trigger);
 
         _registry.register(FOO);
-        assertTrue(addLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(trigger.addedWithin(10, TimeUnit.SECONDS));
 
         killSession(_discovery.getCurator());
 
         // The entry gets cleaned up because we've lost contact with ZooKeeper
-        assertTrue(removeLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(trigger.removedWithin(10, TimeUnit.SECONDS));
     }
 
     @Test
     public void testListenerCalledWhenServiceIsReregisteredAfterSessionKilled() throws Exception {
-        CountDownLatch addLatch = new CountDownLatch(1);
-        _discovery.addListener(new CountDownListener(addLatch, null));
+        EndpointTrigger initialTrigger = new EndpointTrigger();
+        _discovery.addListener(initialTrigger);
 
         _registry.register(FOO);
-        assertTrue(addLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(initialTrigger.addedWithin(10, TimeUnit.SECONDS));
 
-        CountDownLatch reAddLatch = new CountDownLatch(1);
-        CountDownLatch removeLatch = new CountDownLatch(1);
-        _discovery.addListener(new CountDownListener(reAddLatch, removeLatch));
+        EndpointTrigger trigger = new EndpointTrigger();
+        _discovery.addListener(trigger);
 
         killSession(_discovery.getCurator());
 
         // The entry gets cleaned up because we've lost contact with ZooKeeper
-        assertTrue(removeLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(trigger.removedWithin(10, TimeUnit.SECONDS));
 
         // Then it automatically gets created when the connection is re-established with ZooKeeper
-        assertTrue(reAddLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(trigger.addedWithin(10, TimeUnit.SECONDS));
     }
 
     @Test
     public void testMultipleListeners() throws Exception {
-        CountDownLatch addLatch = new CountDownLatch(2);
-        CountDownLatch removeLatch = new CountDownLatch(2);
-        _discovery.addListener(new CountDownListener(addLatch, removeLatch));
-        _discovery.addListener(new CountDownListener(addLatch, removeLatch));
+        EndpointTrigger trigger1 = new EndpointTrigger();
+        EndpointTrigger trigger2 = new EndpointTrigger();
+        _discovery.addListener(trigger1);
+        _discovery.addListener(trigger2);
 
         _registry.register(FOO);
-        assertTrue(addLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(trigger1.addedWithin(10, TimeUnit.SECONDS));
+        assertTrue(trigger2.addedWithin(10, TimeUnit.SECONDS));
 
         _registry.unregister(FOO);
-        assertTrue(removeLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(trigger1.removedWithin(10, TimeUnit.SECONDS));
+        assertTrue(trigger2.removedWithin(10, TimeUnit.SECONDS));
     }
 
     @Test
@@ -259,27 +256,26 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
         return waitUntilSize(iterable, size, 10, TimeUnit.SECONDS);
     }
 
-    private static final class CountDownListener implements HostDiscovery.EndpointListener {
-        private final CountDownLatch _addLatch;
-        private final CountDownLatch _removeLatch;
-
-        public CountDownListener(CountDownLatch addLatch, CountDownLatch removeLatch) {
-            _addLatch = addLatch;
-            _removeLatch = removeLatch;
-        }
+    private static final class EndpointTrigger implements HostDiscovery.EndpointListener {
+        private final Trigger _addTrigger = new Trigger();
+        private final Trigger _removeTrigger = new Trigger();
 
         @Override
         public void onEndpointAdded(ServiceEndpoint endpoint) {
-            if (_addLatch != null) {
-                _addLatch.countDown();
-            }
+            _addTrigger.onEndpointAdded(endpoint);
         }
 
         @Override
         public void onEndpointRemoved(ServiceEndpoint endpoint) {
-            if (_removeLatch != null) {
-                _removeLatch.countDown();
-            }
+            _removeTrigger.onEndpointRemoved(endpoint);
+        }
+
+        public boolean addedWithin(long duration, TimeUnit unit) throws InterruptedException {
+            return _addTrigger.firedWithin(duration, unit);
+        }
+
+        public boolean removedWithin(long duration, TimeUnit unit) throws InterruptedException {
+            return _removeTrigger.firedWithin(duration, unit);
         }
     }
 
@@ -299,10 +295,6 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
         public int getNumAdds() {
             return _numAdds;
-        }
-
-        public int getNumRemoves() {
-            return _numRemoves;
         }
 
         public int getNumEvents() {

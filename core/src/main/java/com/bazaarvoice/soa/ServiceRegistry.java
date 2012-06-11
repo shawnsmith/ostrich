@@ -9,18 +9,16 @@ public interface ServiceRegistry {
      * Add an endpoint of a service to the service registry and make it available for discovery.
      *
      * @param endpoint The endpoint of the service to register.
-     * @return Whether or not the registration operation succeeded.
      * @throws RuntimeException If there was a problem registering the endpoint.
      */
-    boolean register(ServiceEndpoint endpoint);
+    void register(ServiceEndpoint endpoint);
 
     /**
      * Remove an endpoint of a service from the service registry.  This will make it no longer available
      * to be discovered.
      *
      * @param endpoint The endpoint of the service to unregister.
-     * @return Whether or not the unregister operation succeeded.
      * @throws RuntimeException If there was a problem de-registering the endpoint.
      */
-    boolean unregister(ServiceEndpoint endpoint);
+    void unregister(ServiceEndpoint endpoint);
 }
