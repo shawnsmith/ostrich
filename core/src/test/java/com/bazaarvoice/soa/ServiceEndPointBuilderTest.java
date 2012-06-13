@@ -10,24 +10,14 @@ public class ServiceEndPointBuilderTest {
     @Test(expected = IllegalStateException.class)
     public void testMissingServiceName() {
         new ServiceEndPointBuilder()
-                .withHostname("localhost")
-                .withPort(80)
+                .withId("id")
                 .build();
     }
 
     @Test(expected = IllegalStateException.class)
-    public void testMissingHostname() {
+    public void testMissingId() {
         new ServiceEndPointBuilder()
                 .withServiceName("service")
-                .withPort(80)
-                .build();
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void testMissingPort() {
-        new ServiceEndPointBuilder()
-                .withServiceName("service")
-                .withHostname("localhost")
                 .build();
     }
 
@@ -35,48 +25,25 @@ public class ServiceEndPointBuilderTest {
     public void testServiceName() {
         ServiceEndPoint endpoint = new ServiceEndPointBuilder()
                 .withServiceName("service")
-                .withHostname("localhost")
-                .withPort(80)
+                .withId("id")
                 .build();
         assertEquals("service", endpoint.getServiceName());
     }
 
     @Test
-    public void testHostname() {
+    public void testId() {
         ServiceEndPoint endpoint = new ServiceEndPointBuilder()
                 .withServiceName("service")
-                .withHostname("localhost")
-                .withPort(80)
+                .withId("id")
                 .build();
-        assertEquals("localhost", endpoint.getHostname());
-    }
-
-    @Test
-    public void testPort() {
-        ServiceEndPoint endpoint = new ServiceEndPointBuilder()
-                .withServiceName("service")
-                .withHostname("localhost")
-                .withPort(80)
-                .build();
-        assertEquals(80, endpoint.getPort());
-    }
-
-    @Test
-    public void testServiceAddress() {
-        ServiceEndPoint endpoint = new ServiceEndPointBuilder()
-                .withServiceName("service")
-                .withHostname("localhost")
-                .withPort(80)
-                .build();
-        assertEquals("localhost:80", endpoint.getServiceAddress());
+        assertEquals("id", endpoint.getId());
     }
 
     @Test
     public void testNoPayload() {
         ServiceEndPoint endpoint = new ServiceEndPointBuilder()
                 .withServiceName("service")
-                .withHostname("localhost")
-                .withPort(80)
+                .withId("id")
                 .build();
         assertNull(endpoint.getPayload());
     }
@@ -85,8 +52,7 @@ public class ServiceEndPointBuilderTest {
     public void testEmptyPayload() {
         ServiceEndPoint endpoint = new ServiceEndPointBuilder()
                 .withServiceName("service")
-                .withHostname("localhost")
-                .withPort(80)
+                .withId("id")
                 .withPayload("")
                 .build();
         assertEquals("", endpoint.getPayload());
@@ -96,8 +62,7 @@ public class ServiceEndPointBuilderTest {
     public void testPayload() {
         ServiceEndPoint endpoint = new ServiceEndPointBuilder()
                 .withServiceName("service")
-                .withHostname("localhost")
-                .withPort(80)
+                .withId("id")
                 .withPayload("payload")
                 .build();
         assertEquals("payload", endpoint.getPayload());
@@ -105,12 +70,14 @@ public class ServiceEndPointBuilderTest {
 
     @Test
     public void testInvalidServiceNames() {
-        String[] invalidNames = new String[] {"Foo$Bar", "%", "a:b", "a@b", "!", null, ""};
+        String[] invalidNames = new String[] {"Foo$Bar", "%", "a@b", "!", null, ""};
 
         for (String name : invalidNames) {
             try {
                 new ServiceEndPointBuilder().withServiceName(name);
                 fail(name + " was allowed");
+            } catch (AssertionError e) {
+                throw e;
             } catch (IllegalArgumentException e) {
                 // Expected
             } catch (Throwable t) {
@@ -120,33 +87,19 @@ public class ServiceEndPointBuilderTest {
     }
 
     @Test
-    public void testInvalidHostNames() {
-        String[] invalidHostNames = new String[] {null, ""};
+    public void testInvalidIds() {
+        String[] invalidIds = new String[] {"Foo$Bar", "%", "a@b", "!", null, ""};
 
-        for (String hostname : invalidHostNames) {
+        for (String id : invalidIds) {
             try {
-                new ServiceEndPointBuilder().withHostname(hostname);
-                fail(hostname + " was allowed");
+                new ServiceEndPointBuilder().withId(id);
+                fail(id + " was allowed");
+            } catch (AssertionError e) {
+                throw e;
             } catch (IllegalArgumentException e) {
                 // Expected
             } catch (Throwable t) {
-                fail(hostname + " threw " + t.getMessage());
-            }
-        }
-    }
-
-    @Test
-    public void testInvalidPorts() {
-        int[] invalidPorts = new int[] {-2, -1, 0, 65536};
-
-        for (int port : invalidPorts) {
-            try {
-                new ServiceEndPointBuilder().withPort(port);
-                fail(port + " was allowed");
-            } catch (IllegalArgumentException e) {
-                // Expected
-            } catch (Throwable t) {
-                fail(port + " threw " + t.getMessage());
+                fail(id + " threw " + t.getMessage());
             }
         }
     }

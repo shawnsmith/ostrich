@@ -37,8 +37,7 @@ public class CalculatorService extends Service<CalculatorConfiguration> {
                 .build());
         final ServiceEndPoint endpoint = new ServiceEndPointBuilder()
                 .withServiceName(getName())
-                .withHostname(ip)
-                .withPort(port)
+                .withId(ip + ":" + port)
                 .withPayload(payload)
                 .build();
 

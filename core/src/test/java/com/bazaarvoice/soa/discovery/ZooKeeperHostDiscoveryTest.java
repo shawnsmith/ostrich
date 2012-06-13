@@ -21,14 +21,12 @@ import static org.junit.Assert.assertTrue;
 public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
     private static final ServiceEndPoint FOO = new ServiceEndPointBuilder()
             .withServiceName("Foo")
-            .withHostname("server")
-            .withPort(8080)
+            .withId("server:8080")
             .build();
 
     private static final ServiceEndPoint BAR = new ServiceEndPointBuilder()
             .withServiceName("Bar")
-            .withHostname("server")
-            .withPort(8081)
+            .withId("server:8081")
             .build();
 
 

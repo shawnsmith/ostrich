@@ -4,7 +4,6 @@ import com.google.common.base.CharMatcher;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
-import com.google.common.net.HostAndPort;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -16,12 +15,11 @@ public class ServiceEndPointBuilder {
             .or(CharMatcher.inRange('a', 'z'))
             .or(CharMatcher.inRange('A', 'Z'))
             .or(CharMatcher.inRange('0', '9'))
-            .or(CharMatcher.anyOf("._-"))
+            .or(CharMatcher.anyOf("._-:"))
             .precomputed();
 
     private Optional<String> _serviceName = Optional.absent();
-    private Optional<String> _hostname = Optional.absent();
-    private Optional<Integer> _port = Optional.absent();
+    private Optional<String> _id = Optional.absent();
     private Optional<String> _payload = Optional.absent();
 
     public ServiceEndPointBuilder withServiceName(String serviceName) {
@@ -31,18 +29,10 @@ public class ServiceEndPointBuilder {
         return this;
     }
 
-    public ServiceEndPointBuilder withHostname(String hostname) {
-        checkArgument(!Strings.isNullOrEmpty(hostname));
+    public ServiceEndPointBuilder withId(String id) {
+        checkArgument(!Strings.isNullOrEmpty(id) && VALID_CHARACTERS.matchesAllOf(id));
 
-        _hostname = Optional.of(hostname);
-        return this;
-    }
-
-    public ServiceEndPointBuilder withPort(int port) {
-        checkArgument(port > 0);
-        checkArgument(port <= 65535);
-
-        _port = Optional.of(port);
+        _id = Optional.of(id);
         return this;
     }
 
@@ -53,7 +43,7 @@ public class ServiceEndPointBuilder {
 
     public ServiceEndPoint build() {
         final String serviceName = _serviceName.get();
-        final HostAndPort address = HostAndPort.fromParts(_hostname.get(), _port.get());
+        final String id = _id.get();
         final String payload = _payload.orNull();
 
         return new ServiceEndPoint() {
@@ -63,18 +53,8 @@ public class ServiceEndPointBuilder {
             }
 
             @Override
-            public String getHostname() {
-                return address.getHostText();
-            }
-
-            @Override
-            public int getPort() {
-                return address.getPort();
-            }
-
-            @Override
-            public String getServiceAddress() {
-                return address.toString();
+            public String getId() {
+                return id;
             }
 
             @Override
@@ -84,7 +64,7 @@ public class ServiceEndPointBuilder {
 
             @Override
             public int hashCode() {
-                return Objects.hashCode(serviceName, address, payload);
+                return Objects.hashCode(serviceName, id);
             }
 
             @Override
@@ -94,7 +74,7 @@ public class ServiceEndPointBuilder {
 
                 ServiceEndPoint that = (ServiceEndPoint) obj;
                 return Objects.equal(serviceName, that.getServiceName())
-                        && Objects.equal(address.toString(), that.getServiceAddress())
+                        && Objects.equal(id, that.getId())
                         && Objects.equal(payload, that.getPayload());
             }
 
@@ -102,7 +82,7 @@ public class ServiceEndPointBuilder {
             public String toString() {
                 return Objects.toStringHelper("ServiceEndPoint")
                         .add("name", serviceName)
-                        .add("address", address)
+                        .add("id", id)
                         .toString();
             }
         };

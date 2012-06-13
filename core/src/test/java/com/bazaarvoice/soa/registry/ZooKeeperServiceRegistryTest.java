@@ -21,7 +21,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
-    private static final ServiceEndPoint FOO = newEndPoint("Foo", "server", 80, "");
+    private static final ServiceEndPoint FOO = newEndPoint("Foo", "server:80", "");
 
     private ZooKeeperServiceRegistry _registry;
 
@@ -50,19 +50,19 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
     public void testLargePayloadSize() {
         int padding = ServiceEndPointJsonCodec.toJson(FOO).getBytes(Charsets.UTF_8).length;
         String payload = Strings.repeat("x", MAX_DATA_SIZE - padding);
-        _registry.register(newEndPoint(FOO.getServiceName(), FOO.getHostname(), FOO.getPort(), payload));
+        _registry.register(newEndPoint(FOO.getServiceName(), FOO.getId(), payload), false);
     }
 
     @Test
     public void testMediumPayloadSize() {
         int padding = ServiceEndPointJsonCodec.toJson(FOO).getBytes(Charsets.UTF_8).length;
         String payload = Strings.repeat("x", MAX_DATA_SIZE - padding - 1);
-        _registry.register(newEndPoint(FOO.getServiceName(), FOO.getHostname(), FOO.getPort(), payload));
+        _registry.register(newEndPoint(FOO.getServiceName(), FOO.getId(), payload), false);
     }
 
     @Test
     public void testEmptyPayload() {
-        _registry.register(newEndPoint("Foo", "server", 80, ""));
+        _registry.register(newEndPoint("Foo", "server:80", ""), false);
     }
 
     @Test
@@ -205,11 +205,10 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
         assertNull(curator.checkExists().forPath(path));
     }
 
-    private static ServiceEndPoint newEndPoint(String serviceName, String hostname, int port, String payload) {
+    private static ServiceEndPoint newEndPoint(String serviceName, String id, String payload) {
         return new ServiceEndPointBuilder()
                 .withServiceName(serviceName)
-                .withHostname(hostname)
-                .withPort(port)
+                .withId(id)
                 .withPayload(payload)
                 .build();
     }

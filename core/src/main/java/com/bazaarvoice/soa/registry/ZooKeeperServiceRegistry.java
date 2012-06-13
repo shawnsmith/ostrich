@@ -11,6 +11,10 @@ import com.google.common.collect.Maps;
 import com.netflix.curator.framework.CuratorFramework;
 import com.netflix.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +36,10 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     @VisibleForTesting
     static final int MAX_DATA_SIZE = 1024 * 1024;
 
+    // All dates are represented in ISO-8601 format and in the UTC time zone.
+    @VisibleForTesting
+    static final DateTimeFormatter ISO8601 = ISODateTimeFormat.dateTime().withZoneUTC();
+
     private final CuratorFramework _curator;
 
     /** The ephemeral data that's been written to ZooKeeper.  Saved in case the connection is lost and then regained. */
@@ -51,9 +59,20 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     /** {@inheritDoc} */
     @Override
     public void register(ServiceEndPoint endpoint) {
+        register(endpoint, true);
+    }
+
+    @VisibleForTesting
+    void register(ServiceEndPoint endpoint, boolean includeRegistrationTime) {
         checkNotNull(endpoint);
 
-        byte[] data = ServiceEndPointJsonCodec.toJson(endpoint).getBytes(Charsets.UTF_8);
+        Map<String, Object> registrationData = Maps.newHashMap();
+        if (includeRegistrationTime) {
+            DateTime now = DateTime.now().toDateTime(DateTimeZone.UTC);
+            registrationData.put("registration-time", ISO8601.print(now));
+        }
+
+        byte[] data = ServiceEndPointJsonCodec.toJson(endpoint, registrationData).getBytes(Charsets.UTF_8);
         checkState(data.length < MAX_DATA_SIZE, "Serialized form of ServiceEndpoint must be < 1MB.");
 
         String path = makeEndpointPath(endpoint);
@@ -103,7 +122,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
      */
     private static String makeEndpointPath(ServiceEndPoint endpoint) {
         String servicePath = makeServicePath(endpoint.getServiceName());
-        String serviceAddress = endpoint.getServiceAddress();
-        return ZKPaths.makePath(servicePath, serviceAddress);
+        String id = endpoint.getId();
+        return ZKPaths.makePath(servicePath, id);
     }
 }
