@@ -1,6 +1,7 @@
 package com.bazaarvoice.soa.examples.calculator;
 
-import com.bazaarvoice.soa.ServiceEndpoint;
+import com.bazaarvoice.soa.ServiceEndPoint;
+import com.bazaarvoice.soa.ServiceEndPointBuilder;
 import com.bazaarvoice.soa.ServiceRegistry;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
@@ -34,7 +35,12 @@ public class CalculatorService extends Service<CalculatorConfiguration> {
                 .put("url", new URL("http", ip, port, "/" + getName()))
                 .put("adminUrl", new URL("http", ip, adminPort, ""))
                 .build());
-        final ServiceEndpoint endpoint = new ServiceEndpoint(getName(), ip, port, payload);
+        final ServiceEndPoint endpoint = new ServiceEndPointBuilder()
+                .withServiceName(getName())
+                .withHostname(ip)
+                .withPort(port)
+                .withPayload(payload)
+                .build();
 
         // Once everything has initialized successfully, register services with ZooKeeper where clients can find them.
         ZooKeeperConnection connection = config.getZooKeeperConfiguration().connect();

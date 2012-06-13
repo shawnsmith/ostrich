@@ -5,7 +5,7 @@ import com.bazaarvoice.soa.LoadBalanceAlgorithm;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.Service;
 import com.bazaarvoice.soa.ServiceCallback;
-import com.bazaarvoice.soa.ServiceEndpoint;
+import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceException;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.google.common.base.Ticker;
@@ -41,10 +41,9 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 public class ServicePoolTest {
-    private static final ServiceEndpoint FOO_ENDPOINT = new ServiceEndpoint("FooService", "localhost", 80);
-    private static final ServiceEndpoint BAR_ENDPOINT = new ServiceEndpoint("BarService", "localhost", 81);
-    private static final ServiceEndpoint BAZ_ENDPOINT = new ServiceEndpoint("BazService", "localhost", 82);
-
+    private static final ServiceEndPoint FOO_ENDPOINT = mock(ServiceEndPoint.class);
+    private static final ServiceEndPoint BAR_ENDPOINT = mock(ServiceEndPoint.class);
+    private static final ServiceEndPoint BAZ_ENDPOINT = mock(ServiceEndPoint.class);
     private static final Service FOO_SERVICE = mock(Service.class);
     private static final Service BAR_SERVICE = mock(Service.class);
     private static final Service BAZ_SERVICE = mock(Service.class);
@@ -73,12 +72,12 @@ public class ServicePoolTest {
         when(_hostDiscovery.getHosts()).thenReturn(ImmutableList.of(FOO_ENDPOINT, BAR_ENDPOINT, BAZ_ENDPOINT));
 
         _serviceFactory = (ServiceFactory<Service>) mock(ServiceFactory.class);
-        when(_serviceFactory.create(eq(FOO_ENDPOINT))).thenReturn(FOO_SERVICE);
-        when(_serviceFactory.create(eq(BAR_ENDPOINT))).thenReturn(BAR_SERVICE);
-        when(_serviceFactory.create(eq(BAZ_ENDPOINT))).thenReturn(BAZ_SERVICE);
+        when(_serviceFactory.create(FOO_ENDPOINT)).thenReturn(FOO_SERVICE);
+        when(_serviceFactory.create(BAR_ENDPOINT)).thenReturn(BAR_SERVICE);
+        when(_serviceFactory.create(BAZ_ENDPOINT)).thenReturn(BAZ_SERVICE);
         when(_serviceFactory.getLoadBalanceAlgorithm()).thenReturn(new LoadBalanceAlgorithm() {
             @Override
-            public ServiceEndpoint choose(Iterable<ServiceEndpoint> endpoints) {
+            public ServiceEndPoint choose(Iterable<ServiceEndPoint> endpoints) {
                 // Always choose the first endpoint.  This is probably fine since most tests will have just a single
                 // endpoint available anyways.
                 return endpoints.iterator().next();
@@ -128,7 +127,7 @@ public class ServicePoolTest {
     @Test(expected = ServiceException.class)
     public void testThrowsServiceExceptionWhenNoEndpointsAvailable() {
         // Host discovery sees no endpoints...
-        when(_hostDiscovery.getHosts()).thenReturn(ImmutableList.<ServiceEndpoint>of());
+        when(_hostDiscovery.getHosts()).thenReturn(ImmutableList.<ServiceEndPoint>of());
         _pool.execute(NEVER_RETRY, null);
     }
 
@@ -303,7 +302,7 @@ public class ServicePoolTest {
     @Test
     public void testCallsHealthCheckAfterServiceException() throws InterruptedException {
         final AtomicBoolean healthCheckCalled = new AtomicBoolean(false);
-        when(_serviceFactory.isHealthy(any(ServiceEndpoint.class))).then(new Answer<Boolean>() {
+        when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).then(new Answer<Boolean>() {
             @Override
             public Boolean answer(InvocationOnMock invocation) throws Throwable {
                 healthCheckCalled.set(true);
@@ -345,7 +344,7 @@ public class ServicePoolTest {
         }
 
         // Make sure we never tried to call any health checks
-        verify(_serviceFactory, never()).isHealthy(any(ServiceEndpoint.class));
+        verify(_serviceFactory, never()).isHealthy(any(ServiceEndPoint.class));
     }
 
     @Test
@@ -399,7 +398,7 @@ public class ServicePoolTest {
         }
 
         // Set it up so that when we health check FOO, that it becomes healthy.
-        when(_serviceFactory.isHealthy(eq(FOO_ENDPOINT))).thenReturn(true);
+        when(_serviceFactory.isHealthy(FOO_ENDPOINT)).thenReturn(true);
 
         // Capture the BatchHealthChecks runnable that was registered with the executor so that we can execute it.
         ArgumentCaptor<Runnable> check = ArgumentCaptor.forClass(Runnable.class);

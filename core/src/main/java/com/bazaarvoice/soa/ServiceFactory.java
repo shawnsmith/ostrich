@@ -5,6 +5,6 @@ public interface ServiceFactory<S extends Service> {
     String getServiceName();
     LoadBalanceAlgorithm getLoadBalanceAlgorithm();
 
-    S create(ServiceEndpoint endpoint);
-    boolean isHealthy(ServiceEndpoint endpoint);
+    S create(ServiceEndPoint endpoint);
+    boolean isHealthy(ServiceEndPoint endpoint);
 }

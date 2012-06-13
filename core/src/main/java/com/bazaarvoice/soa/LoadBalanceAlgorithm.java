@@ -8,5 +8,5 @@ public interface LoadBalanceAlgorithm {
      * @param endpoints The endpoints to choose from.
      * @return Which endpoint to use or <code>null</code> if one couldn't be chosen.
      */
-    ServiceEndpoint choose(Iterable<ServiceEndpoint> endpoints);
+    ServiceEndPoint choose(Iterable<ServiceEndPoint> endpoints);
 }

@@ -1,6 +1,7 @@
 package com.bazaarvoice.soa.registry;
 
-import com.bazaarvoice.soa.ServiceEndpoint;
+import com.bazaarvoice.soa.ServiceEndPoint;
+import com.bazaarvoice.soa.ServiceEndPointJsonCodec;
 import com.bazaarvoice.soa.ServiceRegistry;
 import com.bazaarvoice.soa.internal.CuratorConnection;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
@@ -49,10 +50,10 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
 
     /** {@inheritDoc} */
     @Override
-    public void register(ServiceEndpoint endpoint) {
+    public void register(ServiceEndPoint endpoint) {
         checkNotNull(endpoint);
 
-        byte[] data = endpoint.toJson().getBytes(Charsets.UTF_8);
+        byte[] data = ServiceEndPointJsonCodec.toJson(endpoint).getBytes(Charsets.UTF_8);
         checkState(data.length < MAX_DATA_SIZE, "Serialized form of ServiceEndpoint must be < 1MB.");
 
         String path = makeEndpointPath(endpoint);
@@ -61,7 +62,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
 
     /** {@inheritDoc} */
     @Override
-    public void unregister(ServiceEndpoint endpoint) {
+    public void unregister(ServiceEndPoint endpoint) {
         checkNotNull(endpoint);
 
         String path = makeEndpointPath(endpoint);
@@ -78,7 +79,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     }
 
     @VisibleForTesting
-    String getRegisteredEndpointPath(ServiceEndpoint endpoint) {
+    String getRegisteredEndpointPath(ServiceEndPoint endpoint) {
         String path = makeEndpointPath(endpoint);
         ZooKeeperPersistentEphemeralNode node = _nodes.get(path);
         return (node != null) ? node.getActualPath() : null;
@@ -100,7 +101,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
      * @param endpoint The service endpoint to get the ZooKeeper path for.
      * @return The ZooKeeper path.
      */
-    private static String makeEndpointPath(ServiceEndpoint endpoint) {
+    private static String makeEndpointPath(ServiceEndPoint endpoint) {
         String servicePath = makeServicePath(endpoint.getServiceName());
         String serviceAddress = endpoint.getServiceAddress();
         return ZKPaths.makePath(servicePath, serviceAddress);

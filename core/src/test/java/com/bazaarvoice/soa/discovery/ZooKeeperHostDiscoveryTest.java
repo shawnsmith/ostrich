@@ -1,7 +1,8 @@
 package com.bazaarvoice.soa.discovery;
 
 import com.bazaarvoice.soa.HostDiscovery;
-import com.bazaarvoice.soa.ServiceEndpoint;
+import com.bazaarvoice.soa.ServiceEndPoint;
+import com.bazaarvoice.soa.ServiceEndPointBuilder;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
@@ -18,7 +19,18 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
-    private static final ServiceEndpoint FOO = new ServiceEndpoint("Foo", "server", 8080);
+    private static final ServiceEndPoint FOO = new ServiceEndPointBuilder()
+            .withServiceName("Foo")
+            .withHostname("server")
+            .withPort(8080)
+            .build();
+
+    private static final ServiceEndPoint BAR = new ServiceEndPointBuilder()
+            .withServiceName("Bar")
+            .withHostname("server")
+            .withPort(8081)
+            .build();
+
 
     private ZooKeeperServiceRegistry _registry;
     private ZooKeeperHostDiscovery _discovery;
@@ -89,7 +101,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
         _registry.register(FOO);
         assertTrue(waitUntilSize(_discovery.getHosts(), 1));
         assertTrue(_discovery.contains(FOO));
-        assertFalse(_discovery.contains(new ServiceEndpoint("Foo", "server2", 8080)));
+        assertFalse(_discovery.contains(BAR));
     }
 
     @Test
@@ -261,12 +273,12 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
         private final Trigger _removeTrigger = new Trigger();
 
         @Override
-        public void onEndpointAdded(ServiceEndpoint endpoint) {
+        public void onEndpointAdded(ServiceEndPoint endpoint) {
             _addTrigger.onEndpointAdded(endpoint);
         }
 
         @Override
-        public void onEndpointRemoved(ServiceEndpoint endpoint) {
+        public void onEndpointRemoved(ServiceEndPoint endpoint) {
             _removeTrigger.onEndpointRemoved(endpoint);
         }
 
@@ -284,12 +296,12 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
         private int _numRemoves;
 
         @Override
-        public void onEndpointAdded(ServiceEndpoint endpoint) {
+        public void onEndpointAdded(ServiceEndPoint endpoint) {
             _numAdds++;
         }
 
         @Override
-        public void onEndpointRemoved(ServiceEndpoint endpoint) {
+        public void onEndpointRemoved(ServiceEndPoint endpoint) {
             _numRemoves++;
         }
 

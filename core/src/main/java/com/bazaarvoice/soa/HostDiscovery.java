@@ -11,7 +11,7 @@ public interface HostDiscovery {
      *
      * @return The available hosts.
      */
-    Iterable<ServiceEndpoint> getHosts();
+    Iterable<ServiceEndPoint> getHosts();
 
     /**
      * Returns true if the specified endpoint is a member of the set returned by {@link #getHosts()}.
@@ -19,7 +19,7 @@ public interface HostDiscovery {
      * @param endpoint The endpoint to test.
      * @return True if the specified endpoint is a member of the set returned by {@link #getHosts()}.
      */
-    boolean contains(ServiceEndpoint endpoint);
+    boolean contains(ServiceEndPoint endpoint);
 
     /**
      * Add an endpoint listener.
@@ -37,7 +37,7 @@ public interface HostDiscovery {
 
     /** Listener interface that is notified when endpoints are added and removed. */
     interface EndpointListener {
-        void onEndpointAdded(ServiceEndpoint endpoint);
-        void onEndpointRemoved(ServiceEndpoint endpoint);
+        void onEndpointAdded(ServiceEndPoint endpoint);
+        void onEndpointRemoved(ServiceEndPoint endpoint);
     }
 }

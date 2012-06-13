@@ -11,7 +11,7 @@ public interface ServiceRegistry {
      * @param endpoint The endpoint of the service to register.
      * @throws RuntimeException If there was a problem registering the endpoint.
      */
-    void register(ServiceEndpoint endpoint);
+    void register(ServiceEndPoint endpoint);
 
     /**
      * Remove an endpoint of a service from the service registry.  This will make it no longer available
@@ -20,5 +20,5 @@ public interface ServiceRegistry {
      * @param endpoint The endpoint of the service to unregister.
      * @throws RuntimeException If there was a problem de-registering the endpoint.
      */
-    void unregister(ServiceEndpoint endpoint);
+    void unregister(ServiceEndPoint endpoint);
 }

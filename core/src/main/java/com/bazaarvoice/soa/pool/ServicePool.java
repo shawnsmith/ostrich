@@ -5,7 +5,7 @@ import com.bazaarvoice.soa.LoadBalanceAlgorithm;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.Service;
 import com.bazaarvoice.soa.ServiceCallback;
-import com.bazaarvoice.soa.ServiceEndpoint;
+import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceException;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.google.common.annotations.VisibleForTesting;
@@ -37,9 +37,9 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
     private final ServiceFactory<S> _serviceFactory;
     private final ScheduledExecutorService _healthCheckExecutor;
     private final LoadBalanceAlgorithm _loadBalanceAlgorithm;
-    private final Set<ServiceEndpoint> _badEndpoints;
-    private final Predicate<ServiceEndpoint> _badEndpointFilter;
-    private final Set<ServiceEndpoint> _recentlyRemovedEndpoints;
+    private final Set<ServiceEndPoint> _badEndpoints;
+    private final Predicate<ServiceEndPoint> _badEndpointFilter;
+    private final Set<ServiceEndPoint> _recentlyRemovedEndpoints;
 
     public ServicePool(Ticker ticker, HostDiscovery hostDiscovery, ServiceFactory<S> serviceFactory,
                        ScheduledExecutorService healthCheckExecutor) {
@@ -48,12 +48,12 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
         _serviceFactory = checkNotNull(serviceFactory);
         _healthCheckExecutor = checkNotNull(healthCheckExecutor);
         _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm());
-        _badEndpoints = Sets.newSetFromMap(Maps.<ServiceEndpoint, Boolean>newConcurrentMap());
+        _badEndpoints = Sets.newSetFromMap(Maps.<ServiceEndPoint, Boolean>newConcurrentMap());
         _badEndpointFilter = Predicates.not(Predicates.in(_badEndpoints));
         _recentlyRemovedEndpoints = Sets.newSetFromMap(CacheBuilder.newBuilder()
                 .ticker(_ticker)
                 .expireAfterWrite(10, TimeUnit.MINUTES)  // TODO: Make this a constant
-                .<ServiceEndpoint, Boolean>build()
+                .<ServiceEndPoint, Boolean>build()
                 .asMap());
 
         // Watch endpoints as they are removed from host discovery so that we can remove them from our set of bad
@@ -67,12 +67,12 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
         // periods of time.
         _hostDiscovery.addListener(new HostDiscovery.EndpointListener() {
             @Override
-            public void onEndpointAdded(ServiceEndpoint endpoint) {
+            public void onEndpointAdded(ServiceEndPoint endpoint) {
                 addEndpoint(endpoint);
             }
 
             @Override
-            public void onEndpointRemoved(ServiceEndpoint endpoint) {
+            public void onEndpointRemoved(ServiceEndPoint endpoint) {
                 removeEndpoint(endpoint);
             }
         });
@@ -87,13 +87,13 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
         Stopwatch sw = new Stopwatch(_ticker).start();
         int numAttempts = 0;
         do {
-            Iterable<ServiceEndpoint> hosts = Iterables.filter(_hostDiscovery.getHosts(), _badEndpointFilter);
+            Iterable<ServiceEndPoint> hosts = Iterables.filter(_hostDiscovery.getHosts(), _badEndpointFilter);
             if (Iterables.isEmpty(hosts)) {
                 // There were no viable service endpoints available, we have no choice but to stop trying and just exit.
                 break;
             }
 
-            ServiceEndpoint endpoint = _loadBalanceAlgorithm.choose(hosts);
+            ServiceEndPoint endpoint = _loadBalanceAlgorithm.choose(hosts);
             S service = _serviceFactory.create(endpoint);
             try {
                 return callback.call(service);
@@ -116,16 +116,16 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
     }
 
     @VisibleForTesting
-    Set<ServiceEndpoint> getBadEndpoints() {
+    Set<ServiceEndPoint> getBadEndpoints() {
         return ImmutableSet.copyOf(_badEndpoints);
     }
 
-    private synchronized void addEndpoint(ServiceEndpoint endpoint) {
+    private synchronized void addEndpoint(ServiceEndPoint endpoint) {
         _recentlyRemovedEndpoints.remove(endpoint);
         _badEndpoints.remove(endpoint);
     }
 
-    private synchronized void removeEndpoint(ServiceEndpoint endpoint) {
+    private synchronized void removeEndpoint(ServiceEndPoint endpoint) {
         // Mark this endpoint as recently removed.  We do this in order to keep a positive set of removed
         // endpoints so that we avoid a potential race condition where someone was using this endpoint while
         // we noticed it was disappeared from host discovery.  In that case there is the potential that they
@@ -136,7 +136,7 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
         _badEndpoints.remove(endpoint);
     }
 
-    private synchronized void markEndpointAsBad(ServiceEndpoint endpoint) {
+    private synchronized void markEndpointAsBad(ServiceEndPoint endpoint) {
         if (_recentlyRemovedEndpoints.contains(endpoint)) {
             // Nothing to do, we've already removed this endpoint
             return;
@@ -148,9 +148,9 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
 
     @VisibleForTesting
     final class HealthCheck implements Runnable {
-        private final ServiceEndpoint _endpoint;
+        private final ServiceEndPoint _endpoint;
 
-        public HealthCheck(ServiceEndpoint endpoint) {
+        public HealthCheck(ServiceEndPoint endpoint) {
             _endpoint = endpoint;
         }
 
@@ -166,7 +166,7 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
     final class BatchHealthChecks implements Runnable {
         @Override
         public void run() {
-            for (ServiceEndpoint endpoint : _badEndpoints) {
+            for (ServiceEndPoint endpoint : _badEndpoints) {
                 if (_serviceFactory.isHealthy(endpoint)) {
                     _badEndpoints.remove(endpoint);
                 }

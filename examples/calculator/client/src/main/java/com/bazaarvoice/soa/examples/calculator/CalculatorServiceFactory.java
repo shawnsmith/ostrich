@@ -1,7 +1,7 @@
 package com.bazaarvoice.soa.examples.calculator;
 
 import com.bazaarvoice.soa.LoadBalanceAlgorithm;
-import com.bazaarvoice.soa.ServiceEndpoint;
+import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.loadbalance.RandomAlgorithm;
 
@@ -21,12 +21,12 @@ public class CalculatorServiceFactory implements ServiceFactory<CalculatorServic
     }
 
     @Override
-    public CalculatorService create(ServiceEndpoint endpoint) {
+    public CalculatorService create(ServiceEndPoint endpoint) {
         return new CalculatorClient(endpoint);
     }
 
     @Override
-    public boolean isHealthy(ServiceEndpoint endpoint) {
+    public boolean isHealthy(ServiceEndPoint endpoint) {
         Map<?,?> payload = JsonHelper.fromJson(endpoint.getPayload(), Map.class);
         Http http = new Http((String) checkNotNull(payload.get("adminUrl")));
 

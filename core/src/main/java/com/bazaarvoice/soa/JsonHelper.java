@@ -1,12 +1,15 @@
 package com.bazaarvoice.soa;
 
+import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.map.MappingJsonFactory;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.IOException;
 
 class JsonHelper {
-    private static final ObjectMapper JSON = new MappingJsonFactory().getCodec();
+    private static final ObjectMapper JSON = new MappingJsonFactory()
+            .getCodec()
+            .configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
 
     static String toJson(Object value) {
         try {

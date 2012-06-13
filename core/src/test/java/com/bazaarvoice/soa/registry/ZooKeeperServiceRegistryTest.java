@@ -1,6 +1,8 @@
 package com.bazaarvoice.soa.registry;
 
-import com.bazaarvoice.soa.ServiceEndpoint;
+import com.bazaarvoice.soa.ServiceEndPoint;
+import com.bazaarvoice.soa.ServiceEndPointBuilder;
+import com.bazaarvoice.soa.ServiceEndPointJsonCodec;
 import com.bazaarvoice.soa.test.ZooKeeperTest;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
@@ -19,7 +21,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
-    private static final ServiceEndpoint FOO = new ServiceEndpoint("Foo", "server", 8080);
+    private static final ServiceEndPoint FOO = newEndPoint("Foo", "server", 80, "");
 
     private ZooKeeperServiceRegistry _registry;
 
@@ -46,19 +48,21 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
 
     @Test(expected = IllegalStateException.class)
     public void testLargePayloadSize() {
-        int padding = new ServiceEndpoint("Foo", "server", 80, "").toJson().getBytes(Charsets.UTF_8).length;
-        _registry.register(new ServiceEndpoint("Foo", "server", 80, Strings.repeat("x", MAX_DATA_SIZE - padding)));
+        int padding = ServiceEndPointJsonCodec.toJson(FOO).getBytes(Charsets.UTF_8).length;
+        String payload = Strings.repeat("x", MAX_DATA_SIZE - padding);
+        _registry.register(newEndPoint(FOO.getServiceName(), FOO.getHostname(), FOO.getPort(), payload));
     }
 
     @Test
     public void testMediumPayloadSize() {
-        int padding = new ServiceEndpoint("Foo", "server", 80, "").toJson().getBytes(Charsets.UTF_8).length;
-        _registry.register(new ServiceEndpoint("Foo", "server", 80, Strings.repeat("x", MAX_DATA_SIZE - padding - 1)));
+        int padding = ServiceEndPointJsonCodec.toJson(FOO).getBytes(Charsets.UTF_8).length;
+        String payload = Strings.repeat("x", MAX_DATA_SIZE - padding - 1);
+        _registry.register(newEndPoint(FOO.getServiceName(), FOO.getHostname(), FOO.getPort(), payload));
     }
 
     @Test
     public void testEmptyPayload() {
-        _registry.register(new ServiceEndpoint("Foo", "server", 80, ""));
+        _registry.register(newEndPoint("Foo", "server", 80, ""));
     }
 
     @Test
@@ -174,12 +178,12 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
 
     @Test
     public void testNamespace() throws Exception {
-        ZooKeeperConnection connection = newZooKeeperConnection(new ZooKeeperConfiguration().setNamespace("/datacenter1"));
+        ZooKeeperConnection connection = newZooKeeperConnection(new ZooKeeperConfiguration().setNamespace("/dc1"));
         ZooKeeperServiceRegistry registry = new ZooKeeperServiceRegistry(connection);
         registry.register(FOO);
 
         // Use a non-namespaced curator to check that the path was created in the correct namespace
-        assertNotNull(newCurator().checkExists().forPath("/datacenter1" + registry.getRegisteredEndpointPath(FOO)));
+        assertNotNull(newCurator().checkExists().forPath("/dc1" + registry.getRegisteredEndpointPath(FOO)));
     }
 
     @Test
@@ -192,12 +196,21 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
         assertNotNull(newCurator().checkExists().forPath(registry.getRegisteredEndpointPath(FOO)));
     }
 
-    private void assertRegistered(ServiceEndpoint endpoint, CuratorFramework curator) throws Exception {
+    private void assertRegistered(ServiceEndPoint endpoint, CuratorFramework curator) throws Exception {
         String path = _registry.getRegisteredEndpointPath(endpoint);
         assertNotNull(curator.checkExists().forPath(path));
     }
 
     private void assertNodeDoesNotExist(String path, CuratorFramework curator) throws Exception {
         assertNull(curator.checkExists().forPath(path));
+    }
+
+    private static ServiceEndPoint newEndPoint(String serviceName, String hostname, int port, String payload) {
+        return new ServiceEndPointBuilder()
+                .withServiceName(serviceName)
+                .withHostname(hostname)
+                .withPort(port)
+                .withPayload(payload)
+                .build();
     }
 }

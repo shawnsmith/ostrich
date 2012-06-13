@@ -1,7 +1,7 @@
 package com.bazaarvoice.soa.test;
 
 import com.bazaarvoice.soa.HostDiscovery;
-import com.bazaarvoice.soa.ServiceEndpoint;
+import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
 import com.google.common.base.Throwables;
@@ -100,12 +100,12 @@ public abstract class ZooKeeperTest {
         }
 
         @Override
-        public void onEndpointAdded(ServiceEndpoint endpoint) {
+        public void onEndpointAdded(ServiceEndPoint endpoint) {
             _latch.countDown();
         }
 
         @Override
-        public void onEndpointRemoved(ServiceEndpoint endpoint) {
+        public void onEndpointRemoved(ServiceEndPoint endpoint) {
             _latch.countDown();
         }
 
