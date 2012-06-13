@@ -11,7 +11,7 @@ import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class ServiceEndPointJsonCodec {
+public final class ServiceEndPointJsonCodec {
     // All dates are represented in ISO-8601 format and in the UTC time zone.
     @VisibleForTesting
     static final DateTimeFormatter ISO8601 = ISODateTimeFormat.dateTime().withZoneUTC();
@@ -42,4 +42,7 @@ public class ServiceEndPointJsonCodec {
                 .withPayload(payload)
                 .build();
     }
+
+    // Private, not instantiable.
+    private ServiceEndPointJsonCodec() {}
 }
