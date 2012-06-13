@@ -1,6 +1,5 @@
 package com.bazaarvoice.soa;
 
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
 import org.codehaus.jackson.annotate.JsonProperty;
 import org.junit.Test;
 
