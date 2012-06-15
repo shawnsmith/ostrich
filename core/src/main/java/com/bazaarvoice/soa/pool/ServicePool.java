@@ -96,6 +96,7 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
                 // There were no service endpoints available, we have no choice but to stop trying and just exit.
                 throw new NoAvailableHostsException();
             }
+
             Iterable<ServiceEndPoint> goodHosts = Iterables.filter(hosts, _badEndpointFilter);
             if (Iterables.isEmpty(goodHosts)) {
                 // All available hosts are bad, so we must give up.
@@ -106,6 +107,7 @@ class ServicePool<S extends Service> implements com.bazaarvoice.soa.ServicePool<
             if (endpoint == null) {
                 throw new NoSuitableHostsException();
             }
+
             S service = _serviceFactory.create(endpoint);
             try {
                 return callback.call(service);

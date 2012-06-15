@@ -6,12 +6,12 @@ import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.Service;
 import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServiceEndPoint;
-import com.bazaarvoice.soa.exceptions.ServiceException;
-import com.bazaarvoice.soa.exceptions.NoAvailableHostsException;
-import com.bazaarvoice.soa.exceptions.OnlyBadHostsException;
-import com.bazaarvoice.soa.exceptions.NoSuitableHostsException;
-import com.bazaarvoice.soa.exceptions.MaxRetriesException;
 import com.bazaarvoice.soa.ServiceFactory;
+import com.bazaarvoice.soa.exceptions.MaxRetriesException;
+import com.bazaarvoice.soa.exceptions.NoAvailableHostsException;
+import com.bazaarvoice.soa.exceptions.NoSuitableHostsException;
+import com.bazaarvoice.soa.exceptions.OnlyBadHostsException;
+import com.bazaarvoice.soa.exceptions.ServiceException;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -20,6 +20,7 @@ import com.google.common.util.concurrent.Futures;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -51,15 +53,10 @@ public class ServicePoolTest {
     private static final Service FOO_SERVICE = mock(Service.class);
     private static final Service BAR_SERVICE = mock(Service.class);
     private static final Service BAZ_SERVICE = mock(Service.class);
-
-    private static final RetryPolicy NEVER_RETRY = new RetryPolicy() {
-        @Override
-        public boolean allowRetry(int numAttempts, long elapsedTimeMs) {
-            return false;
-        }
-    };
+    private static final RetryPolicy NEVER_RETRY = mock(RetryPolicy.class);
 
     private HostDiscovery _hostDiscovery;
+    private LoadBalanceAlgorithm _loadBalanceAlgorithm;
     private ServiceFactory<Service> _serviceFactory;
     private ScheduledExecutorService _healthCheckExecutor;
     private ServicePool<Service> _pool;
@@ -75,18 +72,22 @@ public class ServicePoolTest {
         _hostDiscovery = mock(HostDiscovery.class);
         when(_hostDiscovery.getHosts()).thenReturn(ImmutableList.of(FOO_ENDPOINT, BAR_ENDPOINT, BAZ_ENDPOINT));
 
+        _loadBalanceAlgorithm = mock(LoadBalanceAlgorithm.class);
+        when(_loadBalanceAlgorithm.choose(any(Iterable.class))).thenAnswer(new Answer<ServiceEndPoint>() {
+            @Override
+            public ServiceEndPoint answer(InvocationOnMock invocation) throws Throwable {
+                // Always choose the first endpoint.  This is probably fine since most tests will have just a single
+                // endpoint available anyways.
+                Iterable<ServiceEndPoint> endpoints = (Iterable<ServiceEndPoint>) invocation.getArguments()[0];
+                return endpoints.iterator().next();
+            }
+        });
+
         _serviceFactory = (ServiceFactory<Service>) mock(ServiceFactory.class);
         when(_serviceFactory.create(FOO_ENDPOINT)).thenReturn(FOO_SERVICE);
         when(_serviceFactory.create(BAR_ENDPOINT)).thenReturn(BAR_SERVICE);
         when(_serviceFactory.create(BAZ_ENDPOINT)).thenReturn(BAZ_SERVICE);
-        when(_serviceFactory.getLoadBalanceAlgorithm()).thenReturn(new LoadBalanceAlgorithm() {
-            @Override
-            public ServiceEndPoint choose(Iterable<ServiceEndPoint> endpoints) {
-                // Always choose the first endpoint.  This is probably fine since most tests will have just a single
-                // endpoint available anyways.
-                return endpoints.iterator().next();
-            }
-        });
+        when(_serviceFactory.getLoadBalanceAlgorithm()).thenReturn(_loadBalanceAlgorithm);
 
         _healthCheckExecutor = mock(ScheduledExecutorService.class);
         when(_healthCheckExecutor.submit(any(Runnable.class))).then(new Answer<Future<?>>() {
@@ -159,28 +160,17 @@ public class ServicePoolTest {
 
     @Test(expected = NoSuitableHostsException.class)
     public void testThrowsNoSuitableHostsExceptionWhenLoadBalancerReturnsNull() {
-        ServiceFactory<Service> nullBalancedFactory = (ServiceFactory<Service>) mock(ServiceFactory.class);
-        when(nullBalancedFactory.getLoadBalanceAlgorithm()).thenReturn(new LoadBalanceAlgorithm() {
+        // Reset the load balance algorithm's setup and make it always return null.
+        reset(_loadBalanceAlgorithm);
+        when(_loadBalanceAlgorithm.choose(Matchers.<Iterable<ServiceEndPoint>>any())).thenReturn(null);
+
+        boolean called = _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Boolean>() {
             @Override
-            public ServiceEndPoint choose(Iterable<ServiceEndPoint> endpoints) {
-                // Always return null
-                return null;
+            public Boolean call(Service service) throws ServiceException {
+                return true;
             }
         });
-        // Set up a pool with a null returning LoadBalanceAlgorithm
-        ServicePool<Service> nullBalancedPool = (ServicePool<Service>) new ServicePoolBuilder<Service>()
-                .withHostDiscovery(_hostDiscovery)
-                .withServiceFactory(nullBalancedFactory)
-                .withHealthCheckExecutor(_healthCheckExecutor)
-                .withTicker(mock(Ticker.class))
-                .build();
-        nullBalancedPool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
-            @Override
-            public Void call(Service service) throws ServiceException {
-                fail();
-                return null;
-            }
-        });
+        assertFalse(called);
     }
 
     @Test
