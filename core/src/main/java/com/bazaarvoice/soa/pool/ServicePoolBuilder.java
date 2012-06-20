@@ -62,7 +62,7 @@ public class ServicePoolBuilder<S> {
 
     public com.bazaarvoice.soa.ServicePool<S> build() {
         checkNotNull(_serviceFactory);
-        String serviceName = _serviceFactory.getServiceName();
+        final String serviceName = _serviceFactory.getServiceName();
         if (_hostDiscovery == null && _zooKeeperConnection != null) {
             _hostDiscovery = new ZooKeeperHostDiscovery(_zooKeeperConnection, serviceName);
         }
