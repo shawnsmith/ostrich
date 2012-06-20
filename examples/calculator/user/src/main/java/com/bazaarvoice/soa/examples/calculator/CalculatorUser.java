@@ -3,16 +3,12 @@ package com.bazaarvoice.soa.examples.calculator;
 import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.exceptions.ServiceException;
 import com.bazaarvoice.soa.ServicePool;
-import com.bazaarvoice.soa.discovery.ZooKeeperHostDiscovery;
 import com.bazaarvoice.soa.pool.ServicePoolBuilder;
 import com.bazaarvoice.soa.retry.RetryNTimes;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.util.Random;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 public class CalculatorUser {
