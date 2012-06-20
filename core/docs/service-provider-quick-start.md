@@ -40,7 +40,7 @@ registry.register(endpoint);
 A service interface is a convenient and natural interface to your service for you consumers to use.
 
 ```java
-public interface CalculatorService extends Service {
+public interface CalculatorService {
   int add(int op1, int op2);
   int sub(int op1, int op2);
   int mul(int op1, int op2);
