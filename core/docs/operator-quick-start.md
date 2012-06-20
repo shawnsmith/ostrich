@@ -20,10 +20,11 @@ ZooKeeper supports basic monitoring via the network using the [four letter words
 (http://zookeeper.apache.org/doc/r3.4.3/zookeeperAdmin.html#sc_zkCommands).  You can telnet or send a netcat command to
 a server to see statistics about which clients are connected, latencies, whether or not a server is leader, etc.
 
-Internally ZooKeeper servers will typically listen on two different ports.  The first is a back-channel port that it
+Internally ZooKeeper servers will typically listen on three different ports.  The first is a back-channel port that it
 uses to communicate with the other ZooKeeper nodes in the ensemble.  Over this channel it uses the [Atomic Broadcast]
 (http://zookeeper.apache.org/doc/r3.4.3/zookeeperInternals.html) protocol (which despite the name is TCP based).  The
-second port is used by clients to connect to the ZooKeeper ensemble.  This is also a TCP based protocol.
+second port is used by clients to connect to the ZooKeeper ensemble.  This is also a TCP based protocol.  Finally the
+third port is the leader election port that it uses to figure out which server in the ensemble is marked as the leader.
 
 #### 3. Service registration
 When services register with Ostrich they create a node in ZooKeeper that contains several pieces of information:
