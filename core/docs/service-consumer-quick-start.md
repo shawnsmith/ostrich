@@ -48,7 +48,7 @@ jar containing their service interface, a client implementation, as well as a se
 
 #### 3. Use the `ServicePool` instance
 
-Using the service is easy.  You invoke the execut method on it providing two pieces of information.  First a retry
+Using the service is easy.  You invoke the execute method on it providing two pieces of information.  First a retry
 strategy.  This tells the service pool what to do if the operation fails in a retryable way.  For as long as the retry
 strategy permits it and there are service instances available, upon failure the operation will be retried with a
 different service instance.  Secondly, a callback is provided that receives a handle to the service instance for you to
@@ -65,6 +65,6 @@ int result = pool.execute(new RetryNTimes(3, 100, TimeUnit.MILLISECONDS),
                           });
 ```
 
-*NOTE*: It's important that you callbacks are intelligent and recognize that failures can happen at any time.  If they
+*NOTE*: It's important that your callbacks are intelligent and recognize that failures can happen at any time.  If they
 maintain state internally you need to handle the case where an operation needs to be retried after part of it has
 already been executed.  Of course the simplest thing to do would be to make your callbacks completely stateless.
