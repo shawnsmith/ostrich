@@ -65,14 +65,9 @@ public class CalculatorUser {
                 .setRetryNTimes(new com.bazaarvoice.soa.zookeeper.RetryNTimes(3, 100))
                 .connect();
 
-        ThreadFactory daemonThreadFactory = new ThreadFactoryBuilder()
-                .setDaemon(true)
-                .build();
-
         ServicePool<CalculatorService> pool = new ServicePoolBuilder<CalculatorService>()
-                .withHostDiscovery(new ZooKeeperHostDiscovery(connection, "calculator"))
+                .withZooKeeperHostDiscovery(connection)
                 .withServiceFactory(new CalculatorServiceFactory())
-                .withHealthCheckExecutor(Executors.newScheduledThreadPool(1, daemonThreadFactory))
                 .build();
 
         CalculatorUser user = new CalculatorUser(pool);
