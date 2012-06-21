@@ -81,7 +81,7 @@ public class ServicePoolBuilder<S> {
     }
 
     /**
-     * Builds the {@code ServicePool} using the host
+     * Builds the {@code ServicePool}.
      *
      * @return The {@code ServicePool} that was constructed.
      */
