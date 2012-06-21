@@ -508,6 +508,14 @@ public class ServicePoolTest {
         assertTrue(_pool.getBadEndpoints().isEmpty());
     }
 
+    @Test
+    public void testIsHealthyHandlesExceptions() {
+        when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenThrow(new RuntimeException());
+
+        // Even though an exception was thrown we shouldn't see it, instead false should be returned from isHealthy
+        assertFalse(_pool.isHealthy(FOO_ENDPOINT));
+    }
+
     // A dummy interface for testing...
     private static interface Service {}
 }
