@@ -57,6 +57,7 @@ public class ServicePoolTest {
     private static final Service BAZ_SERVICE = mock(Service.class);
     private static final RetryPolicy NEVER_RETRY = mock(RetryPolicy.class);
 
+    private Ticker _ticker;
     private HostDiscovery _hostDiscovery;
     private LoadBalanceAlgorithm _loadBalanceAlgorithm;
     private ServiceFactory<Service> _serviceFactory;
@@ -71,6 +72,8 @@ public class ServicePoolTest {
         // This setup method takes the approach of building a reasonably useful ServicePool using mocks that can then be
         // customized by individual test methods to add whatever functionality they need to (or ignored completely).
         //
+
+        _ticker = mock(Ticker.class);
 
         _hostDiscovery = mock(HostDiscovery.class);
         when(_hostDiscovery.getHosts()).thenReturn(ImmutableList.of(FOO_ENDPOINT, BAR_ENDPOINT, BAZ_ENDPOINT));
@@ -116,12 +119,7 @@ public class ServicePoolTest {
                 }
         );
 
-        _pool = (ServicePool) new ServicePoolBuilder<Service>()
-                .withHostDiscovery(_hostDiscovery)
-                .withServiceFactory(_serviceFactory)
-                .withHealthCheckExecutor(_healthCheckExecutor)
-                .withTicker(mock(Ticker.class))
-                .build();
+        _pool = new ServicePool<Service>(_ticker, _hostDiscovery, _serviceFactory, _healthCheckExecutor, true);
     }
 
     @After
@@ -540,6 +538,24 @@ public class ServicePoolTest {
     public void testCloseMultipleTimes() {
         _pool.close();
         _pool.close();
+    }
+
+    @Test
+    public void testDoesNotShutdownExecutorOnClose() {
+        ServicePool<Service> pool = new ServicePool<Service>(_ticker, _hostDiscovery, _serviceFactory,
+                _healthCheckExecutor, false);
+        pool.close();
+
+        verify(_healthCheckExecutor, never()).shutdown();
+    }
+
+    @Test
+    public void testDoesShutdownExecutorOnClose() {
+        ServicePool<Service> pool = new ServicePool<Service>(_ticker, _hostDiscovery, _serviceFactory,
+                _healthCheckExecutor, true);
+        pool.close();
+
+        verify(_healthCheckExecutor).shutdown();
     }
 
     // A dummy interface for testing...

@@ -40,6 +40,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final HostDiscovery.EndpointListener _hostDiscoveryListener;
     private final ServiceFactory<S> _serviceFactory;
     private final ScheduledExecutorService _healthCheckExecutor;
+    private final boolean _shutdownHealthCheckExecutorOnClose;
     private final LoadBalanceAlgorithm _loadBalanceAlgorithm;
     private final Set<ServiceEndPoint> _badEndpoints;
     private final Predicate<ServiceEndPoint> _badEndpointFilter;
@@ -47,11 +48,12 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final Future<?> _batchHealthChecksFuture;
 
     ServicePool(Ticker ticker, HostDiscovery hostDiscovery, ServiceFactory<S> serviceFactory,
-                       ScheduledExecutorService healthCheckExecutor) {
+                ScheduledExecutorService healthCheckExecutor, boolean shutdownExecutorOnClose) {
         _ticker = checkNotNull(ticker);
         _hostDiscovery = checkNotNull(hostDiscovery);
         _serviceFactory = checkNotNull(serviceFactory);
         _healthCheckExecutor = checkNotNull(healthCheckExecutor);
+        _shutdownHealthCheckExecutorOnClose = shutdownExecutorOnClose;
         _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm());
         _badEndpoints = Sets.newSetFromMap(Maps.<ServiceEndPoint, Boolean>newConcurrentMap());
         _badEndpointFilter = Predicates.not(Predicates.in(_badEndpoints));
@@ -92,6 +94,10 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     public void close() {
         _batchHealthChecksFuture.cancel(false);
         _hostDiscovery.removeListener(_hostDiscoveryListener);
+
+        if (_shutdownHealthCheckExecutorOnClose) {
+            _healthCheckExecutor.shutdown();
+        }
     }
 
     @Override
