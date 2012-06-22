@@ -92,11 +92,11 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
 
     @Override
     public void close() {
-        _batchHealthChecksFuture.cancel(false);
+        _batchHealthChecksFuture.cancel(true);
         _hostDiscovery.removeListener(_hostDiscoveryListener);
 
         if (_shutdownHealthCheckExecutorOnClose) {
-            _healthCheckExecutor.shutdown();
+            _healthCheckExecutor.shutdownNow();
         }
     }
 
@@ -197,6 +197,12 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
             for (ServiceEndPoint endpoint : _badEndpoints) {
                 if (isHealthy(endpoint)) {
                     _badEndpoints.remove(endpoint);
+                }
+
+                // If we were interrupted during checking the health (but weren't blocked so an InterruptedException
+                // couldn't be thrown), then we should exit now.
+                if (Thread.currentThread().isInterrupted()) {
+                    break;
                 }
             }
         }
