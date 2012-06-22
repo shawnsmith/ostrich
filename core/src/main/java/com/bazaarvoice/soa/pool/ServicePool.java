@@ -170,8 +170,10 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
             return;
         }
 
-        _badEndpoints.add(endpoint);
-        _healthCheckExecutor.submit(new HealthCheck(endpoint));
+        // Only schedule a health check if this is the first time we've seen this endpoint as bad...
+        if (_badEndpoints.add(endpoint)) {
+            _healthCheckExecutor.submit(new HealthCheck(endpoint));
+        }
     }
 
     @VisibleForTesting
