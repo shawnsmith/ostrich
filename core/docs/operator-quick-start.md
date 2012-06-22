@@ -31,8 +31,8 @@ When services register with Ostrich they create a node in ZooKeeper that contain
 
 * The globally unique name of the service (suggested to be the name of the github project)
 
-* A service unique identifier used to represent the instance of the service that is running (suggested to be the ip
-address of the machine combined with the port that the service is running on).  This will be combined with a UUID to
+* A service unique identifier used to represent the instance of the service that is running (suggested to be the host
+name of the machine combined with the port that the service is running on).  This will be combined with a UUID to
 ensure that it's globally unique, but users are encouraged to include a human readable identifier so that can provide
 context to an operator as to exactly what machine the service is running on.
 
