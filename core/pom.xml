@@ -5,13 +5,13 @@
     <parent>
         <groupId>com.bazaarvoice.soa</groupId>
         <artifactId>soa</artifactId>
-        <version>0.1.3-SNAPSHOT</version>
+        <version>0.1.3</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>com.bazaarvoice.soa</groupId>
     <artifactId>soa-core</artifactId>
-    <version>0.1.3-SNAPSHOT</version>
+    <version>0.1.3</version>
     <packaging>jar</packaging>
 
     <name>core</name>
