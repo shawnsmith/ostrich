@@ -107,7 +107,7 @@ public class CalculatorServiceFactory implements ServiceFactory<CalculatorServic
   @Override
   public boolean isHealthy(ServiceEndpoint endpoint) {
     Map<String, Object> payload = fromJSON(endpoint.getPayload());
-    String adminUrl = (String) payload.get("admin-url");
+    String adminUrl = (String) payload.get("health-url");
     return new Http().HEAD(adminUrl) == 200;
   }
 }
