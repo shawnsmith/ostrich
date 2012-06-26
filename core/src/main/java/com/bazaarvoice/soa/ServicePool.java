@@ -50,4 +50,20 @@ public interface ServicePool<S> extends Closeable {
      * @param <R> The return type for the call.
      */
     <R> Future<R> executeAsync(RetryPolicy retryPolicy, ServiceCallback<S, R> callback);
+
+    /**
+     * Returns a dynamic proxy that implements the service interface and implicitly wraps every call to a service
+     * method with a call to the {@link #execute} method.  This is appropriate for stateless services where it's
+     * sensible for the same retry policy to apply to every method.
+     *
+     * <p>
+     * Note: service interface must be an interface and not a concrete class.
+     * @param retryPolicy The retry policy for every operation.
+     * @param shutdownPoolOnClose If <tt>true</tt>, the proxy will implement {@link Closeable} and when closed will
+     *  shutdown the {@link ServicePool}.  If <tt>false</tt>, the proxy will delegate calls to the <tt>close</tt>
+     *  method to the underlying service implementation, assuming if <tt>close()</tt> is a member of the public service
+     *  interface.
+     * @return The dynamic proxy instance.
+     */
+    S newProxy(RetryPolicy retryPolicy, boolean shutdownPoolOnClose);
 }

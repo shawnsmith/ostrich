@@ -1,6 +1,7 @@
 package com.bazaarvoice.soa.pool;
 
 import com.bazaarvoice.soa.HostDiscovery;
+import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.discovery.ZooKeeperHostDiscovery;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
@@ -16,11 +17,20 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 public class ServicePoolBuilder<S> {
+    private final Class<S> _serviceType;
     private Ticker _ticker = Ticker.systemTicker();
     private HostDiscovery _hostDiscovery;
     private ServiceFactory<S> _serviceFactory;
     private ScheduledExecutorService _healthCheckExecutor;
     private ZooKeeperConnection _zooKeeperConnection;
+
+    public static <S> ServicePoolBuilder<S> create(Class<S> serviceType) {
+        return new ServicePoolBuilder<S>(serviceType);
+    }
+
+    private ServicePoolBuilder(Class<S> serviceType) {
+        _serviceType = checkNotNull(serviceType);
+    }
 
     @VisibleForTesting
     ServicePoolBuilder<S> withTicker(Ticker ticker) {
@@ -103,6 +113,19 @@ public class ServicePoolBuilder<S> {
             _healthCheckExecutor = Executors.newScheduledThreadPool(1, daemonThreadFactory);
         }
 
-        return new ServicePool<S>(_ticker, _hostDiscovery, _serviceFactory, _healthCheckExecutor, shutdownOnClose);
+        return new ServicePool<S>(_serviceType, _ticker, _hostDiscovery, _serviceFactory, _healthCheckExecutor,
+                shutdownOnClose);
+    }
+
+    /**
+     * Builds a dynamic proxy that wraps a {@code ServicePool} and implements the service interface directly.  This is
+     * appropriate for stateless services where it's sensible for the same retry policy to apply to every method.
+     *
+     * @param retryPolicy The retry policy to apply for every service call.
+     * @return The service dynamic proxy.  The caller is responsible for closing by proxy by casting it to
+     *   {@link java.io.Closeable} and calling the <tt>close</tt> method.
+     */
+    public S buildProxy(RetryPolicy retryPolicy) {
+        return build().newProxy(retryPolicy, true);
     }
 }
