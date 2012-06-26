@@ -4,11 +4,11 @@ import com.bazaarvoice.soa.pool.ServicePoolBuilder;
 import com.bazaarvoice.soa.retry.RetryNTimes;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
+import com.google.common.io.Closeables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -52,7 +52,7 @@ public class CalculatorProxyUser {
         }
     }
 
-    public static void main(String[] args) throws InterruptedException, IOException {
+    public static void main(String[] args) throws InterruptedException {
         String connectString = (args.length > 0) ? args[0] : "localhost:2181";
 
         ZooKeeperConnection connection = new ZooKeeperConfiguration()
@@ -67,6 +67,6 @@ public class CalculatorProxyUser {
 
         CalculatorProxyUser user = new CalculatorProxyUser(service);
         user.use();
-        ((Closeable) service).close();
+        Closeables.closeQuietly((Closeable) service);
     }
 }
