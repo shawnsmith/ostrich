@@ -152,7 +152,11 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     }
 
     @Override
-    public S newProxy(final RetryPolicy retryPolicy, final boolean shutdownPoolOnClose) {
+    public S newProxy(RetryPolicy retryPolicy) {
+        return newProxy(retryPolicy, false);
+    }
+
+    S newProxy(final RetryPolicy retryPolicy, final boolean shutdownPoolOnClose) {
         checkNotNull(retryPolicy);
         checkState(_serviceType.isInterface(), "Proxy functionality is only available for interface service types.");
         ClassLoader loader = Thread.currentThread().getContextClassLoader();

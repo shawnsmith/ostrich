@@ -96,6 +96,10 @@ public class ServicePoolBuilder<S> {
      * @return The {@code ServicePool} that was constructed.
      */
     public com.bazaarvoice.soa.ServicePool<S> build() {
+        return buildInternal();
+    }
+
+    private ServicePool<S> buildInternal() {
         checkNotNull(_serviceFactory);
         checkState(_hostDiscovery != null || _zooKeeperConnection != null);
 
@@ -120,12 +124,14 @@ public class ServicePoolBuilder<S> {
     /**
      * Builds a dynamic proxy that wraps a {@code ServicePool} and implements the service interface directly.  This is
      * appropriate for stateless services where it's sensible for the same retry policy to apply to every method.
-     *
+     * <p>
+     * It is the caller's responsibility to shutdown the service pool when they're done with it by casting the proxy
+     * to {@link java.io.Closeable} and calling the {@link java.io.Closeable#close()} method.
      * @param retryPolicy The retry policy to apply for every service call.
-     * @return The service dynamic proxy.  The caller is responsible for closing by proxy by casting it to
-     *   {@link java.io.Closeable} and calling the <tt>close</tt> method.
+     * @return The dynamic proxy instance that implements the service interface {@code S} and the
+     * {@link java.io.Closeable} interface.
      */
     public S buildProxy(RetryPolicy retryPolicy) {
-        return build().newProxy(retryPolicy, true);
+        return buildInternal().newProxy(retryPolicy, true);
     }
 }

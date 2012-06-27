@@ -30,9 +30,9 @@ public class CalculatorProxyUser {
         int i = 0;
         while (++i > 0) {
             try {
-                final int a = _random.nextInt(10);
-                final int b = 1 + _random.nextInt(9);
-                final int op = _random.nextInt(4);
+                int a = _random.nextInt(10);
+                int b = 1 + _random.nextInt(9);
+                int op = _random.nextInt(4);
                 int result = call(op, a, b);
                 LOG.info("i:{}, result:{}", i, result);
             } catch (Exception e) {
@@ -67,6 +67,7 @@ public class CalculatorProxyUser {
 
         CalculatorProxyUser user = new CalculatorProxyUser(service);
         user.use();
+
         Closeables.closeQuietly((Closeable) service);
     }
 }

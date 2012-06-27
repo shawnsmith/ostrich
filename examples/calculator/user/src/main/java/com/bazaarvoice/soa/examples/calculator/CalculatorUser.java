@@ -67,6 +67,7 @@ public class CalculatorUser {
 
         CalculatorUser user = new CalculatorUser(pool);
         user.use();
+
         pool.close();
     }
 }

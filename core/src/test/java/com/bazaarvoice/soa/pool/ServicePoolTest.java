@@ -571,41 +571,34 @@ public class ServicePoolTest {
     }
 
     @Test
-    public void testProxyCallsImplementationClose() throws IOException {
-        // Mock CloseableService versions of hostDiscovery, serviceFactory
-        ServiceEndPoint endPoint = mock(ServiceEndPoint.class);
-        CloseableService serviceImpl = mock(CloseableService.class);
-        @SuppressWarnings("unchecked") ServiceFactory<CloseableService> serviceFactory = mock(ServiceFactory.class);
-        when(serviceFactory.create(endPoint)).thenReturn(serviceImpl);
-        when(serviceFactory.getLoadBalanceAlgorithm()).thenReturn(_loadBalanceAlgorithm);
-        HostDiscovery hostDiscovery = mock(HostDiscovery.class);
-        when(hostDiscovery.getHosts()).thenReturn(ImmutableList.of(endPoint));
-
-        // Create a service pool proxy with shutdownPoolOnClose=false.
-        ServicePool<CloseableService> pool = new ServicePool<CloseableService>(CloseableService.class, _ticker,
-                hostDiscovery, serviceFactory, _healthCheckExecutor, true);
-        CloseableService service = pool.newProxy(NEVER_RETRY, false);
+    public void testProxyDoesNotOverrideClose() throws IOException {
+        // Because this proxy is created with shutdownPoolOnClose=false, the Service.close() method is passed
+        // through to the underlying service implementation.
+        Service service = _pool.newProxy(NEVER_RETRY, false);
         service.close();
 
-        verify(serviceImpl).close();
+        verify(FOO_SERVICE).close();
         verify(_healthCheckExecutor, never()).shutdownNow();
     }
 
     @Test
     public void testProxyDoesNotImplementCloseable() throws IOException {
-        ServicePool<Service> pool = new ServicePool<Service>(Service.class, _ticker, _hostDiscovery, _serviceFactory,
-                _healthCheckExecutor, true);
-        Service service = pool.newProxy(NEVER_RETRY, false);
+        Service service = _pool.newProxy(NEVER_RETRY, false);
 
         assertFalse(service instanceof Closeable);
     }
 
     @Test
-    public void testProxyDoesShutdownExecutorOnClose() throws IOException {
-        ServicePool<Service> pool = new ServicePool<Service>(Service.class, _ticker, _hostDiscovery, _serviceFactory,
-                _healthCheckExecutor, true);
-        Service service = pool.newProxy(NEVER_RETRY, true);
-        ((Closeable) service).close();
+    public void testProxyImplementsCloseable() throws IOException {
+        Service service = _pool.newProxy(NEVER_RETRY, true);
+
+        assertTrue(service instanceof Closeable);
+    }
+
+    @Test
+    public void testProxyShutsdownExecutorOnClose() throws IOException {
+        Service service = _pool.newProxy(NEVER_RETRY, true);
+        service.close();
 
         verify(_healthCheckExecutor).shutdownNow();
     }
@@ -661,10 +654,7 @@ public class ServicePoolTest {
     }
 
     // A dummy interface for testing...
-    private static interface Service {}
-
-    // A dummy interface for testing...
-    private static interface CloseableService {
+    private static interface Service {
         void close();
     }
 }

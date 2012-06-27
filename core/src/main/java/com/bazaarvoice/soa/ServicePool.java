@@ -55,15 +55,15 @@ public interface ServicePool<S> extends Closeable {
      * Returns a dynamic proxy that implements the service interface and implicitly wraps every call to a service
      * method with a call to the {@link #execute} method.  This is appropriate for stateless services where it's
      * sensible for the same retry policy to apply to every method.
-     *
      * <p>
-     * Note: service interface must be an interface and not a concrete class.
+     * In contrast to proxies created with {@link com.bazaarvoice.soa.pool.ServicePoolBuilder#buildProxy(RetryPolicy)},
+     * proxies returned by this method do not provide a {@code close} method that closes the service pool.
+     * <p>
+     * Implementation restriction: dynamic proxies are only supported when the service interface {@code S} is an
+     * interface.  They're not supported when {@code S} is a concrete class.
+     *
      * @param retryPolicy The retry policy for every operation.
-     * @param shutdownPoolOnClose If <tt>true</tt>, the proxy will implement {@link Closeable} and when closed will
-     *  shutdown the {@link ServicePool}.  If <tt>false</tt>, the proxy will delegate calls to the <tt>close</tt>
-     *  method to the underlying service implementation, assuming if <tt>close()</tt> is a member of the public service
-     *  interface.
      * @return The dynamic proxy instance.
      */
-    S newProxy(RetryPolicy retryPolicy, boolean shutdownPoolOnClose);
+    S newProxy(RetryPolicy retryPolicy);
 }

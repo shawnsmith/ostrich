@@ -14,6 +14,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -136,7 +137,7 @@ public class ServicePoolBuilderTest {
                 .withHostDiscovery(mock(HostDiscovery.class))
                 .withServiceFactory(serviceFactory)
                 .buildProxy(mock(RetryPolicy.class));
-        ((Closeable) service).close();
+        assertTrue(service instanceof Closeable);
     }
 
     // A dummy interface for testing...
