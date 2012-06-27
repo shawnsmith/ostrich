@@ -13,6 +13,8 @@ Running the Example
 
 2.  Start ZooKeeper locally, listening on port 2181.
 
+        $ vagrant up
+
 3.  Create a minimal YAML configuration file:
 
         $ echo "{}" > /tmp/config.yaml
