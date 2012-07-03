@@ -5,13 +5,13 @@
     <parent>
         <groupId>com.bazaarvoice.soa</groupId>
         <artifactId>soa</artifactId>
-        <version>0.1.7</version>
+        <version>0.1.8-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>com.bazaarvoice.soa.examples</groupId>
     <artifactId>soa-examples</artifactId>
-    <version>0.1.7</version>
+    <version>0.1.8-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>examples</name>
@@ -22,7 +22,7 @@
             <dependency>
                 <groupId>com.bazaarvoice.soa</groupId>
                 <artifactId>soa-core</artifactId>
-                <version>0.1.7</version>
+                <version>0.1.8-SNAPSHOT</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
