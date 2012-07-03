@@ -57,8 +57,8 @@ public class CalculatorUser {
         String connectString = (args.length > 0) ? args[0] : "localhost:2181";
 
         ZooKeeperConnection connection = new ZooKeeperConfiguration()
-                .setConnectString(connectString)
-                .setRetryNTimes(new com.bazaarvoice.soa.zookeeper.RetryNTimes(3, 100))
+                .withConnectString(connectString)
+                .withRetryNTimes(3, 100)
                 .connect();
 
         ServicePool<CalculatorService> pool = ServicePoolBuilder.create(CalculatorService.class)
