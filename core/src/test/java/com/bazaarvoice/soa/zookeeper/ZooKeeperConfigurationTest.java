@@ -6,32 +6,37 @@ public class ZooKeeperConfigurationTest {
     private ZooKeeperConfiguration _config = new ZooKeeperConfiguration();
 
     @Test
-    public void testNullExponentialBackoffRetry() {
-        _config.withExponentialBackoffRetry(0, 0);
+    public void testNoRetryBoundedExponentialBackoffRetry() {
+        _config.withBoundedExponentialBackoffRetry(0, 0, 0);
     }
 
     @Test
-    public void testNullRetryNTimes() {
-        _config.withRetryNTimes(0, 0);
-    }
-
-    @Test
-    public void testNullRetryUntilElapsed() {
-        _config.withRetryUntilElapsed(0, 0);
+    public void testBoundedExponentialBackoffRetry() {
+        _config.withBoundedExponentialBackoffRetry(10, 1000, 3);
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testBadExponentialBackoffRetry() {
-        _config.withExponentialBackoffRetry(0, 1);
+    public void testNegativeInitialSleepTime() {
+        _config.withBoundedExponentialBackoffRetry(-1, 10, 1);
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testBadRetryNTimes() {
-        _config.withRetryNTimes(1, 0);
+    public void testZeroInitialSleepTime() {
+        _config.withBoundedExponentialBackoffRetry(0, 10, 1);
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testBadRetryUntilElapsed() {
-        _config.withRetryUntilElapsed(1, 0);
+    public void testNegativeMaxSleepTime() {
+        _config.withBoundedExponentialBackoffRetry(10, -1, 1);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testZeroMaxSleepTime() {
+        _config.withBoundedExponentialBackoffRetry(10, 0, 1);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testBadBoundedExponentialBackoffRetry() {
+        _config.withBoundedExponentialBackoffRetry(0, 0, 1);
     }
 }

@@ -29,29 +29,13 @@ public class ZooKeeperConfiguration extends com.bazaarvoice.soa.zookeeper.ZooKee
     }
 
     /**
-     * Sets a retry policy that retries a set number of times with increasing sleep time between retries.
+     * Sets a retry policy that retries a set number of times with increasing sleep time between retries up to a
+     * maximum sleep time.
      */
     @JsonProperty
-    public ZooKeeperConfiguration setExponentialBackoffRetry(ExponentialBackoffRetry retryPolicy) {
-        withExponentialBackoffRetry(retryPolicy.baseSleepTimeMs, retryPolicy.maxRetries);
-        return this;
-    }
-
-    /**
-     * Sets a retry policy that retries a set number of times with a constant sleep time between retries.
-     */
-    @JsonProperty
-    public ZooKeeperConfiguration setRetryNTimes(RetryNTimes retryPolicy) {
-        withRetryNTimes(retryPolicy.n, retryPolicy.sleepMsBetweenRetries);
-        return this;
-    }
-
-    /**
-     * Sets a retry policy that retries until a specified time has elapsed, with a constant sleep time between retries.
-     */
-    @JsonProperty
-    public ZooKeeperConfiguration setRetryUntilElapsed(RetryUntilElapsed retryPolicy) {
-        withRetryUntilElapsed(retryPolicy.maxElapsedTimeMs, retryPolicy.sleepMsBetweenRetries);
+    public ZooKeeperConfiguration setRetry(BoundedExponentialBackoffRetry retryPolicy) {
+        withBoundedExponentialBackoffRetry(retryPolicy.baseSleepTimeMs, retryPolicy.maxSleepTimeMs,
+                retryPolicy.maxRetries);
         return this;
     }
 

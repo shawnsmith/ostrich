@@ -57,7 +57,7 @@ public class CalculatorProxyUser {
 
         ZooKeeperConnection connection = new ZooKeeperConfiguration()
                 .withConnectString(connectString)
-                .withRetryNTimes(3, 100)
+                .withBoundedExponentialBackoffRetry(10, 1000, 3)
                 .connect();
 
         CalculatorService service = ServicePoolBuilder.create(CalculatorService.class)

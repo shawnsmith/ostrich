@@ -50,8 +50,7 @@ public abstract class ZooKeeperTest {
     }
 
     public ZooKeeperConnection newZooKeeperConnection() throws Exception {
-        return newZooKeeperConnection(new ZooKeeperConfiguration()
-                .withRetryNTimes(0, 0));
+        return newZooKeeperConnection(new ZooKeeperConfiguration().withBoundedExponentialBackoffRetry(0, 0, 0));
     }
 
     public ZooKeeperConnection newZooKeeperConnection(ZooKeeperConfiguration configuration) {

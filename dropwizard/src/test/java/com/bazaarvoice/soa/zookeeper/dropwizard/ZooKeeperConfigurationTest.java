@@ -16,7 +16,7 @@ public class ZooKeeperConfigurationTest {
     public void testJsonDefaults() throws IOException {
         ZooKeeperConfiguration config = fromJson("{}");
         assertEquals("localhost:2181", config.getConnectString());
-        assertTrue(config.getRetryPolicy() instanceof com.netflix.curator.retry.RetryNTimes);
+        assertTrue(config.getRetryPolicy() instanceof com.netflix.curator.retry.BoundedExponentialBackoffRetry);
     }
 
     @Test
@@ -26,21 +26,9 @@ public class ZooKeeperConfigurationTest {
     }
 
     @Test
-    public void testJsonExponentialBackoffRetry() throws IOException {
-        ZooKeeperConfiguration config = fromJson("{\"exponentialBackoffRetry\":{\"baseSleepTimeMs\":100,\"maxRetries\":3}}");
-        assertTrue(config.getRetryPolicy() instanceof com.netflix.curator.retry.ExponentialBackoffRetry);
-    }
-
-    @Test
-    public void testJsonRetryNTimes() throws IOException {
-        ZooKeeperConfiguration config = fromJson("{\"retryNTimes\":{\"sleepMsBetweenRetries\":100,\"n\":3}}");
-        assertTrue(config.getRetryPolicy() instanceof com.netflix.curator.retry.RetryNTimes);
-    }
-
-    @Test
-    public void testJsonRetryUntilElapsed() throws IOException {
-        ZooKeeperConfiguration config = fromJson("{\"retryUntilElapsed\":{\"sleepMsBetweenRetries\":100,\"maxElapsedTimeMs\":2000}}");
-        assertTrue(config.getRetryPolicy() instanceof com.netflix.curator.retry.RetryUntilElapsed);
+    public void testJsonBoundedExponentialBackoffRetry() throws IOException {
+        ZooKeeperConfiguration config = fromJson("{\"retry\":{\"baseSleepTimeMs\":100,\"maxSleepTimeMs\":1000,\"maxRetries\":3}}");
+        assertTrue(config.getRetryPolicy() instanceof com.netflix.curator.retry.BoundedExponentialBackoffRetry);
     }
 
     @Test

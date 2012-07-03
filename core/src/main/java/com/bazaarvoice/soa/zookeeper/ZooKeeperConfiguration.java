@@ -3,9 +3,7 @@ package com.bazaarvoice.soa.zookeeper;
 import com.bazaarvoice.soa.internal.CuratorConnection;
 import com.google.common.annotations.VisibleForTesting;
 import com.netflix.curator.RetryPolicy;
-import com.netflix.curator.retry.ExponentialBackoffRetry;
-import com.netflix.curator.retry.RetryNTimes;
-import com.netflix.curator.retry.RetryUntilElapsed;
+import com.netflix.curator.retry.BoundedExponentialBackoffRetry;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -18,7 +16,7 @@ import static com.google.common.base.Preconditions.checkArgument;
  */
 public class ZooKeeperConfiguration {
     private String _connectString = "localhost:2181";
-    private RetryPolicy _retryPolicy = new RetryNTimes(3, 100);
+    private RetryPolicy _retryPolicy = new BoundedExponentialBackoffRetry(10, 100, 3);
     private String _namespace;
 
     /**
@@ -52,35 +50,14 @@ public class ZooKeeperConfiguration {
     }
 
     /**
-     * Sets a retry policy that retries a set number of times with increasing sleep time between retries.
+     * Sets a retry policy that retries up to a set number of times with an exponential backoff between retries.
      */
-    public ZooKeeperConfiguration withExponentialBackoffRetry(int baseSleepTimeMs, int maxRetries) {
-        checkArgument(maxRetries >= 0);
-        checkArgument(maxRetries == 0 || baseSleepTimeMs > 0);
+    public ZooKeeperConfiguration withBoundedExponentialBackoffRetry(int initialSleepTimeMs, int maxSleepTimeMs,
+                                                                     int maxNumAttempts) {
+        checkArgument(maxNumAttempts >= 0);
+        checkArgument(maxNumAttempts == 0 || (initialSleepTimeMs > 0 && maxSleepTimeMs > 0));
 
-        _retryPolicy = new ExponentialBackoffRetry(baseSleepTimeMs, maxRetries);
-        return this;
-    }
-
-    /**
-     * Sets a retry policy that retries a set number of times with a constant sleep time between retries.
-     */
-    public ZooKeeperConfiguration withRetryNTimes(int n, int sleepMsBetweenRetries) {
-        checkArgument(n >= 0);
-        checkArgument(n == 0 || sleepMsBetweenRetries > 0);
-
-        _retryPolicy = new RetryNTimes(n, sleepMsBetweenRetries);
-        return this;
-    }
-
-    /**
-     * Sets a retry policy that retries until a specified time has elapsed, with a constant sleep time between retries.
-     */
-    public ZooKeeperConfiguration withRetryUntilElapsed(int maxElapsedTimeMs, int sleepMsBetweenRetries) {
-        checkArgument(maxElapsedTimeMs >= 0);
-        checkArgument(maxElapsedTimeMs == 0 || sleepMsBetweenRetries > 0);
-
-        _retryPolicy = new RetryUntilElapsed(maxElapsedTimeMs, sleepMsBetweenRetries);
+        _retryPolicy = new BoundedExponentialBackoffRetry(initialSleepTimeMs, maxSleepTimeMs, maxNumAttempts);
         return this;
     }
 
