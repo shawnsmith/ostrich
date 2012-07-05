@@ -6,14 +6,14 @@ import org.codehaus.jackson.annotate.JsonProperty;
 public class BoundedExponentialBackoffRetry {
     public final int baseSleepTimeMs;
     public final int maxSleepTimeMs;
-    public final int maxRetries;
+    public final int maxAttempts;
 
     @JsonCreator
     public BoundedExponentialBackoffRetry(@JsonProperty("baseSleepTimeMs") int baseSleepTimeMs,
                                           @JsonProperty("maxSleepTimeMs") int maxSleepTimeMs,
-                                          @JsonProperty("maxRetries") int maxRetries) {
+                                          @JsonProperty("maxAttempts") int maxAttempts) {
         this.baseSleepTimeMs = baseSleepTimeMs;
         this.maxSleepTimeMs = maxSleepTimeMs;
-        this.maxRetries = maxRetries;
+        this.maxAttempts = maxAttempts;
     }
 }

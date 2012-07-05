@@ -33,9 +33,8 @@ public class ZooKeeperConfiguration extends com.bazaarvoice.soa.zookeeper.ZooKee
      * maximum sleep time.
      */
     @JsonProperty
-    public ZooKeeperConfiguration setRetry(BoundedExponentialBackoffRetry retryPolicy) {
-        withBoundedExponentialBackoffRetry(retryPolicy.baseSleepTimeMs, retryPolicy.maxSleepTimeMs,
-                retryPolicy.maxRetries);
+    public ZooKeeperConfiguration setRetry(BoundedExponentialBackoffRetry retry) {
+        withBoundedExponentialBackoffRetry(retry.baseSleepTimeMs, retry.maxSleepTimeMs, retry.maxAttempts);
         return this;
     }
 

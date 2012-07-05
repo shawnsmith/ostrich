@@ -16,7 +16,7 @@ import static com.google.common.base.Preconditions.checkArgument;
  */
 public class ZooKeeperConfiguration {
     private String _connectString = "localhost:2181";
-    private RetryPolicy _retryPolicy = new BoundedExponentialBackoffRetry(10, 100, 3);
+    private RetryPolicy _retryPolicy = new BoundedExponentialBackoffRetry(100, 1000, 5);
     private String _namespace;
 
     /**
@@ -54,10 +54,13 @@ public class ZooKeeperConfiguration {
      */
     public ZooKeeperConfiguration withBoundedExponentialBackoffRetry(int initialSleepTimeMs, int maxSleepTimeMs,
                                                                      int maxNumAttempts) {
-        checkArgument(maxNumAttempts >= 0);
-        checkArgument(maxNumAttempts == 0 || (initialSleepTimeMs > 0 && maxSleepTimeMs > 0));
+        checkArgument(maxNumAttempts > 0);
+        checkArgument(initialSleepTimeMs > 0);
+        checkArgument(maxSleepTimeMs > 0);
 
-        _retryPolicy = new BoundedExponentialBackoffRetry(initialSleepTimeMs, maxSleepTimeMs, maxNumAttempts);
+        // The Curator retry policies take as a parameter the number of times a retry is allowed.  So we convert
+        // maxNumAttempts into maxNumRetries.
+        _retryPolicy = new BoundedExponentialBackoffRetry(initialSleepTimeMs, maxSleepTimeMs, maxNumAttempts-1);
         return this;
     }
 
