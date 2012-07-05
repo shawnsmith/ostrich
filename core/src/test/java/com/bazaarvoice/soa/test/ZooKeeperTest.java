@@ -50,6 +50,7 @@ public abstract class ZooKeeperTest {
     }
 
     public ZooKeeperConnection newZooKeeperConnection() throws Exception {
+        // For test case purposes don't retry at all.  This should never be done in production!!!
         return newZooKeeperConnection(new ZooKeeperConfiguration().withBoundedExponentialBackoffRetry(100, 1000, 1));
     }
 
