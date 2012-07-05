@@ -6,13 +6,8 @@ public class ZooKeeperConfigurationTest {
     private ZooKeeperConfiguration _config = new ZooKeeperConfiguration();
 
     @Test
-    public void testNoRetryBoundedExponentialBackoffRetry() {
-        _config.withBoundedExponentialBackoffRetry(0, 0, 0);
-    }
-
-    @Test
-    public void testBoundedExponentialBackoffRetry() {
-        _config.withBoundedExponentialBackoffRetry(10, 1000, 3);
+    public void testOneAttemptBoundedExponentialBackoffRetry() {
+        _config.withBoundedExponentialBackoffRetry(10, 100, 1);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -36,7 +31,12 @@ public class ZooKeeperConfigurationTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testBadBoundedExponentialBackoffRetry() {
-        _config.withBoundedExponentialBackoffRetry(0, 0, 1);
+    public void testNegativeAttemptsBoundedExponentialBackoffRetry() {
+        _config.withBoundedExponentialBackoffRetry(10, 100, -1);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testZeroAttemptsBoundedExponentialBackoffRetry() {
+        _config.withBoundedExponentialBackoffRetry(10, 100, 0);
     }
 }
