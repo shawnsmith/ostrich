@@ -5,13 +5,13 @@
     <parent>
         <groupId>com.bazaarvoice.soa.examples</groupId>
         <artifactId>soa-examples</artifactId>
-        <version>0.1.8-SNAPSHOT</version>
+        <version>0.1.8</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>com.bazaarvoice.soa.examples.calculator</groupId>
     <artifactId>calculator</artifactId>
-    <version>0.1.8-SNAPSHOT</version>
+    <version>0.1.8</version>
     <packaging>pom</packaging>
 
     <name>calculator</name>
