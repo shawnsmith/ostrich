@@ -1,5 +1,7 @@
 package com.bazaarvoice.soa;
 
+import java.util.Map;
+
 public interface LoadBalanceAlgorithm {
     /**
      * Selects an endpoint to use based on a load balancing algorithm.  If no endpoint can be chosen, then
@@ -8,5 +10,5 @@ public interface LoadBalanceAlgorithm {
      * @param endpoints The endpoints to choose from.
      * @return Which endpoint to use or <code>null</code> if one couldn't be chosen.
      */
-    ServiceEndPoint choose(Iterable<ServiceEndPoint> endpoints);
+    ServiceEndPoint choose(Iterable<ServiceEndPoint> endpoints, Map<Enum, ServiceStatisticsProvider> stats);
 }

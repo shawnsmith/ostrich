@@ -4,13 +4,16 @@ import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.HostDiscoverySource;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceFactory;
+import com.bazaarvoice.soa.ServiceStatisticsProvider;
 import com.bazaarvoice.soa.discovery.ZooKeeperHostDiscovery;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
 import com.google.common.base.Ticker;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -24,6 +27,7 @@ public class ServicePoolBuilder<S> {
     private ServiceFactory<S> _serviceFactory;
     private ScheduledExecutorService _healthCheckExecutor;
     private ServiceCachingPolicy _cachePolicy;
+    private final Map<Enum, ServiceStatisticsProvider> _serviceStatsProviders = Maps.newHashMap();
 
     public static <S> ServicePoolBuilder<S> create(Class<S> serviceType) {
         return new ServicePoolBuilder<S>(serviceType);
@@ -126,6 +130,21 @@ public class ServicePoolBuilder<S> {
     }
 
     /**
+     * Adds a {@code ServiceStatisticsProvider} to the built {@link ServicePool} with the given key.
+     * This may be called multiple times to add multiple providers. The {@code ServiceStatisticsProvider}s can be used
+     * by {@link com.bazaarvoice.soa.LoadBalanceAlgorithm}s to choose from available end points.
+     * @param key The key for the {@code statisticsProvider}.
+     * @param statisticsProvider The {@code ServiceStatisticsProvider} to add.
+     * @return this
+     */
+    public ServicePoolBuilder<S> withServiceStatisticsProvider(Enum key, ServiceStatisticsProvider statisticsProvider) {
+        checkNotNull(key);
+        checkNotNull(statisticsProvider);
+        _serviceStatsProviders.put(key, statisticsProvider);
+        return this;
+    }
+
+    /**
      * Builds the {@code ServicePool}.
      *
      * @return The {@code ServicePool} that was constructed.
@@ -151,10 +170,10 @@ public class ServicePoolBuilder<S> {
 
         if (_cachePolicy != null) {
             return new ServicePool<S>(_serviceType, Ticker.systemTicker(), hostDiscovery, _serviceFactory,
-                    _healthCheckExecutor, shutdownOnClose, _cachePolicy);
+                    _healthCheckExecutor, shutdownOnClose, _cachePolicy, _serviceStatsProviders);
         } else {
             return new ServicePool<S>(_serviceType, Ticker.systemTicker(), hostDiscovery, _serviceFactory,
-                    _healthCheckExecutor, shutdownOnClose);
+                    _healthCheckExecutor, shutdownOnClose, _serviceStatsProviders);
         }
     }
 

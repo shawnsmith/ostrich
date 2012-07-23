@@ -10,6 +10,7 @@ import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.pool.KeyedPoolableObjectFactory;
 import org.apache.commons.pool.impl.GenericKeyedObjectPool;
+import org.apache.commons.pool.impl.GenericObjectPoolFactory;
 
 import java.io.Closeable;
 import java.util.NoSuchElementException;
@@ -94,6 +95,10 @@ class ServiceCache<S> implements Closeable {
         } catch (Exception e) {
             // Should never happen.
         }
+    }
+
+    public int numIdle(ServiceEndPoint endPoint) {
+        return _pool.getNumIdle(endPoint);
     }
 
     @Override
