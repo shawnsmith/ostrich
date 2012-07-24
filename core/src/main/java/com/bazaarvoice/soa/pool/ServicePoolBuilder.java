@@ -6,6 +6,7 @@ import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.discovery.ZooKeeperHostDiscovery;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -25,6 +26,7 @@ public class ServicePoolBuilder<S> {
     private final List<HostDiscoverySource> _hostDiscoverySources = Lists.newArrayList();
     private ServiceFactory<S> _serviceFactory;
     private ScheduledExecutorService _healthCheckExecutor;
+    private ServiceCachingPolicy _cachingPolicy;
 
     public static <S> ServicePoolBuilder<S> create(Class<S> serviceType) {
         return new ServicePoolBuilder<S>(serviceType);
@@ -115,6 +117,20 @@ public class ServicePoolBuilder<S> {
     }
 
     /**
+     * Enables caching of service instances in the built {@link ServicePool}.
+     * <p/>
+     * Specifying a caching policy is optional.  If one isn't specified then a default one that doesn't cache service
+     * instances will be created and used automatically.
+     *
+     * @param policy The {@link ServiceCachingPolicy} to use
+     * @return this
+     */
+    public ServicePoolBuilder<S> withCachingPolicy(ServiceCachingPolicy policy) {
+        _cachingPolicy = checkNotNull(policy);
+        return this;
+    }
+
+    /**
      * Builds the {@code ServicePool}.
      *
      * @return The {@code ServicePool} that was constructed.
@@ -138,11 +154,16 @@ public class ServicePoolBuilder<S> {
         return buildInternal().newProxy(retryPolicy, true);
     }
 
-    private ServicePool<S> buildInternal() {
+    @VisibleForTesting
+    ServicePool<S> buildInternal() {
         checkNotNull(_serviceFactory);
 
         String serviceName = _serviceFactory.getServiceName();
         HostDiscovery hostDiscovery = findHostDiscovery(serviceName);
+
+        if (_cachingPolicy == null) {
+            _cachingPolicy = ServiceCachingPolicyBuilder.NO_CACHING;
+        }
 
         boolean shutdownHealthCheckExecutorOnClose = (_healthCheckExecutor == null);
         if (_healthCheckExecutor == null) {
@@ -154,7 +175,7 @@ public class ServicePoolBuilder<S> {
         }
 
         return new ServicePool<S>(_serviceType, Ticker.systemTicker(), hostDiscovery, _serviceFactory,
-                _healthCheckExecutor, shutdownHealthCheckExecutorOnClose);
+                _cachingPolicy, _healthCheckExecutor, shutdownHealthCheckExecutorOnClose);
     }
 
     private HostDiscovery findHostDiscovery(String serviceName) {
