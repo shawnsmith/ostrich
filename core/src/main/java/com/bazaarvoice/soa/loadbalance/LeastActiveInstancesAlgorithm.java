@@ -28,7 +28,7 @@ public class LeastActiveInstancesAlgorithm implements LoadBalanceAlgorithm {
         Collections.sort(sortedList, new Comparator<ServiceEndPoint>() {
             @Override
             public int compare(ServiceEndPoint endPoint1, ServiceEndPoint endPoint2) {
-                return _stats.numActiveInstances(endPoint1) - _stats.numActiveInstances(endPoint2);
+                return _stats.getNumActiveInstances(endPoint1) - _stats.getNumActiveInstances(endPoint2);
             }
         });
         if (sortedList.size() == 0) {

@@ -72,16 +72,17 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 .expireAfterWrite(10, TimeUnit.MINUTES)  // TODO: Make this a constant
                 .<ServiceEndPoint, Boolean>build()
                 .asMap());
-        _serviceCache = new ServiceCache<S>(checkNotNull(cachingPolicy), serviceFactory);
+        checkNotNull(cachingPolicy);
+        _serviceCache = new ServiceCache<S>(cachingPolicy, serviceFactory);
         _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm(new ServicePoolStatistics() {
             @Override
-            public int numIdleCachedInstances(ServiceEndPoint endPoint) {
-                return _serviceCache.numIdle(endPoint);
+            public int getNumIdleCachedInstances(ServiceEndPoint endPoint) {
+                return _serviceCache.getNumIdleInstances(endPoint);
             }
 
             @Override
-            public int numActiveInstances(ServiceEndPoint endPoint) {
-                return _serviceCache.numActive(endPoint);
+            public int getNumActiveInstances(ServiceEndPoint endPoint) {
+                return _serviceCache.getNumActiveInstances(endPoint);
             }
         }));
 

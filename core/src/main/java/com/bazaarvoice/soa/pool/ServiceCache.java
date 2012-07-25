@@ -10,7 +10,6 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.pool.BaseKeyedPoolableObjectFactory;
 import org.apache.commons.pool.impl.GenericKeyedObjectPool;
-import org.apache.commons.pool.impl.GenericObjectPoolFactory;
 
 import java.io.Closeable;
 import java.util.Map;
@@ -175,12 +174,14 @@ class ServiceCache<S> implements Closeable {
         }
     }
 
-    public int numIdle(ServiceEndPoint endPoint) {
-        return _pool.getNumIdle(checkNotNull(endPoint));
+    public int getNumIdleInstances(ServiceEndPoint endPoint) {
+        checkNotNull(endPoint);
+        return _pool.getNumIdle(endPoint);
     }
 
-    public int numActive(ServiceEndPoint endPoint) {
-        return _pool.getNumActive(checkNotNull(endPoint));
+    public int getNumActiveInstances(ServiceEndPoint endPoint) {
+        checkNotNull(endPoint);
+        return _pool.getNumActive(endPoint);
     }
 
     @Override

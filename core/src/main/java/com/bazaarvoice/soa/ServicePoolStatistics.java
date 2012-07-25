@@ -1,8 +1,7 @@
 package com.bazaarvoice.soa;
 
 public interface ServicePoolStatistics {
+    int getNumIdleCachedInstances(ServiceEndPoint endPoint);
 
-    int numIdleCachedInstances(ServiceEndPoint endPoint);
-
-    int numActiveInstances(ServiceEndPoint endPoint);
+    int getNumActiveInstances(ServiceEndPoint endPoint);
 }

@@ -89,8 +89,7 @@ public class ServicePoolTest {
         _loadBalanceAlgorithm = mock(LoadBalanceAlgorithm.class);
         when(_loadBalanceAlgorithm.choose(any(Iterable.class))).thenAnswer(new Answer<ServiceEndPoint>() {
             @Override
-            public ServiceEndPoint answer(InvocationOnMock invocation)
-                    throws Throwable {
+            public ServiceEndPoint answer(InvocationOnMock invocation) throws Throwable {
                 // Always choose the first endpoint.  This is probably fine since most tests will have just a single
                 // endpoint available anyways.
                 Iterable<ServiceEndPoint> endpoints = (Iterable<ServiceEndPoint>) invocation.getArguments()[0];
@@ -130,8 +129,7 @@ public class ServicePoolTest {
         );
 
         _pool = new ServicePool<Service>(Service.class, _ticker, _hostDiscovery, _serviceFactory,
-                ServiceCachingPolicyBuilder.NO_CACHING, _healthCheckExecutor, true
-        );
+                ServiceCachingPolicyBuilder.NO_CACHING, _healthCheckExecutor, true);
     }
 
     @After
@@ -190,8 +188,7 @@ public class ServicePoolTest {
     public void testThrowsNoSuitableHostsExceptionWhenLoadBalancerReturnsNull() {
         // Reset the load balance algorithm's setup and make it always return null.
         reset(_loadBalanceAlgorithm);
-        when(_loadBalanceAlgorithm.choose(Matchers.<Iterable<ServiceEndPoint>>any()
-        )).thenReturn(null);
+        when(_loadBalanceAlgorithm.choose(Matchers.<Iterable<ServiceEndPoint>>any())).thenReturn(null);
 
         boolean called = _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Boolean>() {
             @Override
@@ -382,8 +379,8 @@ public class ServicePoolTest {
         ServicePoolStatistics stats = captor.getValue();
 
         // Stats should start at 0.
-        assertEquals(0, stats.numIdleCachedInstances(FOO_ENDPOINT));
-        assertEquals(0, stats.numActiveInstances(FOO_ENDPOINT));
+        assertEquals(0, stats.getNumIdleCachedInstances(FOO_ENDPOINT));
+        assertEquals(0, stats.getNumActiveInstances(FOO_ENDPOINT));
 
         // Start a service instance.
         final CountDownLatch inCallable = new CountDownLatch(1);
@@ -411,13 +408,13 @@ public class ServicePoolTest {
         });
 
         inCallable.await(1, TimeUnit.SECONDS);
-        assertEquals(1, stats.numActiveInstances(FOO_ENDPOINT));
-        assertEquals(0, stats.numIdleCachedInstances(FOO_ENDPOINT));
+        assertEquals(1, stats.getNumActiveInstances(FOO_ENDPOINT));
+        assertEquals(0, stats.getNumIdleCachedInstances(FOO_ENDPOINT));
 
         mayContinue.countDown();
         serviceFuture.get(1, TimeUnit.SECONDS);
-        assertEquals(0, stats.numActiveInstances(FOO_ENDPOINT));
-        assertEquals(1, stats.numIdleCachedInstances(FOO_ENDPOINT));
+        assertEquals(0, stats.getNumActiveInstances(FOO_ENDPOINT));
+        assertEquals(1, stats.getNumIdleCachedInstances(FOO_ENDPOINT));
     }
 
     @Test

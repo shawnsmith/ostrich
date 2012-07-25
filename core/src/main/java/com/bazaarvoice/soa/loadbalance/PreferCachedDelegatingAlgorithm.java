@@ -68,7 +68,7 @@ public class PreferCachedDelegatingAlgorithm implements LoadBalanceAlgorithm {
                 }
         );
         for (ServiceEndPoint endPoint : endpoints) {
-            int numCached = _stats.numIdleCachedInstances(endPoint);
+            int numCached = _stats.getNumIdleCachedInstances(endPoint);
             if (numCached > 0) {
                 cachedEndPoints.put(numCached, endPoint);
             }

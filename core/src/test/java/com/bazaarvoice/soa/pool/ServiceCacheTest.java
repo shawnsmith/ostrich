@@ -245,8 +245,7 @@ public class ServiceCacheTest {
         when(executor.scheduleAtFixedRate(any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class))).thenAnswer(
                 new Answer<ScheduledFuture<?>>() {
                     @Override
-                    public ScheduledFuture<?> answer(InvocationOnMock invocation)
-                            throws Throwable {
+                    public ScheduledFuture<?> answer(InvocationOnMock invocation) throws Throwable {
                         return mock(ScheduledFuture.class);
                     }
                 }
@@ -260,19 +259,30 @@ public class ServiceCacheTest {
                 eq(TimeUnit.SECONDS));
     }
 
-    @Test
-    public void testNumIdleUpdatedOnCheckIn() {
+    @Test(expected = NullPointerException.class)
+    public void testNumIdleNullEndPoint() {
         ServiceCache<Service> cache = newCache();
-        cache.checkIn(END_POINT, cache.checkOut(END_POINT));
+        cache.getNumIdleInstances(null);
+    }
 
-        assertEquals(1, cache.numIdle(END_POINT));
+    @Test(expected = NullPointerException.class)
+    public void testNumActiveNullEndPoint() {
+        ServiceCache<Service> cache = newCache();
+        cache.getNumActiveInstances(null);
     }
 
     @Test
     public void testNumIdleStartsAtZero() {
         ServiceCache<Service> cache = newCache();
 
-        assertEquals(0, cache.numIdle(END_POINT));
+        assertEquals(0, cache.getNumIdleInstances(END_POINT));
+    }
+
+    @Test
+    public void testNumActiveStartsAtZero() {
+        ServiceCache<Service> cache = newCache();
+
+        assertEquals(0, cache.getNumActiveInstances(END_POINT));
     }
 
     @Test
@@ -280,14 +290,15 @@ public class ServiceCacheTest {
         ServiceCache<Service> cache = newCache();
         cache.checkOut(END_POINT);
 
-        assertEquals(1, cache.numActive(END_POINT));
+        assertEquals(1, cache.getNumActiveInstances(END_POINT));
     }
 
     @Test
-    public void testNumActiveStartsAtZero() {
+    public void testNumIdleUpdatedOnCheckIn() {
         ServiceCache<Service> cache = newCache();
+        cache.checkIn(END_POINT, cache.checkOut(END_POINT));
 
-        assertEquals(0, cache.numActive(END_POINT));
+        assertEquals(1, cache.getNumIdleInstances(END_POINT));
     }
 
     @Test
@@ -295,7 +306,7 @@ public class ServiceCacheTest {
         ServiceCache<Service> cache = newCache();
         cache.checkOut(END_POINT);
 
-        assertEquals(0, cache.numIdle(END_POINT));
+        assertEquals(0, cache.getNumIdleInstances(END_POINT));
     }
 
     @Test
@@ -303,7 +314,7 @@ public class ServiceCacheTest {
         ServiceCache<Service> cache = newCache();
         cache.checkIn(END_POINT, cache.checkOut(END_POINT));
 
-        assertEquals(0, cache.numActive(END_POINT));
+        assertEquals(0, cache.getNumActiveInstances(END_POINT));
     }
 
     @Test
@@ -315,19 +326,7 @@ public class ServiceCacheTest {
         cache.checkOut(END_POINT);
         cache.checkOut(END_POINT);
 
-        assertEquals(2, cache.numActive(END_POINT));
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testNumIdleNullEndPoint() {
-        ServiceCache<Service> cache = newCache();
-        cache.numIdle(null);
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testNumActiveNullEndPoint() {
-        ServiceCache<Service> cache = newCache();
-        cache.numActive(null);
+        assertEquals(2, cache.getNumActiveInstances(END_POINT));
     }
 
     @SuppressWarnings("unchecked")

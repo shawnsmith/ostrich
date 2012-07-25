@@ -27,9 +27,9 @@ public class LeastActiveInstancesAlgorithmTest {
         ServiceEndPoint barEndpoint = mock(ServiceEndPoint.class);
         ServiceEndPoint bazEndpoint = mock(ServiceEndPoint.class);
 
-        when(_stats.numActiveInstances(fooEndpoint)).thenReturn(3);
-        when(_stats.numActiveInstances(barEndpoint)).thenReturn(2);
-        when(_stats.numActiveInstances(bazEndpoint)).thenReturn(1);
+        when(_stats.getNumActiveInstances(fooEndpoint)).thenReturn(3);
+        when(_stats.getNumActiveInstances(barEndpoint)).thenReturn(2);
+        when(_stats.getNumActiveInstances(bazEndpoint)).thenReturn(1);
 
         List<ServiceEndPoint> endPointList = ImmutableList.of(fooEndpoint, barEndpoint, bazEndpoint);
 

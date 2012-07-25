@@ -29,8 +29,8 @@ public class PreferCachedDelegatingAlgorithmTest {
 
     @Before
     public void setup() {
-        when(_stats.numIdleCachedInstances(CACHED_ENDPOINT)).thenReturn(1);
-        when(_stats.numIdleCachedInstances(NON_CACHED_ENDPOINT)).thenReturn(0);
+        when(_stats.getNumIdleCachedInstances(CACHED_ENDPOINT)).thenReturn(1);
+        when(_stats.getNumIdleCachedInstances(NON_CACHED_ENDPOINT)).thenReturn(0);
         when(_cachedAlgorithm.choose(Matchers.<Iterable<ServiceEndPoint>>any())).thenReturn(CACHED_ENDPOINT);
         when(_nonCachedAlgorithm.choose(Matchers.<Iterable<ServiceEndPoint>>any())).thenReturn(NON_CACHED_ENDPOINT);
     }
