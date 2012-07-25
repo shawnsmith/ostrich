@@ -4,16 +4,14 @@ import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.HostDiscoverySource;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceFactory;
-import com.bazaarvoice.soa.ServiceStatisticsProvider;
 import com.bazaarvoice.soa.discovery.ZooKeeperHostDiscovery;
 import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -26,8 +24,8 @@ public class ServicePoolBuilder<S> {
     private final List<HostDiscoverySource> _hostDiscoverySources = Lists.newArrayList();
     private ServiceFactory<S> _serviceFactory;
     private ScheduledExecutorService _healthCheckExecutor;
-    private ServiceCachingPolicy _cachePolicy;
-    private final Map<Enum, ServiceStatisticsProvider> _serviceStatsProviders = Maps.newHashMap();
+
+    private ServiceCachingPolicy _cachingPolicy;
 
     public static <S> ServicePoolBuilder<S> create(Class<S> serviceType) {
         return new ServicePoolBuilder<S>(serviceType);
@@ -118,29 +116,16 @@ public class ServicePoolBuilder<S> {
     }
 
     /**
-     * Enables caching of service connections in the built {@link ServicePool}. Calling this method is optional, and
-     * should be used if overhead of creating a connection from a {@link com.bazaarvoice.soa.ServiceEndPoint} is
-     * substantial, or there are other benefits to reusing connections.
-     * @param policy The configuration connection caching in the pool should abide by
+     * Enables caching of service instances in the built {@link ServicePool}.
+     * <p/>
+     * Specifying a caching policy is optional.  If one isn't specified then a default one that doesn't cache service
+     * instances will be created and used automatically.
+     *
+     * @param policy The {@link ServiceCachingPolicy} to use
      * @return this
      */
-    public ServicePoolBuilder<S> withCache(ServiceCachingPolicy policy) {
-        _cachePolicy = checkNotNull(policy);
-        return this;
-    }
-
-    /**
-     * Adds a {@code ServiceStatisticsProvider} to the built {@link ServicePool} with the given key.
-     * This may be called multiple times to add multiple providers. The {@code ServiceStatisticsProvider}s can be used
-     * by {@link com.bazaarvoice.soa.LoadBalanceAlgorithm}s to choose from available end points.
-     * @param key The key for the {@code statisticsProvider}.
-     * @param statisticsProvider The {@code ServiceStatisticsProvider} to add.
-     * @return this
-     */
-    public ServicePoolBuilder<S> withServiceStatisticsProvider(Enum key, ServiceStatisticsProvider statisticsProvider) {
-        checkNotNull(key);
-        checkNotNull(statisticsProvider);
-        _serviceStatsProviders.put(key, statisticsProvider);
+    public ServicePoolBuilder<S> withCachingPolicy(ServiceCachingPolicy policy) {
+        _cachingPolicy = checkNotNull(policy);
         return this;
     }
 
@@ -153,11 +138,16 @@ public class ServicePoolBuilder<S> {
         return buildInternal();
     }
 
-    private ServicePool<S> buildInternal() {
+    @VisibleForTesting
+    ServicePool<S> buildInternal() {
         checkNotNull(_serviceFactory);
 
         String serviceName = _serviceFactory.getServiceName();
         HostDiscovery hostDiscovery = findHostDiscovery(serviceName);
+
+        if (_cachingPolicy == null) {
+            _cachingPolicy = ServiceCachingPolicyBuilder.NO_CACHING;
+        }
 
         boolean shutdownOnClose = (_healthCheckExecutor == null);
         if (_healthCheckExecutor == null) {
@@ -168,13 +158,8 @@ public class ServicePoolBuilder<S> {
             _healthCheckExecutor = Executors.newScheduledThreadPool(1, daemonThreadFactory);
         }
 
-        if (_cachePolicy != null) {
-            return new ServicePool<S>(_serviceType, Ticker.systemTicker(), hostDiscovery, _serviceFactory,
-                    _healthCheckExecutor, shutdownOnClose, _cachePolicy, _serviceStatsProviders);
-        } else {
-            return new ServicePool<S>(_serviceType, Ticker.systemTicker(), hostDiscovery, _serviceFactory,
-                    _healthCheckExecutor, shutdownOnClose, _serviceStatsProviders);
-        }
+        return new ServicePool<S>(_serviceType, Ticker.systemTicker(), hostDiscovery, _serviceFactory, _cachingPolicy,
+                _healthCheckExecutor, shutdownOnClose);
     }
 
     private HostDiscovery findHostDiscovery(String serviceName) {

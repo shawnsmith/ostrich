@@ -1,17 +1,14 @@
 package com.bazaarvoice.soa.pool;
 
-import com.bazaarvoice.soa.DefaultServiceStatisticsProviders;
 import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.LoadBalanceAlgorithm;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceFactory;
-import com.bazaarvoice.soa.ServiceStatisticsProvider;
-import com.bazaarvoice.soa.exceptions.InvalidEndPointCheckOutAttemptException;
+import com.bazaarvoice.soa.ServicePoolStatistics;
 import com.bazaarvoice.soa.exceptions.MaxRetriesException;
 import com.bazaarvoice.soa.exceptions.NoAvailableHostsException;
-import com.bazaarvoice.soa.exceptions.NoCachedConnectionAvailableException;
 import com.bazaarvoice.soa.exceptions.NoSuitableHostsException;
 import com.bazaarvoice.soa.exceptions.OnlyBadHostsException;
 import com.bazaarvoice.soa.exceptions.ServiceException;
@@ -22,23 +19,17 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.base.Ticker;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ConcurrentHashMultiset;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.AbstractInvocationHandler;
 
-import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -63,37 +54,17 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final Predicate<ServiceEndPoint> _badEndpointFilter;
     private final Set<ServiceEndPoint> _recentlyRemovedEndpoints;
     private final Future<?> _batchHealthChecksFuture;
-    private final boolean _cacheServices;
     private final ServiceCache<S> _serviceCache;
-    private final Map<Enum, ServiceStatisticsProvider> _serviceStatsProviders;
-    private final ConcurrentHashMultiset<ServiceEndPoint> _endPointUsageCounts;
-
-    ServicePool(Class<S> serviceType, Ticker ticker, HostDiscovery hostDiscovery, ServiceFactory<S> serviceFactory,
-                ScheduledExecutorService healthCheckExecutor, boolean shutdownExecutorOnClose,
-                Map<Enum, ServiceStatisticsProvider> serviceStatsProviders) {
-        this(serviceType, ticker, hostDiscovery, serviceFactory, healthCheckExecutor, shutdownExecutorOnClose, null,
-                false, serviceStatsProviders);
-    }
 
     ServicePool(Class<S> serviceType, Ticker ticker, HostDiscovery hostDiscovery,
-                        ServiceFactory<S> serviceFactory, ScheduledExecutorService healthCheckExecutor,
-                        boolean shutdownExecutorOnClose, ServiceCachingPolicy policy,
-                        Map<Enum, ServiceStatisticsProvider> serviceStatsProviders) {
-        this(serviceType, ticker, hostDiscovery, serviceFactory, healthCheckExecutor, shutdownExecutorOnClose, policy,
-                true, serviceStatsProviders);
-    }
-
-    private ServicePool(Class<S> serviceType, Ticker ticker, HostDiscovery hostDiscovery,
-                        ServiceFactory<S> serviceFactory, ScheduledExecutorService healthCheckExecutor,
-                        boolean shutdownExecutorOnClose, @Nullable ServiceCachingPolicy policy, boolean cacheServices,
-                        Map<Enum, ServiceStatisticsProvider> serviceStatsProviders) {
+                ServiceFactory<S> serviceFactory, ServiceCachingPolicy cachingPolicy,
+                ScheduledExecutorService healthCheckExecutor, boolean shutdownExecutorOnClose) {
         _serviceType = serviceType;
         _ticker = checkNotNull(ticker);
         _hostDiscovery = checkNotNull(hostDiscovery);
         _serviceFactory = checkNotNull(serviceFactory);
         _healthCheckExecutor = checkNotNull(healthCheckExecutor);
         _shutdownHealthCheckExecutorOnClose = shutdownExecutorOnClose;
-        _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm());
         _badEndpoints = Sets.newSetFromMap(Maps.<ServiceEndPoint, Boolean>newConcurrentMap());
         _badEndpointFilter = Predicates.not(Predicates.in(_badEndpoints));
         _recentlyRemovedEndpoints = Sets.newSetFromMap(CacheBuilder.newBuilder()
@@ -101,37 +72,18 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 .expireAfterWrite(10, TimeUnit.MINUTES)  // TODO: Make this a constant
                 .<ServiceEndPoint, Boolean>build()
                 .asMap());
-        _serviceStatsProviders = new ConcurrentHashMap<Enum, ServiceStatisticsProvider>();
-        _endPointUsageCounts = ConcurrentHashMultiset.create();
-        _cacheServices = cacheServices;
-        if (_cacheServices) {
-            _serviceCache = new ServiceCache<S>(serviceFactory, checkNotNull(policy), new Predicate<ServiceEndPoint>() {
-                @Override
-                public boolean apply(@Nullable ServiceEndPoint endPoint) {
-                    return !_badEndpoints.contains(endPoint) && _hostDiscovery.contains(endPoint);
-                }
-            });
-        } else {
-            _serviceCache = null;
-        }
-
-        _serviceStatsProviders.put(DefaultServiceStatisticsProviders.NUM_ACTIVE_CONNECTIONS, new ServiceStatisticsProvider<Integer>() {
-
+        _serviceCache = new ServiceCache<S>(checkNotNull(cachingPolicy), serviceFactory);
+        _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm(new ServicePoolStatistics() {
+            @Override
+            public int numIdleCachedInstances(ServiceEndPoint endPoint) {
+                return _serviceCache.numIdle(endPoint);
+            }
 
             @Override
-            public Integer serviceStats(ServiceEndPoint endPoint) {
-                return _endPointUsageCounts.count(endPoint);
+            public int numActiveInstances(ServiceEndPoint endPoint) {
+                return _serviceCache.numActive(endPoint);
             }
-        });
-        _serviceStatsProviders.put(DefaultServiceStatisticsProviders.NUM_AVAILABLE_CACHED_CONNECTIONS, new ServiceStatisticsProvider<Integer>() {
-
-
-            @Override
-            public Integer serviceStats(ServiceEndPoint endPoint) {
-                return _cacheServices ? _serviceCache.numIdle(endPoint) : 0;
-            }
-        });
-        _serviceStatsProviders.putAll(serviceStatsProviders);
+        }));
 
         // Watch endpoints as they are removed from host discovery so that we can remove them from our set of bad
         // endpoints as well.  This will prevent the badEndpoints set from growing in an unbounded fashion.  There is a
@@ -187,30 +139,14 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 throw new OnlyBadHostsException();
             }
 
-            ServiceEndPoint endpoint = _loadBalanceAlgorithm.choose(goodHosts, ImmutableMap.copyOf(_serviceStatsProviders));
+            ServiceEndPoint endpoint = _loadBalanceAlgorithm.choose(goodHosts);
             if (endpoint == null) {
                 throw new NoSuitableHostsException();
             }
-            S service;
-            boolean shouldCheckIn = false;
-            if (_cacheServices) {
-                try {
-                    service = _serviceCache.checkOut(endpoint);
-                    shouldCheckIn = true;
-                } catch (InvalidEndPointCheckOutAttemptException e) {
-                    // End point went bad or was removed in the middle of this iteration and thus is rejected by
-                    // the cache, so let's just move on.
-                    continue;
-                } catch (NoCachedConnectionAvailableException e) {
-                    // Unable to get a cached instance, so let's burst.
-                    service = _serviceFactory.create(endpoint);
-                    shouldCheckIn = false;
-                }
-            } else {
-                service = _serviceFactory.create(endpoint);
-            }
+
+            S service = _serviceCache.checkOut(endpoint);
+
             try {
-                _endPointUsageCounts.add(endpoint);
                 return callback.call(service);
             } catch (ServiceException e) {
                 // This is a known and supported exception indicating that something went wrong somewhere in the service
@@ -220,8 +156,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
             } catch (Exception e) {
                 throw Throwables.propagate(e);
             } finally {
-                _endPointUsageCounts.remove(endpoint);
-                if (_cacheServices && shouldCheckIn) {
+                if (service != null) {
                     _serviceCache.checkIn(endpoint, service);
                 }
             }
@@ -305,12 +240,12 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         // endpoints ensures that this memory leak doesn't happen.
         _recentlyRemovedEndpoints.add(endpoint);
         _badEndpoints.remove(endpoint);
-        if (_serviceCache != null) {
-            _serviceCache.endPointRemoved(endpoint);
-        }
+        _serviceCache.evict(endpoint);
     }
 
     private synchronized void markEndpointAsBad(ServiceEndPoint endpoint) {
+        _serviceCache.evict(endpoint);
+
         if (_recentlyRemovedEndpoints.contains(endpoint)) {
             // Nothing to do, we've already removed this endpoint
             return;

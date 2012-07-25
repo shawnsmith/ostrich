@@ -21,7 +21,8 @@ public class RandomAlgorithmTest {
 
     @Test
     public void testEmptyIterable() {
-        ServiceEndPoint endpoint = new RandomAlgorithm().choose(Collections.<ServiceEndPoint>emptyList());
+        ServiceEndPoint endpoint = new RandomAlgorithm().choose(Collections.<ServiceEndPoint>emptyList()
+        );
         assertNull(endpoint);
     }
 

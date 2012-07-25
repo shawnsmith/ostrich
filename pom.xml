@@ -4,7 +4,7 @@
 
     <groupId>com.bazaarvoice.soa</groupId>
     <artifactId>soa</artifactId>
-    <version>0.1.8-SNAPSHOT</version>
+    <version>0.1.9-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <scm>
@@ -41,8 +41,37 @@
         <dependencies>
             <dependency>
                 <groupId>com.netflix.curator</groupId>
+                <artifactId>curator-framework</artifactId>
+                <version>1.1.14</version>
+
+                <exclusions>
+                    <exclusion>
+                        <groupId>jline</groupId>
+                        <artifactId>jline</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>log4j</groupId>
+                        <artifactId>log4j</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-log4j12</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>javax.mail</groupId>
+                        <artifactId>mail</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>javax.activation</groupId>
+                        <artifactId>activation</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>com.netflix.curator</groupId>
                 <artifactId>curator-recipes</artifactId>
-                <version>1.1.13</version>
+                <version>1.1.14</version>
 
                 <exclusions>
                     <exclusion>
@@ -71,7 +100,7 @@
             <dependency>
                 <groupId>com.netflix.curator</groupId>
                 <artifactId>curator-test</artifactId>
-                <version>1.1.13</version>
+                <version>1.1.14</version>
                 <scope>test</scope>
             </dependency>
 
@@ -116,19 +145,6 @@
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
                 <version>1.9.0</version>
-                <scope>test</scope>
-            </dependency>
-
-            <dependency>
-                <groupId>org.powermock</groupId>
-                <artifactId>powermock-module-junit4</artifactId>
-                <version>1.4.12</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.powermock</groupId>
-                <artifactId>powermock-api-mockito</artifactId>
-                <version>1.4.12</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
