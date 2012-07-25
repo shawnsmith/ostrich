@@ -57,8 +57,8 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final ServiceCache<S> _serviceCache;
 
     ServicePool(Class<S> serviceType, Ticker ticker, HostDiscovery hostDiscovery,
-                ServiceFactory<S> serviceFactory, ServiceCachingPolicy cachingPolicy,
-                ScheduledExecutorService healthCheckExecutor, boolean shutdownExecutorOnClose) {
+                        ServiceFactory<S> serviceFactory, ServiceCachingPolicy cachingPolicy,
+                        ScheduledExecutorService healthCheckExecutor, boolean shutdownExecutorOnClose) {
         _serviceType = serviceType;
         _ticker = checkNotNull(ticker);
         _hostDiscovery = checkNotNull(hostDiscovery);

@@ -24,7 +24,6 @@ public class ServicePoolBuilder<S> {
     private final List<HostDiscoverySource> _hostDiscoverySources = Lists.newArrayList();
     private ServiceFactory<S> _serviceFactory;
     private ScheduledExecutorService _healthCheckExecutor;
-
     private ServiceCachingPolicy _cachingPolicy;
 
     public static <S> ServicePoolBuilder<S> create(Class<S> serviceType) {
