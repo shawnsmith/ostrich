@@ -102,8 +102,7 @@ public class CalculatorServiceFactory implements ServiceFactory<CalculatorServic
 
   @Override
   public LoadBalanceAlgorithm getLoadBalanceAlgorithm(ServicePoolStatistics stats) {
-    // Choose the end point with the most cached connections, or a random one if there are none cached.
-    return new PreferCachedDelegatingAlgorithm(new FirstEndPointAlgorithm(), new RandomAlgorithm(), stats);
+    return new RandomAlgorithm();
   }
 
   @Override
