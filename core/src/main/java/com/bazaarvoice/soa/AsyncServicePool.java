@@ -11,7 +11,7 @@ import java.util.concurrent.Future;
  */
 public interface AsyncServicePool<S> extends Closeable {
     /**
-     * Execute a request asynchronously against one of the remote services in this <code>ServicePool</code> returning
+     * Execute a request asynchronously against one of the remote services in this <code>ServicePool</code>, returning
      * a future representing the asynchronous call.
      *
      * @param retryPolicy The retry policy for the operation.

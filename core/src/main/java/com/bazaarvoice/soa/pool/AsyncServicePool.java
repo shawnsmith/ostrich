@@ -28,7 +28,7 @@ public class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool
     @Override
     public void close() throws IOException {
         if (_shutdownExecutorOnClose) {
-            _executor.shutdownNow();
+            _executor.shutdown();
         }
 
         if (_shutdownPoolOnClose) {

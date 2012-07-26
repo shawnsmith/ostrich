@@ -9,6 +9,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import org.junit.After;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -16,6 +17,7 @@ import java.util.concurrent.ExecutorService;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 public class AsyncServicePoolTest {
@@ -66,6 +68,38 @@ public class AsyncServicePoolTest {
         verify(_mockPool).execute(same(NEVER_RETRY), same(callback));
     }
 
+    @Test
+    public void testCloseDoesShutdownExecutor() throws IOException {
+        AsyncServicePool<Service> pool = newAsyncPool(_mockExecutor, true);
+        pool.close();
+
+        verify(_mockExecutor).shutdown();
+    }
+
+    @Test
+    public void testCloseDoesNotShutdownExecutor() throws IOException {
+        AsyncServicePool<Service> pool = newAsyncPool(_mockExecutor, false);
+        pool.close();
+
+        verify(_mockExecutor, never()).shutdown();
+    }
+
+    @Test
+    public void testCloseDoesShutdownPool() throws IOException {
+        AsyncServicePool<Service> pool = newAsyncPool(_mockPool, true);
+        pool.close();
+
+        verify(_mockPool).close();
+    }
+
+    @Test
+    public void testCloseDoesNotShutdownPool() throws IOException {
+        AsyncServicePool<Service> pool = newAsyncPool(_mockPool, false);
+        pool.close();
+
+        verify(_mockPool, never()).close();
+    }
+
     private AsyncServicePool<Service> newAsyncPool() {
         return newAsyncPool(_mockExecutor);
     }
@@ -78,6 +112,12 @@ public class AsyncServicePoolTest {
         AsyncServicePool<Service> pool = new AsyncServicePool<Service>(_mockPool, true, executor, shutdownExecutorOnClose);
         _asyncServicePools.add(pool);
         return pool;
+    }
+
+    private AsyncServicePool<Service> newAsyncPool(ServicePool<Service> pool, boolean shutdownPoolOnClose) {
+        AsyncServicePool<Service> asyncPool = new AsyncServicePool<Service>(pool, shutdownPoolOnClose, _mockExecutor, true);
+        _asyncServicePools.add(asyncPool);
+        return asyncPool;
     }
 
     private static interface Service {
