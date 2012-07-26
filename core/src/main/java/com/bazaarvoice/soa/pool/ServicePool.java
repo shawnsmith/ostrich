@@ -57,14 +57,14 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final ServiceCache<S> _serviceCache;
 
     ServicePool(Class<S> serviceType, Ticker ticker, HostDiscovery hostDiscovery,
-                        ServiceFactory<S> serviceFactory, ServiceCachingPolicy cachingPolicy,
-                        ScheduledExecutorService healthCheckExecutor, boolean shutdownExecutorOnClose) {
+                ServiceFactory<S> serviceFactory, ServiceCachingPolicy cachingPolicy,
+                ScheduledExecutorService healthCheckExecutor, boolean shutdownHealthCheckExecutorOnClose) {
         _serviceType = serviceType;
         _ticker = checkNotNull(ticker);
         _hostDiscovery = checkNotNull(hostDiscovery);
         _serviceFactory = checkNotNull(serviceFactory);
         _healthCheckExecutor = checkNotNull(healthCheckExecutor);
-        _shutdownHealthCheckExecutorOnClose = shutdownExecutorOnClose;
+        _shutdownHealthCheckExecutorOnClose = shutdownHealthCheckExecutorOnClose;
         _badEndpoints = Sets.newSetFromMap(Maps.<ServiceEndPoint, Boolean>newConcurrentMap());
         _badEndpointFilter = Predicates.not(Predicates.in(_badEndpoints));
         _recentlyRemovedEndpoints = Sets.newSetFromMap(CacheBuilder.newBuilder()
@@ -167,11 +167,6 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     }
 
     @Override
-    public <R> Future<R> executeAsync(RetryPolicy retry, ServiceCallback<S, R> callback) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public S newProxy(RetryPolicy retryPolicy) {
         return newProxy(retryPolicy, false);
     }
@@ -179,13 +174,12 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     S newProxy(final RetryPolicy retryPolicy, final boolean shutdownPoolOnClose) {
         checkNotNull(retryPolicy);
         checkState(_serviceType.isInterface(), "Proxy functionality is only available for interface service types.");
+
         ClassLoader loader = Thread.currentThread().getContextClassLoader();
-        Class<?>[] interfaces;
-        if (shutdownPoolOnClose) {
-            interfaces = new Class<?>[]{_serviceType, Closeable.class};
-        } else {
-            interfaces = new Class<?>[]{_serviceType};
-        }
+        Class<?>[] interfaces = shutdownPoolOnClose
+                ? new Class<?>[] { _serviceType, Closeable.class }
+                : new Class<?>[] { _serviceType };
+
         Object proxy = Proxy.newProxyInstance(loader, interfaces, new AbstractInvocationHandler() {
             @Override
             protected Object handleInvocation(Object proxy, final Method method, final Object[] args) throws Throwable {
@@ -194,6 +188,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                     ServicePool.this.close();
                     return null;
                 }
+
                 // Delegate the method through to a service provider in the pool.
                 return ServicePool.this.execute(retryPolicy, new ServiceCallback<S, Object>() {
                     @Override
