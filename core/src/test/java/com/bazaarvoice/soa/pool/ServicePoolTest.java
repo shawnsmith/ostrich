@@ -631,8 +631,7 @@ public class ServicePoolTest {
     @Test
     public void testDoesNotShutdownHealthCheckExecutorOnClose() {
         ServicePool<Service> pool = new ServicePool<Service>(Service.class, _ticker, _hostDiscovery, _serviceFactory,
-                ServiceCachingPolicyBuilder.NO_CACHING, _healthCheckExecutor, false
-        );
+                ServiceCachingPolicyBuilder.NO_CACHING, _healthCheckExecutor, false);
         pool.close();
 
         verify(_healthCheckExecutor, never()).shutdown();
