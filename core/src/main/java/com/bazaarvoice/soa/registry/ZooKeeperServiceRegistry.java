@@ -109,7 +109,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
         _nodes.clear();
     }
 
-    /** Return the curator instance used by this registry. */
+    /** @return The curator instance used by this registry. */
     @VisibleForTesting
     CuratorFramework getCurator() {
         return _curator;
@@ -134,8 +134,8 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     }
 
     /**
-     * Convert a <code>ServiceEnd point</code> into the path in ZooKeeper where it will be registered.
-     * @param end point The service end point to get the ZooKeeper path for.
+     * Convert a <code>ServiceEndPoint</code> into the path in ZooKeeper where it will be registered.
+     * @param endPoint The service end point to get the ZooKeeper path for.
      * @return The ZooKeeper path.
      */
     private static String makeEndPointPath(ServiceEndPoint endPoint) {

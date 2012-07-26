@@ -112,7 +112,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
    }
 
     private synchronized void addEndPoint(ServiceEndPoint endPoint) {
-        // synchronize the modification of _end points and firing of events so listeners always receive events in the
+        // synchronize the modification of _endPoints and firing of events so listeners always receive events in the
         // order they occur.
         if (_endPoints.add(endPoint)) {
             fireAddEvent(endPoint);
@@ -120,7 +120,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
     }
 
     private synchronized void removeEndPoint(ServiceEndPoint endPoint) {
-        // synchronize the modification of _end points and firing of events so listeners always receive events in the
+        // synchronize the modification of _endPoints and firing of events so listeners always receive events in the
         // order they occur.
         if (_endPoints.remove(endPoint)) {
             fireRemoveEvent(endPoint);
@@ -128,7 +128,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
     }
 
     private synchronized void clearEndPoints() {
-        // synchronize the modification of _end points and firing of events so listeners always receive events in the
+        // synchronize the modification of _endPoints and firing of events so listeners always receive events in the
         // order they occur.
         Collection<ServiceEndPoint> endPoints = ImmutableList.copyOf(_endPoints);
         _endPoints.clear();

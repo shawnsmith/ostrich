@@ -27,8 +27,7 @@ public class ZooKeeperConfigurationTest {
 
     @Test
     public void testJsonBoundedExponentialBackoffRetry() throws IOException {
-        ZooKeeperConfiguration config =
-                fromJson("{\"retry\":{\"baseSleepTimeMs\":100,\"maxSleepTimeMs\":1000,\"maxAttempts\":3}}");
+        ZooKeeperConfiguration config = fromJson("{\"retry\":{\"baseSleepTimeMs\":100,\"maxSleepTimeMs\":1000,\"maxAttempts\":3}}");
         assertTrue(config.getRetryPolicy() instanceof com.netflix.curator.retry.BoundedExponentialBackoffRetry);
     }
 

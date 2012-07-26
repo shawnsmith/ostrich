@@ -87,8 +87,8 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         }));
 
         // Watch end points as they are removed from host discovery so that we can remove them from our set of bad
-        // end points as well.  This will prevent the badEnd points set from growing in an unbounded fashion.  There is
-        // a minor race condition that could happen here, but it's not anything to be concerned about.  The
+        // end points as well.  This will prevent the {@code badEndPoints} set from growing in an unbounded fashion.
+        // There is a minor race condition that could happen here, but it's not anything to be concerned about.  The
         // HostDiscovery component could lose its connection to its backing data store and then immediately regain it
         // right afterwards.  If that happens it could remove all of its end points only to re-add them right back again
         // and we will "forget" that an end point was bad and try to use it again.  This isn't fatal though because
@@ -108,7 +108,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         };
         _hostDiscovery.addListener(_hostDiscoveryListener);
 
-        // Periodically wake up and check any badEnd points to see if they're now healthy.
+        // Periodically wake up and check any badEndPoints to see if they're now healthy.
         _batchHealthChecksFuture = _healthCheckExecutor.scheduleAtFixedRate(new BatchHealthChecks(),
                 HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS, HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS, TimeUnit.SECONDS);
     }
