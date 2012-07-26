@@ -643,8 +643,7 @@ public class ServicePoolTest {
     @Test
     public void testDoesShutdownExecutorOnClose() {
         ServicePool<Service> pool = new ServicePool<Service>(Service.class, _ticker, _hostDiscovery, _serviceFactory,
-                ServiceCachingPolicyBuilder.NO_CACHING, _healthCheckExecutor, true
-        );
+                ServiceCachingPolicyBuilder.NO_CACHING, _healthCheckExecutor, true);
         pool.close();
 
         verify(_healthCheckExecutor).shutdownNow();
