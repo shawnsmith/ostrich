@@ -178,10 +178,8 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
                     break;
 
                 case CHILD_UPDATED:
-                    if (LOG.isInfoEnabled()) {
-                        LOG.info("ServiceEndPoint data changed unexpectedly. End point ID: " + endPoint.getId() +
-                                "  ZooKeeper path: " + event.getData().getPath());
-                    }
+                    LOG.info("ServiceEndPoint data changed unexpectedly. End point ID: {}; ZooKeeperPath {}",
+                            endPoint.getId(), event.getData().getPath());
                     break;
             }
         }
