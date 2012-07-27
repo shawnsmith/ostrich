@@ -151,7 +151,7 @@ public class ServicePoolBuilder<S> {
      *         {@link java.io.Closeable} interface.
      */
     public S buildProxy(RetryPolicy retryPolicy) {
-        return ServicePoolProxy.newProxy(_serviceType, retryPolicy, buildInternal(), true);
+        return ServicePoolProxy.create(_serviceType, retryPolicy, build(), true);
     }
 
     @VisibleForTesting
