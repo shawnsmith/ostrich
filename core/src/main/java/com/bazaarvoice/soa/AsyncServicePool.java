@@ -24,6 +24,9 @@ public interface AsyncServicePool<S> extends Closeable {
     /**
      * Execute a request asynchronously against <b>ALL</b> of the remote services in this <code>ServicePool</code>,
      * returning a future for each asynchronous call.
+     * <p/>
+     * NOTE: It is undefined how the implementation handles the situation where an end point is discovered or removed
+     * while the <code>executeOnAll</code> operation is executing.
      *
      * @param retryPolicy The retry policy for each operation.
      * @param callback The user provided callback to invoke.
