@@ -67,7 +67,7 @@ public class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool
                     int numAttempts = 0;
                     do {
                         try {
-                            return _pool.executeOnEndpoint(endPoint, callback);
+                            return _pool.executeOnEndPoint(endPoint, callback);
                         } catch (ServiceException e) {
                             // Swallow the exception and retry the operation if the retry policy will permit it
                         }

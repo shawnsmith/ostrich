@@ -132,7 +132,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
             }
 
             try {
-                return executeOnEndpoint(endPoint, callback);
+                return executeOnEndPoint(endPoint, callback);
             } catch (ServiceException e) {
                 // Swallow the exception and retry the operation
             }
@@ -167,7 +167,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
      * <p/>
      * NOTE: This method is package private specifically so that {@link AsyncServicePool} can call it.
      */
-    <R> R executeOnEndpoint(ServiceEndPoint endPoint, ServiceCallback<S, R> callback) throws ServiceException {
+    <R> R executeOnEndPoint(ServiceEndPoint endPoint, ServiceCallback<S, R> callback) throws ServiceException {
         S service = _serviceCache.checkOut(endPoint);
 
         try {
