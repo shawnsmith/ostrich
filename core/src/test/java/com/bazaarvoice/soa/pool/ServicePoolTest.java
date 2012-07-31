@@ -240,8 +240,9 @@ public class ServicePoolTest {
 
     @Test
     public void testDoesNotAttemptToRetryOnNonRetriableException() {
-        RetryPolicy retry = mock(RetryPolicy.class);
         when(_serviceFactory.isRetriableException(any(Exception.class))).thenReturn(false);
+        RetryPolicy retry = mock(RetryPolicy.class);
+
         try {
             _pool.execute(retry, new ServiceCallback<Service, Void>() {
                 @Override

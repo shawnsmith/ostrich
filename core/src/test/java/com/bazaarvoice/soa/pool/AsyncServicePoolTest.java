@@ -29,6 +29,8 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -152,10 +154,11 @@ public class AsyncServicePoolTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testExecuteAllWrapsExceptionInFuture() throws Exception {
+    public void testExecuteAllWrapsNonRetriableExceptionInFuture() throws Exception {
         RuntimeException exception = mock(RuntimeException.class);
         when(_mockPool.getAllEndPoints()).thenReturn(Lists.newArrayList(mock(ServiceEndPoint.class)));
         when(_mockPool.executeOnEndPoint(any(ServiceEndPoint.class), any(ServiceCallback.class))).thenThrow(exception);
+        when(_mockPool.isRetriableException(any(Exception.class))).thenReturn(false);
 
         // Use a real executor so that it can actually call into the callback
         AsyncServicePool<Service> pool = newAsyncPool(MoreExecutors.sameThreadExecutor());
@@ -302,6 +305,7 @@ public class AsyncServicePoolTest {
         assertEquals("BAR", futures.iterator().next().get());
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     public void testExecuteOnChecksRetriability() throws Exception {
         RuntimeException exception = mock(RuntimeException.class);
@@ -316,7 +320,32 @@ public class AsyncServicePoolTest {
 
         pool.executeOn(predicate, NEVER_RETRY, mock(ServiceCallback.class));
 
-        verify(_mockPool).isRetriableException(same(exception));
+        verify(_mockPool).isRetriableException(exception);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testRetriableExceptionIsRetried() throws Exception {
+        when(_mockPool.getAllEndPoints()).thenReturn(Lists.newArrayList(mock(ServiceEndPoint.class)));
+
+        // Set things up to throw and exception on first run.
+        when(_mockPool.executeOnEndPoint(any(ServiceEndPoint.class), any(ServiceCallback.class)))
+                .thenThrow(RuntimeException.class).thenReturn(null);
+
+        // Allow retry.
+        when(_mockPool.isRetriableException(any(Exception.class))).thenReturn(true);
+
+        // Use a real executor so that it can actually call into the callback
+        AsyncServicePool<Service> pool = newAsyncPool(MoreExecutors.sameThreadExecutor());
+
+        RetryPolicy retry = mock(RetryPolicy.class);
+        when(retry.allowRetry(anyInt(), anyLong())).thenReturn(true);
+
+        Collection<Future<Void>> futures = pool.executeOnAll(retry, mock(ServiceCallback.class));
+        assertEquals(1, futures.size());
+
+        Future<Void> future = futures.iterator().next();
+        future.get(10, TimeUnit.SECONDS);
     }
 
     @Test

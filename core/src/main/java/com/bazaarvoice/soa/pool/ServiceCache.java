@@ -154,7 +154,7 @@ class ServiceCache<S> implements Closeable {
      * @param endPoint The end point that the service instance belongs to.
      * @param service  The service instance to return to the pool.
      */
-    public void checkIn(ServiceEndPoint endPoint, S service) {
+    public void checkIn(ServiceEndPoint endPoint, S service) throws Exception {
         checkNotNull(endPoint);
         checkNotNull(service);
 
@@ -171,7 +171,7 @@ class ServiceCache<S> implements Closeable {
             }
         } catch (Exception e) {
             // Should never happen.
-            throw Throwables.propagate(e);
+            throw e;
         }
     }
 

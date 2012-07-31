@@ -89,7 +89,7 @@ public class ServicePoolCachingTest {
         });
         when(_serviceFactory.getLoadBalanceAlgorithm(any(ServicePoolStatistics.class)))
                 .thenReturn(loadBalanceAlgorithm);
-        when(_serviceFactory.isRetriableException(any(ServiceException.class))).thenReturn(true);
+        when(_serviceFactory.isRetriableException(any(Exception.class))).thenReturn(true);
 
         _healthCheckExecutor = mock(ScheduledExecutorService.class);
         when(_healthCheckExecutor.submit(any(Runnable.class))).then(new Answer<Future<?>>() {
@@ -172,6 +172,8 @@ public class ServicePoolCachingTest {
 
     @Test
     public void testDoesNotEvictCachedInstancesOnNonRetriableException() {
+        when(_serviceFactory.isRetriableException(any(Exception.class))).thenReturn(false);
+
         ServicePool<Service> pool = newPool(CACHE_ONE_INSTANCE_PER_ENDPOINT);
         Service service = pool.execute(NEVER_RETRY, IDENTITY_CALLBACK);
 

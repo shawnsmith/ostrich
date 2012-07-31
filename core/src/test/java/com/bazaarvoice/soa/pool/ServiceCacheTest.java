@@ -9,7 +9,6 @@ import org.apache.commons.pool.impl.GenericKeyedObjectPool;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -17,7 +16,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -95,13 +93,13 @@ public class ServiceCacheTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void testCheckInToNullEndPoint() {
+    public void testCheckInToNullEndPoint() throws Exception {
         Service service = mock(Service.class);
         newCache().checkIn(null, service);
     }
 
     @Test(expected = NullPointerException.class)
-    public void testCheckInNullServiceInstance() {
+    public void testCheckInNullServiceInstance() throws Exception {
         newCache().checkIn(END_POINT, null);
     }
 
@@ -110,12 +108,17 @@ public class ServiceCacheTest {
         newCache().evict(null);
     }
 
-    @Test(expected = FactoryException.class)
-    public void testFactoryExceptionIsPropagated() throws Exception {
-        when(_factory.create(any(ServiceEndPoint.class))).thenThrow(new FactoryException());
+    @Test
+    public void testFactoryExceptionIsPropagated() {
+        NullPointerException exception = mock(NullPointerException.class);
+        when(_factory.create(any(ServiceEndPoint.class))).thenThrow(exception);
 
         ServiceCache<Service> cache = newCache();
-        cache.checkOut(END_POINT);
+        try {
+            cache.checkOut(END_POINT);
+        } catch (Exception caught) {
+            assertSame(exception, caught);
+        }
     }
 
     @Test
@@ -376,7 +379,4 @@ public class ServiceCacheTest {
     }
 
     public static interface Service {}
-    private static class FactoryException extends RuntimeException {
-        private static final long serialVersionUID = 0;
-    }
 }

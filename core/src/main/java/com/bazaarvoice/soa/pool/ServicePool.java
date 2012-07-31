@@ -186,6 +186,9 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
             service = _serviceCache.checkOut(endPoint);
             return callback.call(service);
         } catch (NoCachedInstancesAvailableException e) {
+            LOG.info(MessageFormatter.format("Service cache exhausted. End point ID: {}", endPoint.getId())
+                             .getMessage(),
+                         e);
             // Don't mark an end point as bad just because there are no cached end points for it.
             throw e;
         } catch (Exception e) {
@@ -194,12 +197,21 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 // layer while trying to communicate with the end point.  These errors are often transient, so we
                 // enqueue a health check for the end point and mark it as unavailable for the time being.
                 markEndPointAsBad(endPoint);
-                LOG.info("Bad end point discovered. End point ID: {}", endPoint.getId());
+                LOG.info(MessageFormatter.format("Bad end point discovered. End point ID: {}", endPoint.getId())
+                             .getMessage(),
+                         e);
             }
             throw e;
         } finally {
             if (service != null) {
-                _serviceCache.checkIn(endPoint, service);
+                try {
+                    _serviceCache.checkIn(endPoint, service);
+                } catch (Exception e) {
+                    // This should never happen, but log just in case.
+                    LOG.error(MessageFormatter.format("Error end point into cache. End point ID: {}", endPoint.getId())
+                                  .getMessage(),
+                              e);
+                }
             }
         }
     }
