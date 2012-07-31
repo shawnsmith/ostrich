@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
@@ -109,7 +108,7 @@ public class AsyncServicePoolTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testExecuteAllExecutesCallbacksInPool() {
+    public void testExecuteAllExecutesCallbacksInPool() throws Exception {
         ServiceEndPoint FOO = mock(ServiceEndPoint.class);
         ServiceEndPoint BAR = mock(ServiceEndPoint.class);
         ServiceEndPoint BAZ = mock(ServiceEndPoint.class);
@@ -128,7 +127,7 @@ public class AsyncServicePoolTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testExecuteAllReturnsValueInFuture() throws ExecutionException, InterruptedException {
+    public void testExecuteAllReturnsValueInFuture() throws Exception {
         ServiceEndPoint FOO = mock(ServiceEndPoint.class);
         ServiceEndPoint BAR = mock(ServiceEndPoint.class);
         ServiceEndPoint BAZ = mock(ServiceEndPoint.class);
@@ -153,7 +152,7 @@ public class AsyncServicePoolTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testExecuteAllWrapsExceptionInFuture() throws TimeoutException, InterruptedException {
+    public void testExecuteAllWrapsExceptionInFuture() throws Exception {
         RuntimeException exception = mock(RuntimeException.class);
         when(_mockPool.getAllEndPoints()).thenReturn(Lists.newArrayList(mock(ServiceEndPoint.class)));
         when(_mockPool.executeOnEndPoint(any(ServiceEndPoint.class), any(ServiceCallback.class))).thenThrow(exception);
@@ -175,11 +174,11 @@ public class AsyncServicePoolTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testExecuteAllPropagatesMaxRetriesExceptionWhenOutOfRetries()
-            throws TimeoutException, InterruptedException {
+    public void testExecuteAllPropagatesMaxRetriesExceptionWhenOutOfRetries() throws Exception {
         ServiceException exception = mock(ServiceException.class);
         when(_mockPool.getAllEndPoints()).thenReturn(Lists.newArrayList(mock(ServiceEndPoint.class)));
         when(_mockPool.executeOnEndPoint(any(ServiceEndPoint.class), any(ServiceCallback.class))).thenThrow(exception);
+        when(_mockPool.isRetriableException(any(Exception.class))).thenReturn(true);
 
         // Use a real executor so that it can actually call into the callback
         AsyncServicePool<Service> pool = newAsyncPool(MoreExecutors.sameThreadExecutor());
@@ -236,7 +235,7 @@ public class AsyncServicePoolTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testExecuteOnExecutesValidCallbacksInPool() {
+    public void testExecuteOnExecutesValidCallbacksInPool() throws Exception {
         ServiceEndPoint FOO = mock(ServiceEndPoint.class);
         ServiceEndPoint BAR = mock(ServiceEndPoint.class);
         ServiceEndPoint BAZ = mock(ServiceEndPoint.class);
@@ -260,7 +259,7 @@ public class AsyncServicePoolTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testExecuteOnExecutesNoCallbacksInPool() {
+    public void testExecuteOnExecutesNoCallbacksInPool() throws Exception {
         ServiceEndPoint FOO = mock(ServiceEndPoint.class);
         ServiceEndPoint BAR = mock(ServiceEndPoint.class);
         ServiceEndPoint BAZ = mock(ServiceEndPoint.class);
@@ -280,7 +279,7 @@ public class AsyncServicePoolTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testExecuteOnCanFilterEndPoints() throws ExecutionException, InterruptedException {
+    public void testExecuteOnCanFilterEndPoints() throws Exception {
         ServiceEndPoint FOO = mock(ServiceEndPoint.class);
         ServiceEndPoint BAR = mock(ServiceEndPoint.class);
         ServiceEndPoint BAZ = mock(ServiceEndPoint.class);
@@ -301,6 +300,23 @@ public class AsyncServicePoolTest {
         Collection<Future<String>> futures = pool.executeOn(predicate, NEVER_RETRY, mock(ServiceCallback.class));
         assertEquals(1, futures.size());
         assertEquals("BAR", futures.iterator().next().get());
+    }
+
+    @Test
+    public void testExecuteOnChecksRetriability() throws Exception {
+        RuntimeException exception = mock(RuntimeException.class);
+        when(_mockPool.getAllEndPoints()).thenReturn(Lists.newArrayList(mock(ServiceEndPoint.class)));
+        when(_mockPool.executeOnEndPoint(any(ServiceEndPoint.class), any(ServiceCallback.class))).thenThrow(exception);
+
+        ServiceEndPointPredicate predicate = mock(ServiceEndPointPredicate.class);
+        when(predicate.apply(any(ServiceEndPoint.class))).thenReturn(true);
+
+        // Use a real executor so that it can actually call into the callback
+        AsyncServicePool<Service> pool = newAsyncPool(MoreExecutors.sameThreadExecutor());
+
+        pool.executeOn(predicate, NEVER_RETRY, mock(ServiceCallback.class));
+
+        verify(_mockPool).isRetriableException(same(exception));
     }
 
     @Test

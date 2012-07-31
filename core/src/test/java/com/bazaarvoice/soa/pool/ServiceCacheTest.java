@@ -2,13 +2,14 @@ package com.bazaarvoice.soa.pool;
 
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceFactory;
-import com.bazaarvoice.soa.exceptions.NoCachedConnectionAvailableException;
+import com.bazaarvoice.soa.exceptions.NoCachedInstancesAvailableException;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.apache.commons.pool.impl.GenericKeyedObjectPool;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -89,7 +90,7 @@ public class ServiceCacheTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void testCheckOutFromNullEndPoint() {
+    public void testCheckOutFromNullEndPoint() throws Exception {
         newCache().checkOut(null);
     }
 
@@ -109,8 +110,16 @@ public class ServiceCacheTest {
         newCache().evict(null);
     }
 
+    @Test(expected = FactoryException.class)
+    public void testFactoryExceptionIsPropagated() throws Exception {
+        when(_factory.create(any(ServiceEndPoint.class))).thenThrow(new FactoryException());
+
+        ServiceCache<Service> cache = newCache();
+        cache.checkOut(END_POINT);
+    }
+
     @Test
-    public void testServiceInstanceIsReused() {
+    public void testServiceInstanceIsReused() throws Exception {
         ServiceCache<Service> cache = newCache();
         Service service = cache.checkOut(END_POINT);
         cache.checkIn(END_POINT, service);
@@ -119,7 +128,7 @@ public class ServiceCacheTest {
     }
 
     @Test
-    public void testInUseServiceInstanceNotReused() {
+    public void testInUseServiceInstanceNotReused() throws Exception {
         // Allow 2 instances per end point
         when(_cachingPolicy.getMaxNumServiceInstancesPerEndPoint()).thenReturn(2);
 
@@ -129,7 +138,7 @@ public class ServiceCacheTest {
     }
 
     @Test
-    public void testEvictedEndPointHasServiceInstancesRemovedFromCache() {
+    public void testEvictedEndPointHasServiceInstancesRemovedFromCache() throws Exception {
         ServiceCache<Service> cache = newCache();
 
         Service service = cache.checkOut(END_POINT);
@@ -140,7 +149,7 @@ public class ServiceCacheTest {
     }
 
     @Test
-    public void testEvictedEndPointWhileServiceInstanceCheckedOut() {
+    public void testEvictedEndPointWhileServiceInstanceCheckedOut() throws Exception {
         ServiceCache<Service> cache = newCache();
 
         Service service = cache.checkOut(END_POINT);
@@ -150,8 +159,8 @@ public class ServiceCacheTest {
         assertNotSame(service, cache.checkOut(END_POINT));
     }
 
-    @Test(expected = NoCachedConnectionAvailableException.class)
-    public void testFailCacheExhaustionAction() {
+    @Test(expected = NoCachedInstancesAvailableException.class)
+    public void testFailCacheExhaustionAction() throws Exception {
         when(_cachingPolicy.getCacheExhaustionAction()).thenReturn(ServiceCachingPolicy.ExhaustionAction.FAIL);
 
         ServiceCache<Service> cache = newCache();
@@ -160,7 +169,7 @@ public class ServiceCacheTest {
     }
 
     @Test
-    public void testGrowCacheExhaustionAction() {
+    public void testGrowCacheExhaustionAction() throws Exception {
         when(_cachingPolicy.getCacheExhaustionAction()).thenReturn(ServiceCachingPolicy.ExhaustionAction.GROW);
 
         ServiceCache<Service> cache = newCache();
@@ -169,7 +178,7 @@ public class ServiceCacheTest {
     }
 
     @Test
-    public void testInstancesCreatedWhileGrowingAreNotReused() {
+    public void testInstancesCreatedWhileGrowingAreNotReused() throws Exception {
         when(_cachingPolicy.getMaxNumServiceInstancesPerEndPoint()).thenReturn(1);
         when(_cachingPolicy.getCacheExhaustionAction()).thenReturn(ServiceCachingPolicy.ExhaustionAction.GROW);
 
@@ -196,7 +205,7 @@ public class ServiceCacheTest {
     }
 
     @Test
-    public void testWaitCacheExhaustionAction() throws ExecutionException, InterruptedException, TimeoutException {
+    public void testWaitCacheExhaustionAction() throws Exception {
         when(_cachingPolicy.getMaxNumServiceInstancesPerEndPoint()).thenReturn(1);
         when(_cachingPolicy.getCacheExhaustionAction()).thenReturn(ServiceCachingPolicy.ExhaustionAction.WAIT);
 
@@ -286,7 +295,7 @@ public class ServiceCacheTest {
     }
 
     @Test
-    public void testNumActiveUpdatedOnCheckOut() {
+    public void testNumActiveUpdatedOnCheckOut() throws Exception {
         ServiceCache<Service> cache = newCache();
         cache.checkOut(END_POINT);
 
@@ -294,7 +303,7 @@ public class ServiceCacheTest {
     }
 
     @Test
-    public void testNumIdleUpdatedOnCheckIn() {
+    public void testNumIdleUpdatedOnCheckIn() throws Exception {
         ServiceCache<Service> cache = newCache();
         cache.checkIn(END_POINT, cache.checkOut(END_POINT));
 
@@ -302,7 +311,7 @@ public class ServiceCacheTest {
     }
 
     @Test
-    public void testActiveServiceNotCountedIdle() {
+    public void testActiveServiceNotCountedIdle() throws Exception {
         ServiceCache<Service> cache = newCache();
         cache.checkOut(END_POINT);
 
@@ -310,7 +319,7 @@ public class ServiceCacheTest {
     }
 
     @Test
-    public void testIdleServiceNotCountedActive() {
+    public void testIdleServiceNotCountedActive() throws Exception {
         ServiceCache<Service> cache = newCache();
         cache.checkIn(END_POINT, cache.checkOut(END_POINT));
 
@@ -318,7 +327,7 @@ public class ServiceCacheTest {
     }
 
     @Test
-    public void testActiveCountAccurateWhenGrowing() {
+    public void testActiveCountAccurateWhenGrowing() throws Exception {
         when(_cachingPolicy.getMaxNumServiceInstancesPerEndPoint()).thenReturn(1);
         when(_cachingPolicy.getCacheExhaustionAction()).thenReturn(ServiceCachingPolicy.ExhaustionAction.GROW);
 
@@ -367,4 +376,7 @@ public class ServiceCacheTest {
     }
 
     public static interface Service {}
+    private static class FactoryException extends RuntimeException {
+        private static final long serialVersionUID = 0;
+    }
 }
