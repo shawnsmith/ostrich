@@ -19,7 +19,7 @@ import java.util.concurrent.Future;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
-    private static final ServiceEndPointPredicate ALL_ENDPOINTS = new ServiceEndPointPredicate() {
+    private static final ServiceEndPointPredicate ALL_END_POINTS = new ServiceEndPointPredicate() {
         @Override
         public boolean apply(ServiceEndPoint endPoint) {
             return true;
@@ -64,7 +64,7 @@ public class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool
 
     @Override
     public <R> Collection<Future<R>> executeOnAll(RetryPolicy retry, ServiceCallback<S, R> callback) {
-        return executeOn(ALL_ENDPOINTS, retry, callback);
+        return executeOn(ALL_END_POINTS, retry, callback);
     }
 
     @Override
