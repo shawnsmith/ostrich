@@ -217,6 +217,25 @@ public class AsyncServicePoolTest {
 
     @SuppressWarnings("unchecked")
     @Test
+    public void testExecuteOnSubmitsNoCallablesToExecutor() {
+        ServiceEndPoint FOO = mock(ServiceEndPoint.class);
+        ServiceEndPoint BAR = mock(ServiceEndPoint.class);
+        ServiceEndPoint BAZ = mock(ServiceEndPoint.class);
+        when(_mockPool.getAllEndPoints()).thenReturn(Lists.newArrayList(FOO, BAR, BAZ));
+
+        ServiceEndPointPredicate predicate = mock(ServiceEndPointPredicate.class);
+        when(predicate.apply(same(FOO))).thenReturn(false);
+        when(predicate.apply(same(BAR))).thenReturn(false);
+        when(predicate.apply(same(BAZ))).thenReturn(false);
+
+        AsyncServicePool<Service> pool = newAsyncPool();
+        pool.executeOn(predicate, NEVER_RETRY, mock(ServiceCallback.class));
+
+        verify(_mockExecutor, never()).submit(any(Callable.class));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
     public void testExecuteOnExecutesValidCallbacksInPool() {
         ServiceEndPoint FOO = mock(ServiceEndPoint.class);
         ServiceEndPoint BAR = mock(ServiceEndPoint.class);
@@ -237,6 +256,26 @@ public class AsyncServicePoolTest {
         verify(_mockPool, never()).executeOnEndPoint(same(FOO), same(callback));
         verify(_mockPool).executeOnEndPoint(same(BAR), same(callback));
         verify(_mockPool).executeOnEndPoint(same(BAZ), same(callback));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testExecuteOnExecutesNoCallbacksInPool() {
+        ServiceEndPoint FOO = mock(ServiceEndPoint.class);
+        ServiceEndPoint BAR = mock(ServiceEndPoint.class);
+        ServiceEndPoint BAZ = mock(ServiceEndPoint.class);
+        when(_mockPool.getAllEndPoints()).thenReturn(Lists.newArrayList(FOO, BAR, BAZ));
+
+        ServiceEndPointPredicate predicate = mock(ServiceEndPointPredicate.class);
+        when(predicate.apply(same(FOO))).thenReturn(false);
+        when(predicate.apply(same(BAR))).thenReturn(false);
+        when(predicate.apply(same(BAZ))).thenReturn(false);
+
+        // Use a real executor so that it can actually call into the callback
+        AsyncServicePool<Service> pool = newAsyncPool(MoreExecutors.sameThreadExecutor());
+        pool.executeOn(predicate, NEVER_RETRY, mock(ServiceCallback.class));
+
+        verify(_mockPool, never()).executeOnEndPoint(any(ServiceEndPoint.class), any(ServiceCallback.class));
     }
 
     @SuppressWarnings("unchecked")
