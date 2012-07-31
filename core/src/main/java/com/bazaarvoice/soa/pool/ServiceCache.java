@@ -153,6 +153,7 @@ class ServiceCache<S> implements Closeable {
      *
      * @param endPoint The end point that the service instance belongs to.
      * @param service  The service instance to return to the pool.
+     * @throws Exception Never.
      */
     public void checkIn(ServiceEndPoint endPoint, S service) throws Exception {
         checkNotNull(endPoint);
@@ -163,15 +164,10 @@ class ServiceCache<S> implements Closeable {
         Long invalidRevision = _invalidRevisions.get(endPoint);
         Long serviceRevision = _checkOutRevisions.remove(service);
 
-        try {
-            if (_isClosed || (invalidRevision != null && serviceRevision < invalidRevision)) {
-                _pool.invalidateObject(endPoint, service);
-            } else {
-                _pool.returnObject(endPoint, service);
-            }
-        } catch (Exception e) {
-            // Should never happen.
-            throw e;
+        if (_isClosed || (invalidRevision != null && serviceRevision < invalidRevision)) {
+            _pool.invalidateObject(endPoint, service);
+        } else {
+            _pool.returnObject(endPoint, service);
         }
     }
 

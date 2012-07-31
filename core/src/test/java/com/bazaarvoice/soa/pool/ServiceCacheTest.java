@@ -116,6 +116,7 @@ public class ServiceCacheTest {
         ServiceCache<Service> cache = newCache();
         try {
             cache.checkOut(END_POINT);
+            fail();
         } catch (Exception caught) {
             assertSame(exception, caught);
         }
