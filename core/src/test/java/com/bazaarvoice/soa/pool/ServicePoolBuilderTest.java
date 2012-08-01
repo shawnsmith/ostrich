@@ -15,6 +15,7 @@ import org.junit.Test;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertSame;
@@ -29,6 +30,7 @@ public class ServicePoolBuilderTest {
     private ServiceCachingPolicy _cachingPolicy;
     private HostDiscovery _hostDiscovery;
     private ScheduledExecutorService _healthCheckExecutor;
+    private ExecutorService _asyncExecutor;
 
     @SuppressWarnings("unchecked")
     @Before
@@ -43,7 +45,7 @@ public class ServicePoolBuilderTest {
 
         _hostDiscovery = mock(HostDiscovery.class);
         _healthCheckExecutor = mock(ScheduledExecutorService.class);
-
+        _asyncExecutor = mock(ExecutorService.class);
     }
 
     @Test(expected = NullPointerException.class)
@@ -71,6 +73,11 @@ public class ServicePoolBuilderTest {
         ServicePoolBuilder.create(Service.class).withHealthCheckExecutor(null);
     }
 
+    @Test(expected = NullPointerException.class)
+    public void testNullAsyncExecutor() {
+        ServicePoolBuilder.create(Service.class).withAsyncExecutor(null);
+    }
+
     @Test(expected = IllegalStateException.class)
     public void testBuildWithNoHostDiscoveryAndNoZooKeeperConnection() {
         ServicePoolBuilder.create(Service.class)
@@ -86,6 +93,7 @@ public class ServicePoolBuilderTest {
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
+                .withAsyncExecutor(_asyncExecutor)
                 .build();
     }
 
@@ -98,6 +106,7 @@ public class ServicePoolBuilderTest {
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
+                .withAsyncExecutor(_asyncExecutor)
                 .build();
     }
 
@@ -159,6 +168,16 @@ public class ServicePoolBuilderTest {
     }
 
     @Test
+    public void testBuildWithNoAsyncExecutor() {
+        ServicePoolBuilder.create(Service.class)
+                .withServiceFactory(_serviceFactory)
+                .withCachingPolicy(_cachingPolicy)
+                .withHostDiscovery(_hostDiscovery)
+                .withHealthCheckExecutor(_healthCheckExecutor)
+                .build();
+    }
+
+    @Test
     public void testBuildWithNoTicker() {
         ServicePoolBuilder.create(Service.class)
                 .withServiceFactory(_serviceFactory)
@@ -175,6 +194,27 @@ public class ServicePoolBuilderTest {
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
                 .build();
+    }
+
+    @Test
+    public void testBuildAsyncWithNoAsyncExecutor() {
+        ServicePoolBuilder.create(Service.class)
+                .withServiceFactory(_serviceFactory)
+                .withCachingPolicy(_cachingPolicy)
+                .withHostDiscovery(_hostDiscovery)
+                .withHealthCheckExecutor(_healthCheckExecutor)
+                .build();
+    }
+
+    @Test
+    public void testBuildAsync() {
+        ServicePoolBuilder.create(Service.class)
+                .withServiceFactory(_serviceFactory)
+                .withCachingPolicy(_cachingPolicy)
+                .withHostDiscovery(_hostDiscovery)
+                .withHealthCheckExecutor(_healthCheckExecutor)
+                .withAsyncExecutor(_asyncExecutor)
+                .buildAsync();
     }
 
     @Test
