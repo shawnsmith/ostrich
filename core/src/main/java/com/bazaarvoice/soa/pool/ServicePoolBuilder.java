@@ -119,9 +119,11 @@ public class ServicePoolBuilder<S> {
     }
 
     /**
-     * Adds an {@code ExecutorService} instance to the builder for use in executing async requests.
+     * Adds an {@code ExecutorService} instance to the builder for use in executing asynchronous requests. The executor
+     * is not used unless an asynchronous pool is built with the {@link #buildAsync} method.
      * <p/>
-     * Adding an executor is optional.  If one isn't specified then one will be created and used automatically.
+     * Adding an executor is optional.  If one isn't specified then one will be created and used automatically when
+     * {@code buildAsync} is called.
      *
      * @param executor The {@code ExecutorService} to use
      * @return this

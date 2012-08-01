@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 public class ServicePoolBuilderTest {
@@ -93,7 +94,6 @@ public class ServicePoolBuilderTest {
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
-                .withAsyncExecutor(_asyncExecutor)
                 .build();
     }
 
@@ -106,7 +106,6 @@ public class ServicePoolBuilderTest {
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
-                .withAsyncExecutor(_asyncExecutor)
                 .build();
     }
 
@@ -178,16 +177,6 @@ public class ServicePoolBuilderTest {
     }
 
     @Test
-    public void testBuildWithNoTicker() {
-        ServicePoolBuilder.create(Service.class)
-                .withServiceFactory(_serviceFactory)
-                .withCachingPolicy(_cachingPolicy)
-                .withHostDiscovery(_hostDiscovery)
-                .withHealthCheckExecutor(_healthCheckExecutor)
-                .build();
-    }
-
-    @Test
     public void testBuildWithNoCachingPolicy() {
         ServicePoolBuilder.create(Service.class)
                 .withServiceFactory(_serviceFactory)
@@ -197,13 +186,26 @@ public class ServicePoolBuilderTest {
     }
 
     @Test
+    public void testBuildWithAsyncExecutor() {
+        ServicePoolBuilder.create(Service.class)
+                .withServiceFactory(_serviceFactory)
+                .withCachingPolicy(_cachingPolicy)
+                .withHostDiscovery(_hostDiscovery)
+                .withHealthCheckExecutor(_healthCheckExecutor)
+                .withAsyncExecutor(_asyncExecutor)
+                .build();
+
+        verifyZeroInteractions(_asyncExecutor);
+    }
+
+    @Test
     public void testBuildAsyncWithNoAsyncExecutor() {
         ServicePoolBuilder.create(Service.class)
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
-                .build();
+                .buildAsync();
     }
 
     @Test
