@@ -4,6 +4,7 @@ import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceEndPointPredicate;
+import com.bazaarvoice.soa.ServicePoolStatistics;
 import com.bazaarvoice.soa.exceptions.MaxRetriesException;
 import com.bazaarvoice.soa.exceptions.ServiceException;
 import com.google.common.base.Ticker;
@@ -346,6 +347,16 @@ public class AsyncServicePoolTest {
 
         Future<Void> future = futures.iterator().next();
         future.get(10, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testServicePoolStatistics() {
+        ServicePoolStatistics expected = mock(ServicePoolStatistics.class);
+        when(_mockPool.getServicePoolStatistics()).thenReturn(expected);
+
+        AsyncServicePool<Service> pool = newAsyncPool();
+
+        assertSame(expected, pool.getServicePoolStatistics());
     }
 
     @Test

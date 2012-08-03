@@ -6,6 +6,7 @@ import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.ServicePoolStatistics;
+import com.bazaarvoice.soa.ServicePoolStatisticsProvider;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import org.junit.After;
@@ -21,6 +22,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -102,6 +104,21 @@ public class ServicePoolProxyTest {
         service.close();
 
         verify(_healthCheckExecutor).shutdownNow();
+    }
+
+    @Test
+    public void testProxyImplementsServicePoolStatisticsProvider() {
+        Service service = ServicePoolProxy.create(Service.class, NEVER_RETRY, _pool, false);
+
+        assertTrue(service instanceof ServicePoolStatisticsProvider);
+    }
+
+    @Test
+    public void testProxyProvidesStatistics() {
+        ServicePoolStatisticsProvider service = (ServicePoolStatisticsProvider)
+                ServicePoolProxy.create(Service.class, NEVER_RETRY, _pool, false);
+
+        assertSame(_pool.getServicePoolStatistics(), service.getServicePoolStatistics());
     }
 
     private static interface Service {

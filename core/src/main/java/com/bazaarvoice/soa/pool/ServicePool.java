@@ -21,12 +21,15 @@ import com.google.common.base.Ticker;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.helpers.MessageFormatter;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -53,6 +56,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final Set<ServiceEndPoint> _recentlyRemovedEndPoints;
     private final Future<?> _batchHealthChecksFuture;
     private final ServiceCache<S> _serviceCache;
+    private final ServicePoolStatistics _stats;
 
     ServicePool(Ticker ticker, HostDiscovery hostDiscovery,
                 ServiceFactory<S> serviceFactory, ServiceCachingPolicy cachingPolicy,
@@ -71,7 +75,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 .asMap());
         checkNotNull(cachingPolicy);
         _serviceCache = new ServiceCache<S>(cachingPolicy, serviceFactory);
-        _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm(new ServicePoolStatistics() {
+        _stats = new ServicePoolStatistics() {
             @Override
             public int getNumIdleCachedInstances(ServiceEndPoint endPoint) {
                 return _serviceCache.getNumIdleInstances(endPoint);
@@ -81,7 +85,13 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
             public int getNumActiveInstances(ServiceEndPoint endPoint) {
                 return _serviceCache.getNumActiveInstances(endPoint);
             }
-        }));
+
+            @Override
+            public boolean hasHealthyEndPoint() {
+                return ServicePool.this.hasHealthyEndPoint();
+            }
+        };
+        _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm(_stats));
 
         // Watch end points as they are removed from host discovery so that we can remove them from our set of bad
         // end points as well.  This will prevent the bad end points set from growing in an unbounded fashion.
@@ -125,11 +135,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         Stopwatch sw = new Stopwatch(_ticker).start();
         int numAttempts = 0;
         do {
-            Iterable<ServiceEndPoint> goodHosts = getValidEndPoints();
-            ServiceEndPoint endPoint = _loadBalanceAlgorithm.choose(goodHosts);
-            if (endPoint == null) {
-                throw new NoSuitableHostsException();
-            }
+            ServiceEndPoint endPoint = chooseEndPoint(getValidEndPoints());
 
             try {
                 return executeOnEndPoint(endPoint, callback);
@@ -143,6 +149,11 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
 
         throw new MaxRetriesException();
     }
+
+    @Override
+     public ServicePoolStatistics getServicePoolStatistics() {
+         return _stats;
+     }
 
     /**
      * Determine the set of all {@link ServiceEndPoint}s.
@@ -172,6 +183,14 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         }
 
         return goodHosts;
+    }
+
+    private ServiceEndPoint chooseEndPoint(Iterable<ServiceEndPoint> endPoints) {
+        ServiceEndPoint endPoint = _loadBalanceAlgorithm.choose(endPoints);
+        if (endPoint == null) {
+            throw new NoSuitableHostsException();
+        }
+        return endPoint;
     }
 
     /**
@@ -233,6 +252,45 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     @VisibleForTesting
     Set<ServiceEndPoint> getBadEndPoints() {
         return ImmutableSet.copyOf(_badEndPoints);
+    }
+
+    private boolean hasHealthyEndPoint() {
+        Set<ServiceEndPoint> endPoints;
+        try {
+            // Take a snapshot of the current end points.
+            endPoints = Sets.newHashSet(getValidEndPoints());
+        } catch (Exception e) {
+            // No valid end points means no healthy end points.
+            return false;
+        }
+        while (!endPoints.isEmpty()) {
+            ServiceEndPoint endPoint;
+            try {
+                // Prefer end points in the order the load balancer recommends.
+                endPoint = chooseEndPoint(endPoints);
+            } catch (Exception e) {
+                // Load balancer didn't like our end points, so just go sequentially.
+                endPoint = endPoints.iterator().next();
+            }
+            boolean healthy;
+            try {
+                healthy = _serviceFactory.isHealthy(endPoint);
+            } catch (Exception e) {
+                // Give up if exception is too severe.
+                if (!_serviceFactory.isRetriableException(e)) {
+                    return false;
+                } else {
+                    healthy = false;
+                }
+            }
+            if (healthy) {
+                return true;
+            } else {
+                endPoints.remove(endPoint);
+                markEndPointAsBad(endPoint);
+            }
+        }
+        return false;
     }
 
     private synchronized void addEndPoint(ServiceEndPoint endPoint) {

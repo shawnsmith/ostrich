@@ -30,13 +30,14 @@ import java.io.Closeable;
  *
  * @param <S> The service interface that this pool keeps track of end points for.
  */
-public interface ServicePool<S> extends Closeable {
+public interface ServicePool<S> extends Closeable, ServicePoolStatisticsProvider {
     /**
      * Execute a request synchronously against one of the remote services in this <code>ServicePool</code>.
      *
      * @param retryPolicy The retry policy for the operation.
      * @param callback The user provided callback to invoke with a service end point.
      * @param <R> The return type for the call.
+     * @return The result provided by the callback.
      */
     <R> R execute(RetryPolicy retryPolicy, ServiceCallback<S, R> callback);
 }

@@ -3,6 +3,7 @@ package com.bazaarvoice.soa.pool;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServicePool;
+import com.bazaarvoice.soa.ServicePoolStatisticsProvider;
 import com.bazaarvoice.soa.exceptions.ServiceException;
 import com.google.common.base.Throwables;
 import com.google.common.reflect.AbstractInvocationHandler;
@@ -25,8 +26,8 @@ class ServicePoolProxy<S> extends AbstractInvocationHandler {
                                ServicePool<S> pool, boolean shutdownPoolOnClose) {
         ClassLoader loader = Thread.currentThread().getContextClassLoader();
         Class<?>[] interfaces = shutdownPoolOnClose
-                ? new Class<?>[] {serviceType, Closeable.class}
-                : new Class<?>[] {serviceType};
+                ? new Class<?>[] {serviceType, ServicePoolStatisticsProvider.class, Closeable.class}
+                : new Class<?>[] {serviceType, ServicePoolStatisticsProvider.class};
 
         ServicePoolProxy<S> proxy = new ServicePoolProxy<S>(serviceType, retryPolicy, pool, shutdownPoolOnClose);
         return serviceType.cast(Proxy.newProxyInstance(loader, interfaces, proxy));
@@ -48,6 +49,11 @@ class ServicePoolProxy<S> extends AbstractInvocationHandler {
         if (_shutdownPoolOnClose && args.length == 0 && method.getName().equals("close")) {
             _servicePool.close();
             return null;
+        }
+
+        // Override for getServicePoolStatistics().
+        if (args.length == 0 && method.getName().equals("getServicePoolStatistics")) {
+            return _servicePool.getServicePoolStatistics();
         }
 
         // Delegate the method through to a service provider in the pool.

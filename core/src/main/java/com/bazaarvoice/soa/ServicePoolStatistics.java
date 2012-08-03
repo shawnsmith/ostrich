@@ -1,9 +1,9 @@
 package com.bazaarvoice.soa;
 
 /**
- * A provider of statistics relating to the state of the {@link ServicePool}. Mainly useful for making decisions for
- * load balancing, a {@code ServicePool} will pass an instance to the {@link ServiceFactory} when requesting a
- * {@link LoadBalanceAlgorithm}.
+ * A provider of statistics relating to the state of the {@link ServicePool}. Useful for making decisions for load
+ * balancing, a {@code ServicePool} will pass an instance to the {@link ServiceFactory} when requesting a
+ * {@link LoadBalanceAlgorithm}. Also provides general purpose statistics.
  */
 public interface ServicePoolStatistics {
     /**
@@ -22,4 +22,11 @@ public interface ServicePoolStatistics {
      * @return The number of service instances actively serving callbacks for the given end point.
      */
     int getNumActiveInstances(ServiceEndPoint endPoint);
+
+    /**
+     * Check if the pool has at least one healthy service end point. Will perform a health check against an end point,
+     * so execution time is dependant on the latency of the health check.
+     * @return {@code true} if the {@link ServicePool} has an end point that passes a health check.
+     */
+    boolean hasHealthyEndPoint();
 }

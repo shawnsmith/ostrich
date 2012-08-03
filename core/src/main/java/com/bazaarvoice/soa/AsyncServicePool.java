@@ -10,7 +10,7 @@ import java.util.concurrent.Future;
  *
  * @param <S> The service interface that this pool keeps track of end points for.
  */
-public interface AsyncServicePool<S> extends Closeable {
+public interface AsyncServicePool<S> extends Closeable, ServicePoolStatisticsProvider {
     /**
      * Execute a request asynchronously against one of the remote services in this {@code ServicePool}, returning
      * a future representing the asynchronous call.
