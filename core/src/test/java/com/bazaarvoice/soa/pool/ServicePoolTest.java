@@ -217,7 +217,9 @@ public class ServicePoolTest {
 
     @Test
     public void testAttemptsToRetryOnRetriableException() {
+        when(_serviceFactory.isRetriableException(any(Exception.class))).thenReturn(true);
         RetryPolicy retry = mock(RetryPolicy.class);
+
         when(retry.allowRetry(anyInt(), anyLong())).thenReturn(false);
 
         try {
@@ -238,7 +240,9 @@ public class ServicePoolTest {
 
     @Test
     public void testDoesNotAttemptToRetryOnNonRetriableException() {
+        when(_serviceFactory.isRetriableException(any(Exception.class))).thenReturn(false);
         RetryPolicy retry = mock(RetryPolicy.class);
+
         try {
             _pool.execute(retry, new ServiceCallback<Service, Void>() {
                 @Override
@@ -441,7 +445,7 @@ public class ServicePoolTest {
     public void testStatsHasHealthyEndPointWhenUnhealthy() {
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenReturn(false);
 
-        assertTrue(_servicePoolStatistics.hasHealthyEndPoint());
+        assertFalse(_servicePoolStatistics.hasHealthyEndPoint());
     }
 
     @Test
@@ -450,7 +454,7 @@ public class ServicePoolTest {
 
         _servicePoolStatistics.hasHealthyEndPoint();
 
-        assertEquals(_hostDiscovery.getHosts(), _pool.getBadEndPoints());
+        assertTrue(_pool.getBadEndPoints().containsAll(Sets.newHashSet(_pool.getAllEndPoints())));
     }
 
     @Test

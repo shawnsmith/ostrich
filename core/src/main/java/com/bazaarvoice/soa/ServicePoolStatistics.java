@@ -26,7 +26,8 @@ public interface ServicePoolStatistics {
     /**
      * Check if the pool has at least one healthy service end point. Will perform a health check against an end point,
      * so execution time is dependant on the latency of the health check.
-     * @return {@code true} if the {@link ServicePool} has an end point that passes a health check.
+     * @return {@code true} if the {@link ServicePool} has an end point that passes a health check, {@code false}
+     * otherwise.
      */
     boolean hasHealthyEndPoint();
 }
