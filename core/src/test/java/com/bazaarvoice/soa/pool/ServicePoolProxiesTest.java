@@ -1,7 +1,7 @@
 package com.bazaarvoice.soa.pool;
 
-import com.bazaarvoice.soa.*;
-import com.bazaarvoice.soa.pool.ServicePoolProxy;
+import com.bazaarvoice.soa.RetryPolicy;
+import com.bazaarvoice.soa.ServicePoolProxies;
 import org.junit.Test;
 
 import java.io.IOException;
