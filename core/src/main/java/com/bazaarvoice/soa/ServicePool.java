@@ -1,6 +1,7 @@
 package com.bazaarvoice.soa;
 
 import java.io.Closeable;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A <code>ServicePool</code> keeps track of service end points for a particular service.  Internally it
@@ -30,7 +31,7 @@ import java.io.Closeable;
  *
  * @param <S> The service interface that this pool keeps track of end points for.
  */
-public interface ServicePool<S> extends Closeable, ServicePoolStatisticsProvider {
+public interface ServicePool<S> extends Closeable {
     /**
      * Execute a request synchronously against one of the remote services in this <code>ServicePool</code>.
      *
@@ -40,4 +41,15 @@ public interface ServicePool<S> extends Closeable, ServicePoolStatisticsProvider
      * @return The result provided by the callback.
      */
     <R> R execute(RetryPolicy retryPolicy, ServiceCallback<S, R> callback);
+
+    /**
+     * Attempts to find a healthy end point. Performs health checks until a healthy end point is found,
+     * all available end points are exhausted, or execution of a health check throws an exception that is deemed not
+     * retriable.
+     *
+     * @return A {@code HealthCheckResult} from the first healthy end point found, or from the last end point checked
+     * if no healthy end points are found. If there are no end points in the pool, the ID and response time of the
+     * returned result is undefined,
+     */
+    HealthCheckResult findHealthyEndPoint();
 }

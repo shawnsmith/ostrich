@@ -350,16 +350,6 @@ public class AsyncServicePoolTest {
     }
 
     @Test
-    public void testServicePoolStatistics() {
-        ServicePoolStatistics expected = mock(ServicePoolStatistics.class);
-        when(_mockPool.getServicePoolStatistics()).thenReturn(expected);
-
-        AsyncServicePool<Service> pool = newAsyncPool();
-
-        assertSame(expected, pool.getServicePoolStatistics());
-    }
-
-    @Test
     public void testCloseDoesShutdownExecutor() throws IOException {
         AsyncServicePool<Service> pool = newAsyncPool(_mockExecutor, true);
         pool.close();

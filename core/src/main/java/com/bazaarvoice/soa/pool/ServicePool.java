@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.helpers.MessageFormatter;
 
+import javax.annotation.Nullable;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -53,7 +54,6 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final Set<ServiceEndPoint> _recentlyRemovedEndPoints;
     private final Future<?> _batchHealthChecksFuture;
     private final ServiceCache<S> _serviceCache;
-    private final ServicePoolStatistics _stats;
 
     ServicePool(Ticker ticker, HostDiscovery hostDiscovery,
                 ServiceFactory<S> serviceFactory, ServiceCachingPolicy cachingPolicy,
@@ -72,7 +72,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 .asMap());
         checkNotNull(cachingPolicy);
         _serviceCache = new ServiceCache<S>(cachingPolicy, serviceFactory);
-        _stats = new ServicePoolStatistics() {
+        _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm(new ServicePoolStatistics() {
             @Override
             public int getNumIdleCachedInstances(ServiceEndPoint endPoint) {
                 return _serviceCache.getNumIdleInstances(endPoint);
@@ -82,13 +82,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
             public int getNumActiveInstances(ServiceEndPoint endPoint) {
                 return _serviceCache.getNumActiveInstances(endPoint);
             }
-
-            @Override
-            public boolean hasHealthyEndPoint() {
-                return ServicePool.this.hasHealthyEndPoint();
-            }
-        };
-        _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm(_stats));
+        }));
 
         // Watch end points as they are removed from host discovery so that we can remove them from our set of bad
         // end points as well.  This will prevent the bad end points set from growing in an unbounded fashion.
@@ -146,11 +140,6 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
 
         throw new MaxRetriesException();
     }
-
-    @Override
-     public ServicePoolStatistics getServicePoolStatistics() {
-         return _stats;
-     }
 
     /**
      * Determine the set of all {@link ServiceEndPoint}s.
@@ -224,8 +213,8 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                     _serviceCache.checkIn(endPoint, service);
                 } catch (Exception e) {
                     // This should never happen, but log just in case.
-                    LOG.error(MessageFormatter.format("Error end point into cache. End point ID: {}", endPoint.getId())
-                                  .getMessage(),
+                    LOG.error(MessageFormatter.format("Error returning end point to cache. End point ID: {}",
+                                                      endPoint.getId()).getMessage(),
                               e);
                 }
             }
@@ -251,14 +240,16 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         return ImmutableSet.copyOf(_badEndPoints);
     }
 
-    private boolean hasHealthyEndPoint() {
+    @Override
+    public com.bazaarvoice.soa.HealthCheckResult findHealthyEndPoint() {
         Set<ServiceEndPoint> endPoints;
+        HealthCheckResult result = new HealthCheckResult(false, "", 0, null);
         try {
             // Take a snapshot of the current end points.
             endPoints = Sets.newHashSet(getValidEndPoints());
         } catch (Exception e) {
             // No valid end points means no healthy end points.
-            return false;
+            return new HealthCheckResult(false, "", 0, e);
         }
         while (!endPoints.isEmpty()) {
             ServiceEndPoint endPoint;
@@ -269,25 +260,17 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 // Load balancer didn't like our end points, so just go sequentially.
                 endPoint = endPoints.iterator().next();
             }
-            boolean healthy;
-            try {
-                healthy = _serviceFactory.isHealthy(endPoint);
-            } catch (Exception e) {
-                // Give up if exception is too severe.
-                if (!_serviceFactory.isRetriableException(e)) {
-                    return false;
-                } else {
-                    healthy = false;
-                }
-            }
-            if (healthy) {
-                return true;
+            result = getHealthCheckResult(endPoint);
+            if (!result.isHealthyOrRetriable()) {
+                return result;
             } else {
+
                 endPoints.remove(endPoint);
+                LOG.info("Unhealthy end point discovered. End point ID: {}", endPoint.getId());
                 markEndPointAsBad(endPoint);
             }
         }
-        return false;
+        return result;
     }
 
     private synchronized void addEndPoint(ServiceEndPoint endPoint) {
@@ -371,6 +354,53 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                     .getMessage(), ignored);
             // If anything goes bad, we'll still consider the end point unhealthy.
             return false;
+        }
+    }
+
+    private HealthCheckResult getHealthCheckResult(ServiceEndPoint endPoint) {
+        String id = endPoint.getId();
+        boolean healthy = false;
+        Exception thrown = null;
+        Stopwatch sw = new Stopwatch(_ticker).start();
+        try {
+            healthy = _serviceFactory.isHealthy(endPoint);
+        } catch (Exception e) {
+            thrown = e;
+        }
+        sw.stop();
+        return new HealthCheckResult(healthy, id, sw.elapsedTime(TimeUnit.NANOSECONDS), thrown);
+    }
+
+    private final class HealthCheckResult implements com.bazaarvoice.soa.HealthCheckResult {
+        private final boolean _healthy;
+        private final String _id;
+        private final long _responseTimeInNanos;
+        private final Exception _cause;
+
+        HealthCheckResult(boolean healthy, String id, long responseTimeInNanos, @Nullable Exception cause) {
+            _healthy = healthy;
+            _id = id;
+            _responseTimeInNanos = responseTimeInNanos;
+            _cause = cause;
+        }
+
+        @Override
+        public boolean isHealthy() {
+            return _healthy;
+        }
+
+        @Override
+        public String getEndPointId() {
+            return _id;
+        }
+
+        @Override
+        public long getResponseTime(TimeUnit units) {
+            return units.convert(_responseTimeInNanos, TimeUnit.NANOSECONDS);
+        }
+
+        private boolean isHealthyOrRetriable() {
+            return _healthy || _cause == null || isRetriableException(_cause);
         }
     }
 }

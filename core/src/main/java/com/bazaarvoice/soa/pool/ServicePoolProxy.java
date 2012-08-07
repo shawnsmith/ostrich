@@ -3,7 +3,6 @@ package com.bazaarvoice.soa.pool;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServicePool;
-import com.bazaarvoice.soa.ServicePoolStatisticsProvider;
 import com.bazaarvoice.soa.exceptions.ServiceException;
 import com.google.common.base.Throwables;
 import com.google.common.reflect.AbstractInvocationHandler;
@@ -16,7 +15,7 @@ import java.lang.reflect.Proxy;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-public class ServicePoolProxy<S> extends AbstractInvocationHandler {
+class ServicePoolProxy<S> extends AbstractInvocationHandler {
     private final Class<S> _serviceType;
     private final RetryPolicy _retryPolicy;
     private final ServicePool<S> _servicePool;
@@ -26,8 +25,8 @@ public class ServicePoolProxy<S> extends AbstractInvocationHandler {
                                ServicePool<S> pool, boolean shutdownPoolOnClose) {
         ClassLoader loader = Thread.currentThread().getContextClassLoader();
         Class<?>[] interfaces = shutdownPoolOnClose
-                ? new Class<?>[] {serviceType, ServicePoolStatisticsProvider.class, Closeable.class}
-                : new Class<?>[] {serviceType, ServicePoolStatisticsProvider.class};
+                ? new Class<?>[] {serviceType, Closeable.class}
+                : new Class<?>[] {serviceType};
 
         ServicePoolProxy<S> proxy = new ServicePoolProxy<S>(serviceType, retryPolicy, pool, shutdownPoolOnClose);
         return serviceType.cast(Proxy.newProxyInstance(loader, interfaces, proxy));
@@ -44,9 +43,9 @@ public class ServicePoolProxy<S> extends AbstractInvocationHandler {
     }
 
     /**
-     * Returns the service pool used by this proxy to execute service methods.
+     * @return The service pool used by this proxy to execute service methods.
      */
-    public ServicePool<S> getServicePool() {
+    com.bazaarvoice.soa.ServicePool<S> getServicePool() {
         return _servicePool;
     }
 
@@ -59,9 +58,11 @@ public class ServicePoolProxy<S> extends AbstractInvocationHandler {
         }
 
         // Override for getServicePoolStatistics().
+        /*
         if (args.length == 0 && method.getName().equals("getServicePoolStatistics")) {
             return _servicePool.getServicePoolStatistics();
         }
+        */
 
         // Delegate the method through to a service provider in the pool.
         return _servicePool.execute(_retryPolicy, new ServiceCallback<S, Object>() {

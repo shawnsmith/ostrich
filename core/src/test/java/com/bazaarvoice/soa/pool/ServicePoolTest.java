@@ -95,12 +95,13 @@ public class ServicePoolTest {
             }
         });
 
+        ArgumentCaptor<ServicePoolStatistics> statsCaptor = ArgumentCaptor.forClass(ServicePoolStatistics.class);
+
         _serviceFactory = (ServiceFactory<Service>) mock(ServiceFactory.class);
         when(_serviceFactory.create(FOO_ENDPOINT)).thenReturn(FOO_SERVICE);
         when(_serviceFactory.create(BAR_ENDPOINT)).thenReturn(BAR_SERVICE);
         when(_serviceFactory.create(BAZ_ENDPOINT)).thenReturn(BAZ_SERVICE);
-        when(_serviceFactory.getLoadBalanceAlgorithm(any(ServicePoolStatistics.class)))
-                .thenReturn(_loadBalanceAlgorithm);
+        when(_serviceFactory.getLoadBalanceAlgorithm(statsCaptor.capture())).thenReturn(_loadBalanceAlgorithm);
         when(_serviceFactory.isRetriableException(any(Exception.class))).thenReturn(true);
 
         _healthCheckExecutor = mock(ScheduledExecutorService.class);
@@ -130,7 +131,7 @@ public class ServicePoolTest {
         _pool = new ServicePool<Service>(_ticker, _hostDiscovery, _serviceFactory, UNLIMITED_CACHING,
                 _healthCheckExecutor, true);
 
-        _servicePoolStatistics = _pool.getServicePoolStatistics();
+        _servicePoolStatistics = statsCaptor.getValue();
     }
 
     @After
@@ -428,58 +429,65 @@ public class ServicePoolTest {
     }
 
     @Test
-    public void testStatsHasHealthyEndPointWhenEmpty() {
+    public void testFindHealthyEndPointWhenEmpty() {
         when(_hostDiscovery.getHosts()).thenReturn(Collections.<ServiceEndPoint>emptySet());
 
-        assertFalse(_servicePoolStatistics.hasHealthyEndPoint());
+        assertFalse(_pool.findHealthyEndPoint().isHealthy());
     }
 
     @Test
-    public void testStatsHasHealthyEndPointWhenHealthy() {
+    public void testFindHealthyEndPointWhenHealthy() {
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenReturn(true);
 
-        assertTrue(_servicePoolStatistics.hasHealthyEndPoint());
+        assertTrue(_pool.findHealthyEndPoint().isHealthy());
     }
 
     @Test
-    public void testStatsHasHealthyEndPointWhenUnhealthy() {
+    public void testFindHealthyEndPointWhenUnhealthy() {
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenReturn(false);
 
-        assertFalse(_servicePoolStatistics.hasHealthyEndPoint());
+        assertFalse(_pool.findHealthyEndPoint().isHealthy());
     }
 
     @Test
-    public void testStatsHasHealthyEndPointMarksEndPointBad() {
+    public void testFindHealthyEndPointRetriesWhenUnhealthy() {
+        when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenReturn(false, true);
+
+        assertTrue(_pool.findHealthyEndPoint().isHealthy());
+    }
+
+    @Test
+    public void testFindHealthyEndPointMarksEndPointBad() {
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenReturn(false);
 
-        _servicePoolStatistics.hasHealthyEndPoint();
+        _pool.findHealthyEndPoint();
 
         assertTrue(_pool.getBadEndPoints().containsAll(Sets.newHashSet(_pool.getAllEndPoints())));
     }
 
     @Test
-    public void testStatsHasHealthyEndPointNotBeholdenToLoadBalancer() {
+    public void testFindHealthyEndPointNotBeholdenToLoadBalancer() {
         reset(_loadBalanceAlgorithm);
         when(_loadBalanceAlgorithm.choose(Matchers.<Iterable<ServiceEndPoint>>any())).thenReturn(null);
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenReturn(true);
 
-        assertTrue(_servicePoolStatistics.hasHealthyEndPoint());
+        assertTrue(_pool.findHealthyEndPoint().isHealthy());
     }
 
     @Test
-    public void testStatsHasHealthyEndPointRetriableException() {
+    public void testFindHealthyEndPointRetriableException() {
         when(_serviceFactory.isRetriableException(any(Exception.class))).thenReturn(true);
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenThrow(new RuntimeException()).thenReturn(true);
 
-        assertTrue(_servicePoolStatistics.hasHealthyEndPoint());
+        assertTrue(_pool.findHealthyEndPoint().isHealthy());
     }
 
     @Test
-    public void testStatsHasHealthyEndPointNonRetriableException() {
+    public void testFindHealthyEndPointNonRetriableException() {
         when(_serviceFactory.isRetriableException(any(Exception.class))).thenReturn(false);
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenThrow(new RuntimeException()).thenReturn(true);
 
-        assertFalse(_servicePoolStatistics.hasHealthyEndPoint());
+        assertFalse(_pool.findHealthyEndPoint().isHealthy());
     }
 
     @Test

@@ -102,9 +102,4 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
 
         return futures;
     }
-
-    @Override
-    public ServicePoolStatistics getServicePoolStatistics() {
-        return _pool.getServicePoolStatistics();
-    }
 }
