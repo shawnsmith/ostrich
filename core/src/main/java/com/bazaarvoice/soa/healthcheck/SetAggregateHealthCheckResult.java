@@ -2,13 +2,14 @@ package com.bazaarvoice.soa.healthcheck;
 
 import com.bazaarvoice.soa.AggregateHealthCheckResult;
 import com.bazaarvoice.soa.HealthCheckResult;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import java.util.Set;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public final class SetAggregateHealthCheckResult implements AggregateHealthCheckResult {
     private final Set<HealthCheckResult> _healthyResults =
@@ -32,7 +33,7 @@ public final class SetAggregateHealthCheckResult implements AggregateHealthCheck
     }
 
     public void addHealthCheckResult(HealthCheckResult result) {
-        Preconditions.checkNotNull(result);
+        checkNotNull(result);
         if (result.isHealthy()) {
             _healthyResults.add(result);
         } else {

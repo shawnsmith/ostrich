@@ -57,13 +57,6 @@ class ServicePoolProxy<S> extends AbstractInvocationHandler {
             return null;
         }
 
-        // Override for getServicePoolStatistics().
-        /*
-        if (args.length == 0 && method.getName().equals("getServicePoolStatistics")) {
-            return _servicePool.getServicePoolStatistics();
-        }
-        */
-
         // Delegate the method through to a service provider in the pool.
         return _servicePool.execute(_retryPolicy, new ServiceCallback<S, Object>() {
             @Override
