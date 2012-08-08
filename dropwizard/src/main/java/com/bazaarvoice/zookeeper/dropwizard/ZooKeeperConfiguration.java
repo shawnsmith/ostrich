@@ -1,4 +1,4 @@
-package com.bazaarvoice.soa.zookeeper.dropwizard;
+package com.bazaarvoice.zookeeper.dropwizard;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.netflix.curator.RetryPolicy;
@@ -9,7 +9,7 @@ import org.codehaus.jackson.annotate.JsonProperty;
  * <p>
  * This class is designed to map easily to YAML configuration files, deserialized using Jackson.
  */
-public class ZooKeeperConfiguration extends com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration {
+public class ZooKeeperConfiguration extends com.bazaarvoice.zookeeper.ZooKeeperConfiguration {
     /**
      * Sets a ZooKeeper connection string that looks like "host:port,host:port,...".  The
      * connection string must list at least one live member of the ZooKeeper ensemble, and

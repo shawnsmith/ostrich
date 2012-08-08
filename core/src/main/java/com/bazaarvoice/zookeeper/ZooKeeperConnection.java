@@ -1,4 +1,4 @@
-package com.bazaarvoice.soa.zookeeper;
+package com.bazaarvoice.zookeeper;
 
 import java.io.Closeable;
 

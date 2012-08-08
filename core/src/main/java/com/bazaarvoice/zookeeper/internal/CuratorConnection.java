@@ -1,6 +1,6 @@
-package com.bazaarvoice.soa.internal;
+package com.bazaarvoice.zookeeper.internal;
 
-import com.bazaarvoice.soa.zookeeper.ZooKeeperConnection;
+import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.netflix.curator.RetryPolicy;
@@ -18,7 +18,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * This class provides a ZooKeeperConnection that is backed by Netflix's Curator library.  This class is in an internal
  * package to avoid users from using it.  Curator should not appear anywhere in the public interface of the SOA library.
  *
- * @see com.bazaarvoice.soa.zookeeper.ZooKeeperConfiguration
+ * @see com.bazaarvoice.zookeeper.ZooKeeperConfiguration
  */
 public class CuratorConnection implements ZooKeeperConnection {
     private final CuratorFramework _curator;

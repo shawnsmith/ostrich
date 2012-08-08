@@ -1,5 +1,7 @@
-package com.bazaarvoice.soa.registry;
+package com.bazaarvoice.zookeeper.recipes;
 
+import com.bazaarvoice.zookeeper.internal.CuratorConnection;
+import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -48,7 +50,8 @@ public class ZooKeeperPersistentEphemeralNode {
      * Create the ephemeral node in ZooKeeper.  If the node cannot be created in a timely fashion then an exception will
      * be thrown.
      */
-    public ZooKeeperPersistentEphemeralNode(CuratorFramework curator, String basePath, byte[] data, CreateMode mode) {
+    public ZooKeeperPersistentEphemeralNode(ZooKeeperConnection connection, String basePath, byte[] data, CreateMode mode) {
+        CuratorFramework curator = ((CuratorConnection) checkNotNull(connection)).getCurator();
         checkNotNull(curator);
         checkNotNull(basePath);
         checkNotNull(data);
@@ -85,7 +88,7 @@ public class ZooKeeperPersistentEphemeralNode {
     }
 
     @VisibleForTesting
-    String getActualPath() {
+    public String getActualPath() {
         return _async._sync._nodePath;
     }
 

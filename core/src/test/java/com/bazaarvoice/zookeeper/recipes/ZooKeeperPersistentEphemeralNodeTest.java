@@ -1,6 +1,7 @@
-package com.bazaarvoice.soa.registry;
+package com.bazaarvoice.zookeeper.recipes;
 
-import com.bazaarvoice.soa.test.ZooKeeperTest;
+import com.bazaarvoice.zookeeper.internal.CuratorConnection;
+import com.bazaarvoice.zookeeper.test.ZooKeeperTest;
 import com.google.common.collect.Lists;
 import com.netflix.curator.framework.CuratorFramework;
 import com.netflix.curator.utils.ZKPaths;
@@ -14,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class ZooKeeperPersistentEphemeralNodeTest extends ZooKeeperTest {
     private static final String DIR = "/test";
@@ -39,31 +41,41 @@ public class ZooKeeperPersistentEphemeralNodeTest extends ZooKeeperTest {
     @Test(expected = NullPointerException.class)
     public void testNullPath() throws Exception {
         CuratorFramework curator = mock(CuratorFramework.class);
-        new ZooKeeperPersistentEphemeralNode(curator, null, DATA, CreateMode.EPHEMERAL);
+        CuratorConnection connection = mock(CuratorConnection.class);
+        when(connection.getCurator()).thenReturn(curator);
+        new ZooKeeperPersistentEphemeralNode(connection, null, DATA, CreateMode.EPHEMERAL);
     }
 
     @Test(expected = NullPointerException.class)
     public void testNullData() throws Exception {
         CuratorFramework curator = mock(CuratorFramework.class);
-        new ZooKeeperPersistentEphemeralNode(curator, PATH, null, CreateMode.EPHEMERAL);
+        CuratorConnection connection = mock(CuratorConnection.class);
+        when(connection.getCurator()).thenReturn(curator);
+        new ZooKeeperPersistentEphemeralNode(connection, PATH, null, CreateMode.EPHEMERAL);
     }
 
     @Test(expected = NullPointerException.class)
     public void testNullMode() throws Exception {
         CuratorFramework curator = mock(CuratorFramework.class);
-        new ZooKeeperPersistentEphemeralNode(curator, PATH, DATA, null);
+        CuratorConnection connection = mock(CuratorConnection.class);
+        when(connection.getCurator()).thenReturn(curator);
+        new ZooKeeperPersistentEphemeralNode(connection, PATH, DATA, null);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testNonPersistentMode() throws Exception {
         CuratorFramework curator = mock(CuratorFramework.class);
-        new ZooKeeperPersistentEphemeralNode(curator, PATH, DATA, CreateMode.PERSISTENT);
+        CuratorConnection connection = mock(CuratorConnection.class);
+        when(connection.getCurator()).thenReturn(curator);
+        new ZooKeeperPersistentEphemeralNode(connection, PATH, DATA, CreateMode.PERSISTENT);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testNonPersistentSequentialMode() throws Exception {
         CuratorFramework curator = mock(CuratorFramework.class);
-        new ZooKeeperPersistentEphemeralNode(curator, PATH, DATA, CreateMode.PERSISTENT_SEQUENTIAL);
+        CuratorConnection connection = mock(CuratorConnection.class);
+        when(connection.getCurator()).thenReturn(curator);
+        new ZooKeeperPersistentEphemeralNode(connection, PATH, DATA, CreateMode.PERSISTENT_SEQUENTIAL);
     }
 
     @Test
@@ -171,7 +183,7 @@ public class ZooKeeperPersistentEphemeralNodeTest extends ZooKeeperTest {
     }
 
     private ZooKeeperPersistentEphemeralNode createNode(String path, CreateMode mode) throws Exception {
-        ZooKeeperPersistentEphemeralNode node = new ZooKeeperPersistentEphemeralNode(newCurator(), path, DATA, mode);
+        ZooKeeperPersistentEphemeralNode node = new ZooKeeperPersistentEphemeralNode(newMockZooKeeperConnection(), path, DATA, mode);
         _createdNodes.add(node);
         return node;
     }

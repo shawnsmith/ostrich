@@ -1,6 +1,6 @@
-package com.bazaarvoice.soa.zookeeper;
+package com.bazaarvoice.zookeeper;
 
-import com.bazaarvoice.soa.internal.CuratorConnection;
+import com.bazaarvoice.zookeeper.internal.CuratorConnection;
 import com.google.common.annotations.VisibleForTesting;
 import com.netflix.curator.RetryPolicy;
 import com.netflix.curator.retry.BoundedExponentialBackoffRetry;

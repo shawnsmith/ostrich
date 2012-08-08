@@ -1,4 +1,4 @@
-package com.bazaarvoice.soa.zookeeper.dropwizard;
+package com.bazaarvoice.zookeeper.dropwizard;
 
 import org.codehaus.jackson.annotate.JsonCreator;
 import org.codehaus.jackson.annotate.JsonProperty;

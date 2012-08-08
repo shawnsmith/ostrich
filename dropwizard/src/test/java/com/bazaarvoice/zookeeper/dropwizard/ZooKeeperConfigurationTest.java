@@ -1,4 +1,4 @@
-package com.bazaarvoice.soa.zookeeper.dropwizard;
+package com.bazaarvoice.zookeeper.dropwizard;
 
 import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.map.MappingJsonFactory;
