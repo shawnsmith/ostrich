@@ -1,5 +1,6 @@
 package com.bazaarvoice.soa.pool;
 
+import com.bazaarvoice.soa.AggregateHealthCheckResult;
 import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.LoadBalanceAlgorithm;
 import com.bazaarvoice.soa.RetryPolicy;
@@ -429,65 +430,74 @@ public class ServicePoolTest {
     }
 
     @Test
-    public void testFindHealthyEndPointWhenEmpty() {
+    public void testFindFirstHealthyEndPointWhenEmpty() {
         when(_hostDiscovery.getHosts()).thenReturn(Collections.<ServiceEndPoint>emptySet());
 
-        assertFalse(_pool.findHealthyEndPoint().isHealthy());
+        assertTrue(Iterables.isEmpty(_pool.findFirstHealthyEndPoint().getAllResults()));
     }
 
     @Test
-    public void testFindHealthyEndPointWhenHealthy() {
+    public void testFindFirstHealthyEndPointWhenHealthy() {
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenReturn(true);
 
-        assertTrue(_pool.findHealthyEndPoint().isHealthy());
+        AggregateHealthCheckResult aggregate = _pool.findFirstHealthyEndPoint();
+
+        assertFalse(Iterables.isEmpty(aggregate.getHealthyResults()));
+        assertTrue(Iterables.isEmpty(aggregate.getUnhealthyResults()));
     }
 
     @Test
-    public void testFindHealthyEndPointWhenUnhealthy() {
+    public void testFindFirstHealthyEndPointWhenUnhealthy() {
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenReturn(false);
 
-        assertFalse(_pool.findHealthyEndPoint().isHealthy());
+        AggregateHealthCheckResult aggregate = _pool.findFirstHealthyEndPoint();
+
+        assertTrue(Iterables.isEmpty(aggregate.getHealthyResults()));
+        assertFalse(Iterables.isEmpty(aggregate.getUnhealthyResults()));
     }
 
     @Test
-    public void testFindHealthyEndPointRetriesWhenUnhealthy() {
+    public void testFindFirstHealthyEndPointRetriesWhenUnhealthy() {
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenReturn(false, true);
 
-        assertTrue(_pool.findHealthyEndPoint().isHealthy());
+        AggregateHealthCheckResult aggregate = _pool.findFirstHealthyEndPoint();
+
+        assertFalse(Iterables.isEmpty(aggregate.getHealthyResults()));
+        assertFalse(Iterables.isEmpty(aggregate.getUnhealthyResults()));
     }
 
     @Test
-    public void testFindHealthyEndPointMarksEndPointBad() {
+    public void testFindFirstHealthyEndPointMarksEndPointBad() {
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenReturn(false);
 
-        _pool.findHealthyEndPoint();
+        _pool.findFirstHealthyEndPoint();
 
         assertTrue(_pool.getBadEndPoints().containsAll(Sets.newHashSet(_pool.getAllEndPoints())));
     }
 
     @Test
-    public void testFindHealthyEndPointNotBeholdenToLoadBalancer() {
+    public void testFindFirstHealthyEndPointNotBeholdenToLoadBalancer() {
         reset(_loadBalanceAlgorithm);
         when(_loadBalanceAlgorithm.choose(Matchers.<Iterable<ServiceEndPoint>>any())).thenReturn(null);
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenReturn(true);
 
-        assertTrue(_pool.findHealthyEndPoint().isHealthy());
+        assertFalse(Iterables.isEmpty(_pool.findFirstHealthyEndPoint().getHealthyResults()));
     }
 
     @Test
-    public void testFindHealthyEndPointRetriableException() {
+    public void testFindFirstHealthyEndPointRetriableException() {
         when(_serviceFactory.isRetriableException(any(Exception.class))).thenReturn(true);
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenThrow(new RuntimeException()).thenReturn(true);
 
-        assertTrue(_pool.findHealthyEndPoint().isHealthy());
+        assertFalse(Iterables.isEmpty(_pool.findFirstHealthyEndPoint().getHealthyResults()));
     }
 
     @Test
-    public void testFindHealthyEndPointNonRetriableException() {
+    public void testFindFirstHealthyEndPointNonRetriableException() {
         when(_serviceFactory.isRetriableException(any(Exception.class))).thenReturn(false);
         when(_serviceFactory.isHealthy(any(ServiceEndPoint.class))).thenThrow(new RuntimeException()).thenReturn(true);
 
-        assertFalse(_pool.findHealthyEndPoint().isHealthy());
+        assertTrue(Iterables.isEmpty(_pool.findFirstHealthyEndPoint().getHealthyResults()));
     }
 
     @Test
