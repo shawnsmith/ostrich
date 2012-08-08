@@ -1,4 +1,4 @@
-package com.bazaarvoice.zookeeper.test;
+package com.bazaarvoice.soa.test;
 
 import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.ServiceEndPoint;

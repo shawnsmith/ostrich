@@ -60,9 +60,9 @@
         </dependency>
 
         <dependency>
-            <groupId>com.bazaarvoice.soa</groupId>
-            <artifactId>soa-dropwizard</artifactId>
-            <version>1.0.2-SNAPSHOT</version>
+            <groupId>com.bazaarvoice.zookeeper-common</groupId>
+            <artifactId>zookeeper-common-dropwizard</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
         <dependency>

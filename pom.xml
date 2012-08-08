@@ -105,6 +105,18 @@
             </dependency>
 
             <dependency>
+                <groupId>com.bazaarvoice.zookeeper-common</groupId>
+                <artifactId>zookeeper-common-core</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.bazaarvoice.zookeeper-common</groupId>
+                <artifactId>zookeeper-common-dropwizard</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+            </dependency>
+
+            <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
                 <version>12.0.1</version>
@@ -152,7 +164,6 @@
 
     <modules>
         <module>core</module>
-        <module>dropwizard</module>
         <module>examples</module>
     </modules>
 

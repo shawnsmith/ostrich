@@ -5,7 +5,7 @@ import com.bazaarvoice.soa.ServiceEndPointBuilder;
 import com.bazaarvoice.soa.ServiceEndPointJsonCodec;
 import com.bazaarvoice.zookeeper.ZooKeeperConfiguration;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
-import com.bazaarvoice.zookeeper.test.ZooKeeperTest;
+import com.bazaarvoice.soa.test.ZooKeeperTest;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 import com.netflix.curator.framework.CuratorFramework;
