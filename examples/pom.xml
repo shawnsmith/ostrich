@@ -17,12 +17,33 @@
     <name>examples</name>
     <description>Examples of how to use SOA</description>
 
+    <properties>
+        <dropwizard.version>0.4.4</dropwizard.version>
+        <soa.version>1.0.2-SNAPSHOT</soa.version>
+        <zookeeper-common.version>0.0.1</zookeeper-common.version>
+    </properties>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>com.bazaarvoice.soa</groupId>
                 <artifactId>soa-core</artifactId>
-                <version>1.0.2-SNAPSHOT</version>
+                <version>${soa.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bazaarvoice.zookeeper-common</groupId>
+                <artifactId>zookeeper-common-core</artifactId>
+                <version>${zookeeper-common.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bazaarvoice.zookeeper-common</groupId>
+                <artifactId>zookeeper-common-dropwizard</artifactId>
+                <version>${zookeeper-common.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yammer.dropwizard</groupId>
+                <artifactId>dropwizard-client</artifactId>
+                <version>${dropwizard.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
