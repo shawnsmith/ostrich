@@ -12,8 +12,7 @@ public interface HealthCheckResult {
     boolean isHealthy();
 
     /**
-     * Gets the ID of the end point the health check was run on.
-     * @return The ID of the end point this result is for, or the empty string if no end point.
+     * @return The ID of the end point this result is for.
      */
     String getEndPointId();
 

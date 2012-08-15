@@ -2,7 +2,7 @@ package com.bazaarvoice.soa.healthcheck;
 
 import com.bazaarvoice.soa.HealthCheckResults;
 import com.bazaarvoice.soa.HealthCheckResult;
-import com.google.common.collect.ImmutableList;
+import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -11,35 +11,40 @@ import java.util.List;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public final class DefaultHealthCheckResults implements HealthCheckResults {
-    private final List<HealthCheckResult> _healthyResults = Lists.newArrayList();
-    private final List<HealthCheckResult> _unhealthyResults = Lists.newArrayList();
+    private final List<HealthCheckResult> _results = Lists.newArrayList();
 
     @Override
     public boolean hasHealthyResult() {
-        return !_healthyResults.isEmpty();
+        return getHealthyResult() != null;
     }
 
     @Override
     public Iterable<HealthCheckResult> getAllResults() {
-        return ImmutableList.copyOf(Iterables.concat(_healthyResults, _unhealthyResults));
+        return Iterables.unmodifiableIterable(_results);
     }
 
     @Override
     public HealthCheckResult getHealthyResult() {
-        return hasHealthyResult() ? _healthyResults.get(0) : null;
+        return Iterables.tryFind(_results, new Predicate<HealthCheckResult>() {
+            @Override
+            public boolean apply(HealthCheckResult result) {
+                return result.isHealthy();
+            }
+        }).orNull();
     }
 
     @Override
     public Iterable<HealthCheckResult> getUnhealthyResults() {
-        return ImmutableList.copyOf(_unhealthyResults);
+        return Iterables.filter(_results, new Predicate<HealthCheckResult>() {
+            @Override
+            public boolean apply(HealthCheckResult result) {
+                return !result.isHealthy();
+            }
+        });
     }
 
     public void addHealthCheckResult(HealthCheckResult result) {
         checkNotNull(result);
-        if (result.isHealthy()) {
-            _healthyResults.add(result);
-        } else {
-            _unhealthyResults.add(result);
-        }
+        _results.add(result);
     }
 }

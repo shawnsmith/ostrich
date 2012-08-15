@@ -3,7 +3,7 @@ package com.bazaarvoice.soa.healthcheck.dropwizard;
 import com.bazaarvoice.soa.HealthCheckResults;
 import com.bazaarvoice.soa.HealthCheckResult;
 import com.bazaarvoice.soa.ServicePool;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.yammer.metrics.core.HealthCheck;
 import org.junit.Before;
@@ -34,12 +34,18 @@ public class ContainsHealthyEndPointCheckTest {
 
         // Default to empty results.
         when(_pool.checkForHealthyEndPoint()).thenReturn(_results);
-        when(_results.getHealthyResults()).thenReturn(Collections.<HealthCheckResult>emptySet());
-        when(_results.getUnhealthyResults()).thenReturn(Collections.<HealthCheckResult>emptySet());
+        when(_results.getHealthyResult()).thenReturn(null);
+        when(_results.getUnhealthyResults()).thenReturn(Collections.<HealthCheckResult>emptyList());
+        when(_results.hasHealthyResult()).thenAnswer(new Answer<Boolean>() {
+            @Override
+            public Boolean answer(InvocationOnMock invocationOnMock) throws Throwable {
+                return _results.getHealthyResult() != null;
+            }
+        });
         when(_results.getAllResults()).thenAnswer(new Answer<Iterable<HealthCheckResult>>() {
             @Override
             public Iterable<HealthCheckResult> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return Iterables.concat(_results.getHealthyResults(), _results.getUnhealthyResults());
+                return Iterables.concat(ImmutableList.of(_results.getHealthyResult()), _results.getUnhealthyResults());
             }
         });
     }
@@ -68,7 +74,7 @@ public class ContainsHealthyEndPointCheckTest {
 
     @Test
     public void testOnlyUnhealthyResult() {
-        when(_results.getUnhealthyResults()).thenReturn(ImmutableSet.of(UNHEALTHY));
+        when(_results.getUnhealthyResults()).thenReturn(ImmutableList.of(UNHEALTHY));
 
         HealthCheck check = new ContainsHealthyEndPointCheck(_pool, _name);
 
@@ -77,7 +83,7 @@ public class ContainsHealthyEndPointCheckTest {
 
     @Test
     public void testOnlyHealthyResult() {
-        when(_results.getHealthyResults()).thenReturn(ImmutableSet.of(HEALTHY));
+        when(_results.getHealthyResult()).thenReturn(HEALTHY);
 
         HealthCheck check = new ContainsHealthyEndPointCheck(_pool, _name);
 
@@ -86,8 +92,8 @@ public class ContainsHealthyEndPointCheckTest {
 
     @Test
     public void testBothResults() {
-        when(_results.getHealthyResults()).thenReturn(ImmutableSet.<HealthCheckResult>of(HEALTHY));
-        when(_results.getUnhealthyResults()).thenReturn(ImmutableSet.<HealthCheckResult>of(UNHEALTHY));
+        when(_results.getHealthyResult()).thenReturn(HEALTHY);
+        when(_results.getUnhealthyResults()).thenReturn(ImmutableList.of(UNHEALTHY));
 
         HealthCheck check = new ContainsHealthyEndPointCheck(_pool, _name);
 
