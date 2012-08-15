@@ -43,7 +43,6 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     static final DateTimeFormatter ISO8601 = ISODateTimeFormat.dateTime().withZoneUTC();
 
     private final ZooKeeperConnection _zooKeeperConnection;
-    //private final CuratorFramework _curator;
     private volatile boolean _closed = false;
 
     /** The ephemeral data that's been written to ZooKeeper.  Saved in case the connection is lost and then regained. */
@@ -51,9 +50,6 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
 
     public ZooKeeperServiceRegistry(ZooKeeperConnection connection) {
         checkNotNull(connection);
-        CuratorFramework curator = ((CuratorConnection) connection).getCurator();
-        checkNotNull(curator);
-        checkArgument(curator.isStarted());
         _zooKeeperConnection = connection;
     }
 

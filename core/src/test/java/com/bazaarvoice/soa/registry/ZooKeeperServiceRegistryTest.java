@@ -17,7 +17,9 @@ import org.junit.Test;
 import java.util.concurrent.TimeUnit;
 
 import static com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry.MAX_DATA_SIZE;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertNotNull;
 
 public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
     private static final ServiceEndPoint FOO = newEndPoint("Foo", "server:80", "");
