@@ -30,6 +30,11 @@
                 <version>${soa.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.bazaarvoice.soa</groupId>
+                <artifactId>soa-dropwizard</artifactId>
+                <version>${soa.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>com.bazaarvoice.zookeeper-common</groupId>
                 <artifactId>zookeeper-common-core</artifactId>
                 <version>${zookeeper-common.version}</version>

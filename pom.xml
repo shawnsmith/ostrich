@@ -166,6 +166,7 @@
     <modules>
         <module>core</module>
         <module>examples</module>
+        <module>dropwizard</module>
     </modules>
 
     <distributionManagement>
