@@ -1,10 +1,9 @@
 package com.bazaarvoice.soa.healthcheck.dropwizard;
 
-import com.bazaarvoice.soa.AggregateHealthCheckResult;
+import com.bazaarvoice.soa.HealthCheckResults;
 import com.bazaarvoice.soa.HealthCheckResult;
 import com.bazaarvoice.soa.ServicePool;
 import com.google.common.base.Strings;
-import com.google.common.collect.Iterables;
 import com.yammer.metrics.core.HealthCheck;
 
 import java.util.concurrent.TimeUnit;
@@ -22,24 +21,24 @@ public class ContainsHealthyEndPointCheck extends HealthCheck {
     /**
      * Constructs a health check for the given pool that will show as healthy if it has at least one healthy end point.
      * @param pool The {@code ServicePool} to look for healthy end points in.
-     * @param serviceName The name of the service. May not be empty.
+     * @param name The name of the health check. May not be empty or null.
      */
-    public ContainsHealthyEndPointCheck(ServicePool<?> pool, String serviceName) {
-        super(serviceName + "-service-pool-contains-healthy-end-point");
-        checkArgument(!Strings.isNullOrEmpty(serviceName));
+    public ContainsHealthyEndPointCheck(ServicePool<?> pool, String name) {
+        super(name);
+        checkArgument(!Strings.isNullOrEmpty(name));
         _pool = checkNotNull(pool);
     }
 
     @Override
     public Result check() throws Exception {
-        AggregateHealthCheckResult aggregate = _pool.findFirstHealthyEndPoint();
-        HealthCheckResult healthyResult = Iterables.getFirst(aggregate.getHealthyResults(), null);
-        boolean healthy = healthyResult != null;
+        HealthCheckResults results = _pool.checkForHealthyEndPoint();
+        boolean healthy = results.hasHealthyResult();
+        HealthCheckResult healthyResult = results.getHealthyResult();
 
         // Get stats about any failed health checks
         int numUnhealthy = 0;
         long totalUnhealthyResponseTimeInMicros = 0;
-        for (HealthCheckResult unhealthy : aggregate.getUnhealthyResults()) {
+        for (HealthCheckResult unhealthy : results.getUnhealthyResults()) {
             ++numUnhealthy;
             totalUnhealthyResponseTimeInMicros += unhealthy.getResponseTime(TimeUnit.MICROSECONDS);
         }
@@ -48,11 +47,11 @@ public class ContainsHealthyEndPointCheck extends HealthCheck {
             return Result.unhealthy("No end points.");
         }
 
-        String unhealthyMessage = numUnhealthy + " failures in " + totalUnhealthyResponseTimeInMicros + "µs";
+        String unhealthyMessage = numUnhealthy + " failures in " + totalUnhealthyResponseTimeInMicros + "us";
         if (!healthy) {
             return Result.unhealthy(unhealthyMessage);
         }
         return Result.healthy(healthyResult.getEndPointId() + " succeeded in " +
-                healthyResult.getResponseTime(TimeUnit.MICROSECONDS) + "µs; " + unhealthyMessage);
+                healthyResult.getResponseTime(TimeUnit.MICROSECONDS) + "us; " + unhealthyMessage);
     }
 }

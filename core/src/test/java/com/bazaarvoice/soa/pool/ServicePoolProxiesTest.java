@@ -26,11 +26,11 @@ public class ServicePoolProxiesTest {
     public void testFindFirstHealthyEndPoint() {
         @SuppressWarnings("unchecked")
         com.bazaarvoice.soa.ServicePool<Service> pool = mock(com.bazaarvoice.soa.ServicePool.class);
-        AggregateHealthCheckResult result = mock(AggregateHealthCheckResult.class);
-        when(pool.findFirstHealthyEndPoint()).thenReturn(result);
+        HealthCheckResults results = mock(HealthCheckResults.class);
+        when(pool.checkForHealthyEndPoint()).thenReturn(results);
         Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool, true);
 
-        assertSame(result, ServicePoolProxies.findFirstHealthyEndPoint(service));
+        assertSame(results, ServicePoolProxies.findFirstHealthyEndPoint(service));
     }
 
     @Test(expected = NullPointerException.class)

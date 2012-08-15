@@ -42,13 +42,12 @@ public interface ServicePool<S> extends Closeable {
     <R> R execute(RetryPolicy retryPolicy, ServiceCallback<S, R> callback);
 
     /**
-     * Attempts to find a healthy end point. Performs health checks until a healthy end point is found,
-     * all available end points are exhausted, or execution of a health check throws an exception that is deemed not
-     * retriable.
+     * Attempts to find a healthy end point. Performs health checks until a healthy end point is found, all available
+     * end points are exhausted, or execution of a health check throws an exception that is deemed not retriable.
      *
-     * @return An {@code AggregateHealthCheckResult} containing the first healthy result found (if any), and all
-     * unhealthy results encountered before a healthy one. If there are no end points in the pool, the
-     * {@code AggregateHealthCheckResult} will contain no results.
+     * @return {@code HealthCheckResults} containing the first healthy result found (if any), and all unhealthy results
+     * encountered before a healthy one. If there are no end points in the pool, the {@code HealthCheckResults} will
+     * contain no results.
      */
-    AggregateHealthCheckResult findFirstHealthyEndPoint();
+    HealthCheckResults checkForHealthyEndPoint();
 }

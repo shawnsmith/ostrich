@@ -1,6 +1,6 @@
 package com.bazaarvoice.soa.pool;
 
-import com.bazaarvoice.soa.AggregateHealthCheckResult;
+import com.bazaarvoice.soa.HealthCheckResults;
 import com.google.common.io.Closeables;
 
 import java.lang.reflect.Proxy;
@@ -26,14 +26,14 @@ public abstract class ServicePoolProxies {
 
     /**
      * Finds a healthy end point in the pool and provides the result of the health check that showed it to be healthy.
-     * @see com.bazaarvoice.soa.ServicePool#findFirstHealthyEndPoint
+     * @see com.bazaarvoice.soa.ServicePool#checkForHealthyEndPoint
      * @param dynamicProxy A service pool dynamic proxy created by {@link ServicePoolBuilder#buildProxy}.
      * @param <S> The service interface type.
-     * @return A {@code HealthCheckResult} from the first healthy end point found, or a {@code HealthCheckResult}
-     * representing unhealthiness if no healthy end points exist.
+     * @return {@code HealthCheckResults} with the first healthy end point found, or a {@code HealthCheckResults}
+     * containing all failed {@code HealthCheckResult}s encountered if no healthy end points exist.
      */
-    public static <S> AggregateHealthCheckResult findFirstHealthyEndPoint(S dynamicProxy) {
-        return getPool(dynamicProxy).findFirstHealthyEndPoint();
+    public static <S> HealthCheckResults findFirstHealthyEndPoint(S dynamicProxy) {
+        return getPool(dynamicProxy).checkForHealthyEndPoint();
     }
 
     /**

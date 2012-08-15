@@ -3,9 +3,7 @@ package com.bazaarvoice.soa;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The result of a health check on an end point. In some cases it makes sense to have a {@code HealthCheckResult} when
- * there are no end points available, in which case {@link #isHealthy} should return {@code false} and
- * {@link #getEndPointId} should return an empty string.
+ * The result of a health check on an end point.
  */
 public interface HealthCheckResult {
     /**
@@ -14,9 +12,7 @@ public interface HealthCheckResult {
     boolean isHealthy();
 
     /**
-     * Gets the ID of the end point the health check was run on. Sometimes it is desirable to have a
-     * {@code HealthCheckResult} even if there are no end points to run a health check against. In this case, the empty
-     * string will be returned.
+     * Gets the ID of the end point the health check was run on.
      * @return The ID of the end point this result is for, or the empty string if no end point.
      */
     String getEndPointId();
