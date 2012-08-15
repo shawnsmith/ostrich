@@ -30,7 +30,7 @@ public class ServicePoolProxiesTest {
         when(pool.checkForHealthyEndPoint()).thenReturn(results);
         Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool, true);
 
-        assertSame(results, ServicePoolProxies.findFirstHealthyEndPoint(service));
+        assertSame(results, ServicePoolProxies.checkForHealthyEndPoint(service));
     }
 
     @Test(expected = NullPointerException.class)

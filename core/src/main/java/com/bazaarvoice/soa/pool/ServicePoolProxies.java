@@ -32,7 +32,7 @@ public abstract class ServicePoolProxies {
      * @return {@code HealthCheckResults} with the first healthy end point found, or a {@code HealthCheckResults}
      * containing all failed {@code HealthCheckResult}s encountered if no healthy end points exist.
      */
-    public static <S> HealthCheckResults findFirstHealthyEndPoint(S dynamicProxy) {
+    public static <S> HealthCheckResults checkForHealthyEndPoint(S dynamicProxy) {
         return getPool(dynamicProxy).checkForHealthyEndPoint();
     }
 
