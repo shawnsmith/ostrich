@@ -20,7 +20,6 @@
     <properties>
         <dropwizard.version>0.4.4</dropwizard.version>
         <soa.version>1.0.2-SNAPSHOT</soa.version>
-        <zookeeper-common.version>0.0.1</zookeeper-common.version>
     </properties>
 
     <dependencyManagement>
