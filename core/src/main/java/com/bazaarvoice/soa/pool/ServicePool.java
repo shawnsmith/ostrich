@@ -374,7 +374,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         return new HealthCheckResult(healthy, endPoint.getId(), sw.elapsedTime(TimeUnit.NANOSECONDS), retriable);
     }
 
-    private final class HealthCheckResult implements com.bazaarvoice.soa.HealthCheckResult {
+    private static class HealthCheckResult implements com.bazaarvoice.soa.HealthCheckResult {
         private final boolean _healthy;
         private final String _id;
         private final long _responseTimeInNanos;
