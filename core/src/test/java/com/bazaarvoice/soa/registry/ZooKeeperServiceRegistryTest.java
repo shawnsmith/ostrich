@@ -101,8 +101,6 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
         assertRegistered(FOO, curator);
     }
 
-
-
     @Test
     public void testUnregister() throws Exception {
         CuratorFramework curator = newCurator();
