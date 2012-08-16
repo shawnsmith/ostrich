@@ -102,7 +102,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
         _nodes.clear();
     }
 
-    /** @return The ZooKeeperConnection instance used by this registry. */
+    /** @return The {@link ZooKeeperConnection} instance used by this registry. */
     @VisibleForTesting
     ZooKeeperConnection getZooKeeperConnection() {
         return _zooKeeperConnection;

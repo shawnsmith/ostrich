@@ -98,8 +98,7 @@ public abstract class ZooKeeperTest {
     }
 
     public void killSession(CuratorFramework curator) throws Exception {
-        KillSession.kill(curator.getZookeeperClient().getZooKeeper(),
-                _zooKeeperServer.getConnectString());
+        KillSession.kill(curator.getZookeeperClient().getZooKeeper(), _zooKeeperServer.getConnectString());
     }
 
     protected static class Trigger implements Watcher, HostDiscovery.EndPointListener {
