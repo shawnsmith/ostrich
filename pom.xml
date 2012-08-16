@@ -18,7 +18,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <zookeeper-common.version>0.0.2</zookeeper-common.version>
+        <zookeeper-common.version>0.0.3</zookeeper-common.version>
     </properties>
 
     <build>
@@ -109,6 +109,13 @@
                 <groupId>com.bazaarvoice.zookeeper-common</groupId>
                 <artifactId>zookeeper-common-core</artifactId>
                 <version>${zookeeper-common.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.bazaarvoice.zookeeper-common</groupId>
+                <artifactId>zookeeper-common-core-tests</artifactId>
+                <version>${zookeeper-common.version}</version>
+                <scope>test</scope>
             </dependency>
 
             <dependency>

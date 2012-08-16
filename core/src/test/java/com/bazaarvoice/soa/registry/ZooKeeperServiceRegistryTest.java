@@ -5,7 +5,7 @@ import com.bazaarvoice.soa.ServiceEndPointBuilder;
 import com.bazaarvoice.soa.ServiceEndPointJsonCodec;
 import com.bazaarvoice.zookeeper.ZooKeeperConfiguration;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
-import com.bazaarvoice.soa.test.ZooKeeperTest;
+import com.bazaarvoice.zookeeper.test.ZooKeeperTest;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 import com.netflix.curator.framework.CuratorFramework;
@@ -136,7 +136,7 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
         _registry.register(FOO);
         String path = _registry.getRegisteredEndPointPath(FOO);
 
-        Trigger deletionTrigger = new Trigger();
+        WatcherTrigger deletionTrigger = new WatcherTrigger();
         curator.checkExists().usingWatcher(deletionTrigger).forPath(path);
 
         _registry.close();
@@ -151,7 +151,7 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
         _registry.register(FOO);
         String path = _registry.getRegisteredEndPointPath(FOO);
 
-        Trigger deletionTrigger = new Trigger();
+        WatcherTrigger deletionTrigger = new WatcherTrigger();
         curator.checkExists().usingWatcher(deletionTrigger).forPath(path);
 
         // Kill the registry's ZooKeeper session.  That should force the ephemeral node that it created to be
@@ -170,7 +170,7 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
         _registry.register(FOO);
         String path = _registry.getRegisteredEndPointPath(FOO);
 
-        Trigger deletionTrigger = new Trigger();
+        WatcherTrigger deletionTrigger = new WatcherTrigger();
         curator.checkExists().usingWatcher(deletionTrigger).forPath(path);
 
         // Kill the registry's session, thus cleaning up the node...
@@ -180,7 +180,7 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
         assertTrue(deletionTrigger.firedWithin(10, TimeUnit.SECONDS));
 
         // Now put a watch in the background looking to see if it gets created...
-        Trigger creationTrigger = new Trigger();
+        WatcherTrigger creationTrigger = new WatcherTrigger();
         Stat stat = curator.checkExists().usingWatcher(creationTrigger).forPath(path);
         assertTrue(stat != null || creationTrigger.firedWithin(10, TimeUnit.SECONDS));
     }
@@ -194,7 +194,7 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
 
         // We should be able to disconnect multiple times and each time the registry should re-create the node.
         for (int i = 0; i < 5; i++) {
-            Trigger deletionTrigger = new Trigger();
+            WatcherTrigger deletionTrigger = new WatcherTrigger();
             curator.checkExists().usingWatcher(deletionTrigger).forPath(path);
 
             // Kill the registry's session, thus cleaning up the node...
@@ -204,7 +204,7 @@ public class ZooKeeperServiceRegistryTest extends ZooKeeperTest {
             assertTrue(deletionTrigger.firedWithin(10, TimeUnit.SECONDS));
 
             // Now put a watch in the background looking to see if it gets created...
-            Trigger creationTrigger = new Trigger();
+            WatcherTrigger creationTrigger = new WatcherTrigger();
             Stat stat = curator.checkExists().usingWatcher(creationTrigger).forPath(path);
             assertTrue(stat != null || creationTrigger.firedWithin(10, TimeUnit.SECONDS));
         }

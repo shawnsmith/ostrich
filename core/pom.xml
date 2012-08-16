@@ -35,6 +35,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.bazaarvoice.zookeeper-common</groupId>
+            <artifactId>zookeeper-common-core-tests</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>
