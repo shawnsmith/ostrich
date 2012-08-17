@@ -71,7 +71,7 @@
 
         <dependency>
             <groupId>com.bazaarvoice.zookeeper</groupId>
-            <artifactId>zookeeper</artifactId>
+            <artifactId>zookeeper-core</artifactId>
         </dependency>
 
         <dependency>
