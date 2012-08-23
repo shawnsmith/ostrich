@@ -3,10 +3,15 @@ package com.bazaarvoice.soa.pool;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.exceptions.NoCachedInstancesAvailableException;
+import com.bazaarvoice.soa.metrics.UniqueMetricSource;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.MapMaker;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.yammer.metrics.core.Meter;
+import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.TimerContext;
+import com.yammer.metrics.util.PercentGauge;
 import org.apache.commons.pool.BaseKeyedPoolableObjectFactory;
 import org.apache.commons.pool.impl.GenericKeyedObjectPool;
 import org.slf4j.Logger;
@@ -15,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -45,6 +51,10 @@ class ServiceCache<S> implements Closeable {
     private final Map<S, Long> _checkOutRevisions = Maps.newConcurrentMap();
     private final Future<?> _evictionFuture;
     private volatile boolean _isClosed = false;
+    private final UniqueMetricSource _metricSource;
+    private final Meter _checkOuts;
+    private final Meter _misses;
+    private final Timer _evictionRuns;
 
     /**
      * Builds a basic service cache.
@@ -68,6 +78,22 @@ class ServiceCache<S> implements Closeable {
         checkNotNull(policy);
         checkNotNull(serviceFactory);
         checkNotNull(executor);
+
+        _metricSource = new UniqueMetricSource(getClass(), serviceFactory.getServiceName());
+        _checkOuts = _metricSource.newMeter("check-outs", "check-outs");
+        _misses = _metricSource.newMeter("misses", "misses");
+        _evictionRuns = _metricSource.newTimer("eviction-runs");
+        _metricSource.newGauge("hit-percentage", new PercentGauge() {
+            @Override
+            protected double getNumerator() {
+                return _checkOuts.count() - _misses.count();
+            }
+
+            @Override
+            protected double getDenominator() {
+                return _checkOuts.count();
+            }
+        });
 
         GenericKeyedObjectPool.Config poolConfig = new GenericKeyedObjectPool.Config();
 
@@ -95,7 +121,8 @@ class ServiceCache<S> implements Closeable {
         // Make sure all instances in the pool are checked for staleness during eviction runs.
         poolConfig.numTestsPerEvictionRun = policy.getMaxNumServiceInstances();
 
-        _pool = new GenericKeyedObjectPool<ServiceEndPoint, S>(new PoolServiceFactory<S>(serviceFactory), poolConfig);
+        _pool = new GenericKeyedObjectPool<ServiceEndPoint, S>(new PoolServiceFactory<S>(serviceFactory, _misses,
+                _metricSource.newTimer("fills"), _metricSource.newMeter("evictions", "evictions")), poolConfig);
 
         // Don't schedule eviction if not caching or not expiring stale instances.
         _evictionFuture = (policy.getMaxNumServiceInstances() != 0)
@@ -104,12 +131,14 @@ class ServiceCache<S> implements Closeable {
                 ? executor.scheduleAtFixedRate(new Runnable() {
                       @Override
                       public void run() {
+                          TimerContext timer = _evictionRuns.time();
                           try {
                               _pool.evict();
                           } catch (Exception e) {
                               // Should never happen, but log just in case. Swallow exception so thread doesn't die.
                               LOG.error("ServiceCache eviction run failed.", e);
                           }
+                          timer.stop();
                       }
                   }, EVICTION_DURATION_IN_SECONDS, EVICTION_DURATION_IN_SECONDS, TimeUnit.SECONDS)
                 : null;
@@ -133,6 +162,8 @@ class ServiceCache<S> implements Closeable {
     public S checkOut(ServiceEndPoint endPoint) throws Exception {
         checkNotNull(endPoint);
 
+        _checkOuts.mark();
+
         try {
             S service = _pool.borrowObject(endPoint);
 
@@ -141,6 +172,8 @@ class ServiceCache<S> implements Closeable {
 
             return service;
         } catch (NoSuchElementException e) {
+            _misses.mark();
+
             // This will happen if there are no available connections and there is no room for a new one,
             // or if a newly created connection is not valid.
             throw new NoCachedInstancesAvailableException();
@@ -189,6 +222,7 @@ class ServiceCache<S> implements Closeable {
         }
 
         _pool.clear();
+        _metricSource.close();
     }
 
     public void evict(ServiceEndPoint endPoint) {
@@ -201,14 +235,32 @@ class ServiceCache<S> implements Closeable {
 
     private static class PoolServiceFactory<S> extends BaseKeyedPoolableObjectFactory<ServiceEndPoint, S> {
         private final ServiceFactory<S> _serviceFactory;
+        private final Meter _misses;
+        private final Timer _fills;
+        private Meter _evictions;
 
-        public PoolServiceFactory(ServiceFactory<S> serviceFactory) {
+        public PoolServiceFactory(ServiceFactory<S> serviceFactory, Meter missesMeter, Timer fillsTimer,
+                                  Meter evictionsMeter) {
             _serviceFactory = serviceFactory;
+            _misses = missesMeter;
+            _fills = fillsTimer;
+            _evictions = evictionsMeter;
         }
 
         @Override
-        public S makeObject(ServiceEndPoint endPoint) throws Exception {
-            return _serviceFactory.create(endPoint);
+        public S makeObject(final ServiceEndPoint endPoint) throws Exception {
+            _misses.mark();
+            return _fills.time(new Callable<S>() {
+                @Override
+                public S call() throws Exception {
+                    return _serviceFactory.create(endPoint);
+                }
+            });
+        }
+
+        @Override
+        public void destroyObject(ServiceEndPoint key, S obj) throws Exception {
+            _evictions.mark();
         }
     }
 }

@@ -14,6 +14,7 @@ import com.bazaarvoice.soa.exceptions.NoCachedInstancesAvailableException;
 import com.bazaarvoice.soa.exceptions.NoSuitableHostsException;
 import com.bazaarvoice.soa.exceptions.OnlyBadHostsException;
 import com.bazaarvoice.soa.healthcheck.DefaultHealthCheckResults;
+import com.bazaarvoice.soa.metrics.UniqueMetricSource;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -25,6 +26,10 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.yammer.metrics.core.Meter;
+import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.TimerContext;
+import com.yammer.metrics.util.RatioGauge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.helpers.MessageFormatter;
@@ -55,6 +60,12 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final Set<ServiceEndPoint> _recentlyRemovedEndPoints;
     private final Future<?> _batchHealthChecksFuture;
     private final ServiceCache<S> _serviceCache;
+    private final UniqueMetricSource _metricSource;
+    private final Timer _executions;
+    private final Meter _executionFailures;
+    private final Meter _badEndPointRate;
+    private final Meter _badEndPointRecoveryRate;
+
 
     ServicePool(Ticker ticker, HostDiscovery hostDiscovery,
                 ServiceFactory<S> serviceFactory, ServiceCachingPolicy cachingPolicy,
@@ -110,12 +121,30 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         // Periodically wake up and check any bad end points to see if they're now healthy.
         _batchHealthChecksFuture = _healthCheckExecutor.scheduleAtFixedRate(new BatchHealthChecks(),
                 HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS, HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS, TimeUnit.SECONDS);
+
+        _metricSource = new UniqueMetricSource(getClass(), _serviceFactory.getServiceName());
+        _executions = _metricSource.newTimer("execution");
+        _executionFailures = _metricSource.newMeter("execution-failures", "failures");
+        _badEndPointRate = _metricSource.newMeter("bad-end-point-rate", "bad end points");
+        _badEndPointRecoveryRate = _metricSource.newMeter("bad-end-point-recovery-rate", "recoveries");
+        _metricSource.newGauge("failures-per-execution", new RatioGauge() {
+            @Override
+            protected double getNumerator() {
+                return _executionFailures.count();
+            }
+
+            @Override
+            protected double getDenominator() {
+                return _executions.count();
+            }
+        });
     }
 
     @Override
     public void close() {
         _batchHealthChecksFuture.cancel(true);
         _hostDiscovery.removeListener(_hostDiscoveryListener);
+        _metricSource.close();
 
         if (_shutdownHealthCheckExecutorOnClose) {
             _healthCheckExecutor.shutdownNow();
@@ -125,19 +154,25 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     @Override
     public <R> R execute(RetryPolicy retry, ServiceCallback<S, R> callback) {
         Stopwatch sw = new Stopwatch(_ticker).start();
+        TimerContext timer = _executions.time();
         int numAttempts = 0;
-        do {
-            ServiceEndPoint endPoint = chooseEndPoint(getValidEndPoints());
+        try {
+            do {
+                ServiceEndPoint endPoint = chooseEndPoint(getValidEndPoints());
 
-            try {
-                return executeOnEndPoint(endPoint, callback);
-            } catch (Exception e) {
-                // Don't retry if exception is too severe.
-                if (!isRetriableException(e)) {
-                    throw Throwables.propagate(e);
+                try {
+                    return executeOnEndPoint(endPoint, callback);
+                } catch (Exception e) {
+                    _executionFailures.mark();
+                    // Don't retry if exception is too severe.
+                    if (!isRetriableException(e)) {
+                        throw Throwables.propagate(e);
+                    }
                 }
-            }
-        } while (retry.allowRetry(++numAttempts, sw.elapsedMillis()));
+            } while (retry.allowRetry(++numAttempts, sw.elapsedMillis()));
+        } finally {
+            timer.stop();
+        }
 
         throw new MaxRetriesException();
     }
@@ -231,6 +266,14 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         return _serviceFactory.isRetriableException(exception);
     }
 
+    /**
+     * NOTE: This method is package private specifically so that {@link AsyncServicePool} can call it.
+     * @return The name of the service for this pool.
+     */
+    String getServiceName() {
+        return _serviceFactory.getServiceName();
+    }
+
     @VisibleForTesting
     HostDiscovery getHostDiscovery() {
         return _hostDiscovery;
@@ -301,6 +344,8 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
             return;
         }
 
+        _badEndPointRate.mark();
+
         _serviceCache.evict(endPoint);
 
         // Only schedule a health check if this is the first time we've seen this end point as bad...
@@ -320,6 +365,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         @Override
         public void run() {
             if (isHealthy(_endPoint)) {
+                _badEndPointRecoveryRate.mark();
                 _badEndPoints.remove(_endPoint);
             }
         }
@@ -331,6 +377,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         public void run() {
             for (ServiceEndPoint endPoint : _badEndPoints) {
                 if (isHealthy(endPoint)) {
+                    _badEndPointRecoveryRate.mark();
                     _badEndPoints.remove(endPoint);
                 }
 

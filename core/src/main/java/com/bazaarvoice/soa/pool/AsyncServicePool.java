@@ -5,9 +5,13 @@ import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceEndPointPredicate;
 import com.bazaarvoice.soa.exceptions.MaxRetriesException;
+import com.bazaarvoice.soa.metrics.UniqueMetricSource;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Ticker;
 import com.google.common.collect.Lists;
+import com.yammer.metrics.core.Histogram;
+import com.yammer.metrics.core.Meter;
+import com.yammer.metrics.util.RatioGauge;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -30,6 +34,10 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
     private final boolean _shutdownPoolOnClose;
     private final ExecutorService _executor;
     private final boolean _shutdownExecutorOnClose;
+    private final UniqueMetricSource _metricSource;
+    private final Meter _batches;
+    private final Histogram _batchSize;
+    private final Meter _failures;
 
     AsyncServicePool(Ticker ticker, ServicePool<S> pool, boolean shutdownPoolOnClose,
                             ExecutorService executor, boolean shutdownExecutorOnClose) {
@@ -38,6 +46,21 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
         _shutdownPoolOnClose = shutdownPoolOnClose;
         _executor = checkNotNull(executor);
         _shutdownExecutorOnClose = shutdownExecutorOnClose;
+        _metricSource = new UniqueMetricSource(getClass(), _pool.getServiceName());
+        _batches = _metricSource.newMeter("execute-on-batches", "batches");
+        _batchSize = _metricSource.newHistogram("execute-on-batch-size");
+        _failures = _metricSource.newMeter("execute-on-failures", "failuers");
+        _metricSource.newGauge("execute-on-failures-per-batch", new RatioGauge() {
+            @Override
+            protected double getNumerator() {
+                return _failures.count();
+            }
+
+            @Override
+            protected double getDenominator() {
+                return _batches.count();
+            }
+        });
     }
 
     @Override
@@ -49,6 +72,8 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
         if (_shutdownPoolOnClose) {
             _pool.close();
         }
+
+        _metricSource.close();
     }
 
     @Override
@@ -71,6 +96,8 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
                                                final ServiceCallback<S, R> callback) {
         Collection<Future<R>> futures = Lists.newArrayList();
 
+        _batches.mark();
+
         for (final ServiceEndPoint endPoint : _pool.getAllEndPoints()) {
             if (!predicate.apply(endPoint)) {
                 continue;
@@ -85,6 +112,7 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
                         try {
                             return _pool.executeOnEndPoint(endPoint, callback);
                         } catch (Exception e) {
+                            _failures.mark();
                             // Don't retry if exception is too severe.
                             if (!_pool.isRetriableException(e)) {
                                 throw e;
@@ -98,6 +126,8 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
 
             futures.add(future);
         }
+
+        _batchSize.update(futures.size());
 
         return futures;
     }

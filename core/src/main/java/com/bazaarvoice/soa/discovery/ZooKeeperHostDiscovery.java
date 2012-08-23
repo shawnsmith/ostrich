@@ -3,6 +3,7 @@ package com.bazaarvoice.soa.discovery;
 import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceEndPointJsonCodec;
+import com.bazaarvoice.soa.metrics.UniqueMetricSource;
 import com.bazaarvoice.zookeeper.internal.CuratorConnection;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
@@ -20,6 +21,7 @@ import com.netflix.curator.framework.recipes.cache.ChildData;
 import com.netflix.curator.framework.recipes.cache.PathChildrenCache;
 import com.netflix.curator.framework.recipes.cache.PathChildrenCacheEvent;
 import com.netflix.curator.framework.recipes.cache.PathChildrenCacheListener;
+import com.yammer.metrics.core.Meter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +44,10 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
     private final Set<ServiceEndPoint> _endPoints;
     private final Set<EndPointListener> _listeners;
     private final PathChildrenCache _pathCache;
+    private final UniqueMetricSource _metricSource;
+    private final Meter _additions;
+    private final Meter _removals;
+    private final Meter _zooKeeperResets;
 
     public ZooKeeperHostDiscovery(ZooKeeperConnection connection, String serviceName) {
         this(((CuratorConnection) checkNotNull(connection)).getCurator(), serviceName);
@@ -53,6 +59,11 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         checkNotNull(serviceName);
         checkArgument(curator.isStarted());
         checkArgument(!"".equals(serviceName));
+
+        _metricSource = new UniqueMetricSource(getClass(), serviceName);
+        _additions = _metricSource.newMeter("end-point-additions", "additions");
+        _removals = _metricSource.newMeter("end-point-removals", "removals");
+        _zooKeeperResets = _metricSource.newMeter("resets", "resets");
 
         ThreadFactory threadFactory = new ThreadFactoryBuilder()
                 .setNameFormat(getClass().getSimpleName() + "(" + serviceName + ")-%d")
@@ -108,6 +119,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         _listeners.clear();
         _pathCache.close();
         _endPoints.clear();
+        _metricSource.close();
     }
 
     @VisibleForTesting
@@ -119,6 +131,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         // synchronize the modification of _endPoints and firing of events so listeners always receive events in the
         // order they occur.
         if (_endPoints.add(endPoint)) {
+            _additions.mark();
             fireAddEvent(endPoint);
         }
     }
@@ -127,6 +140,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         // synchronize the modification of _endPoints and firing of events so listeners always receive events in the
         // order they occur.
         if (_endPoints.remove(endPoint)) {
+            _removals.mark();
             fireRemoveEvent(endPoint);
         }
     }
@@ -163,6 +177,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         @Override
         public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {
             if (event.getType() == PathChildrenCacheEvent.Type.RESET) {
+                _zooKeeperResets.mark();
                 clearEndPoints();
                 return;
             }
