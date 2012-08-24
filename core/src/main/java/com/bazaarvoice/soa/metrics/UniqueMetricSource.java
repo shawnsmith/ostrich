@@ -1,6 +1,8 @@
 package com.bazaarvoice.soa.metrics;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -15,29 +17,32 @@ import java.io.Closeable;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 public class UniqueMetricSource implements Closeable {
     private final MetricsRegistry _registry;
     private final String _uniqueScope;
     private final Class _domain;
 
     public UniqueMetricSource(Class domain, String scope) {
+        checkNotNull(domain);
+        checkArgument(!Strings.isNullOrEmpty(scope));
         _domain = domain;
         _uniqueScope = UUID.randomUUID().toString() + "-" + scope;
         _registry = Metrics.defaultRegistry();
     }
 
     public UniqueMetricSource(Class domain) {
+        checkNotNull(domain);
         _domain = domain;
         _uniqueScope = UUID.randomUUID().toString();
         _registry = Metrics.defaultRegistry();
     }
 
-    public MetricName uniqueMetricName(String name) {
-        return new MetricName(_domain, name, _uniqueScope);
-    }
-
     public void close() {
-        final MetricName reference = uniqueMetricName("");
+        // We don't compare the name field of the MetricName, so the name doesn't matter.
+        final MetricName reference = uniqueMetricName("reference");
         for (MetricName metric : Iterables.filter(Metrics.defaultRegistry().allMetrics().keySet(), new Predicate<MetricName>() {
             @Override
             public boolean apply(MetricName metricName) {
@@ -51,6 +56,7 @@ public class UniqueMetricSource implements Closeable {
     }
 
     public <T> Gauge<T> newGauge(String name, Gauge<T> metric) {
+        checkNotNull(metric);
         return _registry.newGauge(uniqueMetricName(name), metric);
     }
 
@@ -67,10 +73,13 @@ public class UniqueMetricSource implements Closeable {
     }
 
     public Meter newMeter(String name, String eventType, TimeUnit unit) {
+        checkArgument(!Strings.isNullOrEmpty(eventType));
+        checkNotNull(unit);
         return _registry.newMeter(uniqueMetricName(name), eventType, unit);
     }
 
     public Meter newMeter(String name, String eventType) {
+        checkArgument(!Strings.isNullOrEmpty(eventType));
         return newMeter(name, eventType, TimeUnit.SECONDS);
     }
 
@@ -79,10 +88,23 @@ public class UniqueMetricSource implements Closeable {
     }
 
     public Timer newTimer(String name, TimeUnit durationUnit, TimeUnit rateUnit) {
+        checkNotNull(durationUnit);
+        checkNotNull(rateUnit);
         return _registry.newTimer(uniqueMetricName(name), durationUnit, rateUnit);
     }
 
     public void removeMetric(String name) {
         _registry.removeMetric(uniqueMetricName(name));
+    }
+
+    @VisibleForTesting
+    MetricName uniqueMetricName(String name) {
+        checkArgument(!Strings.isNullOrEmpty(name));
+        return new MetricName(_domain, name, _uniqueScope);
+    }
+
+    @VisibleForTesting
+    MetricsRegistry getRegistry() {
+        return _registry;
     }
 }

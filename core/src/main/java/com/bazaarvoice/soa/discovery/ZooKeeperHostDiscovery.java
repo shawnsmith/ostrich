@@ -10,6 +10,11 @@ import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -29,6 +34,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -48,6 +54,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
     private final Meter _additions;
     private final Meter _removals;
     private final Meter _zooKeeperResets;
+    private final LoadingCache<ServiceEndPoint, Meter> _removalsByEndPoint;
 
     public ZooKeeperHostDiscovery(ZooKeeperConnection connection, String serviceName) {
         this(((CuratorConnection) checkNotNull(connection)).getCurator(), serviceName);
@@ -92,6 +99,21 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
             Closeables.closeQuietly(this);
             throw Throwables.propagate(t);
         }
+
+        _removalsByEndPoint = CacheBuilder.newBuilder()
+                .expireAfterAccess(7, TimeUnit.DAYS)
+                .removalListener(new RemovalListener<ServiceEndPoint, Meter>() {
+                    @Override
+                    public void onRemoval(RemovalNotification<ServiceEndPoint, Meter> removalNotification) {
+                        _metricSource.removeMetric(endPointRemovalMetricName(removalNotification.getKey()));
+                    }
+                })
+                .build(new CacheLoader<ServiceEndPoint, Meter>() {
+                    @Override
+                    public Meter load(ServiceEndPoint endPoint) {
+                        return _metricSource.newMeter(endPointRemovalMetricName(endPoint), "removals");
+                    }
+                });
     }
 
     @Override
@@ -141,6 +163,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         // order they occur.
         if (_endPoints.remove(endPoint)) {
             _removals.mark();
+            _removalsByEndPoint.getUnchecked(endPoint).mark();
             fireRemoveEvent(endPoint);
         }
     }
@@ -198,5 +221,9 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
                     break;
             }
         }
+    }
+
+    private String endPointRemovalMetricName(ServiceEndPoint endPoint) {
+        return endPoint.getId() + "-registry-removals";
     }
 }

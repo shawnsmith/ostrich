@@ -3,12 +3,14 @@ package com.bazaarvoice.soa.registry;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceEndPointJsonCodec;
 import com.bazaarvoice.soa.ServiceRegistry;
+import com.bazaarvoice.soa.metrics.UniqueMetricSource;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.bazaarvoice.zookeeper.recipes.ZooKeeperPersistentEphemeralNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
 import com.netflix.curator.utils.ZKPaths;
+import com.yammer.metrics.core.Gauge;
 import org.apache.zookeeper.CreateMode;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -46,9 +48,17 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     /** The ephemeral data that's been written to ZooKeeper.  Saved in case the connection is lost and then regained. */
     private final Map<String, ZooKeeperPersistentEphemeralNode> _nodes = Maps.newConcurrentMap();
 
+    private final UniqueMetricSource _metricSource = new UniqueMetricSource(ZooKeeperServiceRegistry.class);
+
     public ZooKeeperServiceRegistry(ZooKeeperConnection connection) {
         checkNotNull(connection);
         _zooKeeperConnection = connection;
+        _metricSource.newGauge("registered-end-points", new Gauge<Integer>() {
+            @Override
+            public Integer value() {
+                return _nodes.size();
+            }
+        });
     }
 
     /** {@inheritDoc} */

@@ -99,6 +99,7 @@ public class ServicePoolTest {
         ArgumentCaptor<ServicePoolStatistics> statsCaptor = ArgumentCaptor.forClass(ServicePoolStatistics.class);
 
         _serviceFactory = (ServiceFactory<Service>) mock(ServiceFactory.class);
+        when(_serviceFactory.getServiceName()).thenReturn("test");
         when(_serviceFactory.create(FOO_ENDPOINT)).thenReturn(FOO_SERVICE);
         when(_serviceFactory.create(BAR_ENDPOINT)).thenReturn(BAR_SERVICE);
         when(_serviceFactory.create(BAZ_ENDPOINT)).thenReturn(BAZ_SERVICE);
