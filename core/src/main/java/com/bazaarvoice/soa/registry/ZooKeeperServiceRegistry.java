@@ -110,6 +110,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
             node.close(10, TimeUnit.SECONDS);
         }
         _nodes.clear();
+        _metricSource.close();
     }
 
     /** @return The {@link ZooKeeperConnection} instance used by this registry. */
