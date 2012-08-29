@@ -35,12 +35,13 @@ public class ZooKeeperServiceRegistryTest {
     private static final ServiceEndPoint FOO = newEndPoint("Foo", "server:80", "");
     private static final String FOO_PATH = makeEndPointPath(FOO);
 
-    private final ZooKeeperServiceRegistry.NodeFactory _factoryMock = mock(ZooKeeperServiceRegistry.NodeFactory.class);
+    private ZooKeeperServiceRegistry.NodeFactory _factoryMock;
     private final List<ZooKeeperPersistentEphemeralNode> _nodeMocks = Lists.newArrayList();
-    private ZooKeeperServiceRegistry _registry = new ZooKeeperServiceRegistry(_factoryMock);
+    private ZooKeeperServiceRegistry _registry;
 
     @Before
     public void setup() {
+        _factoryMock = mock(ZooKeeperServiceRegistry.NodeFactory.class);
         when(_factoryMock.create(eq(FOO_PATH), Matchers.<byte[]>any()))
                 .thenAnswer(new Answer<ZooKeeperPersistentEphemeralNode>() {
                     @Override
@@ -50,6 +51,7 @@ public class ZooKeeperServiceRegistryTest {
                         return mock;
                     }
                 });
+        _registry = new ZooKeeperServiceRegistry(_factoryMock);
     }
 
     @After
