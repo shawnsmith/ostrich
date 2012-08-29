@@ -43,7 +43,6 @@ public class ZooKeeperServiceRegistryTest {
         _nodeFactory = mock(ZooKeeperServiceRegistry.NodeFactory.class);
         when(_nodeFactory.create(anyString(), any(byte[].class)))
                 .thenAnswer(new Answer<ZooKeeperPersistentEphemeralNode>() {
-
                     @Override
                     public ZooKeeperPersistentEphemeralNode answer(InvocationOnMock invocation) throws Throwable {
                         return mock(ZooKeeperPersistentEphemeralNode.class);
