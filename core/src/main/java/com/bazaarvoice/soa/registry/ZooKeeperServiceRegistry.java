@@ -42,7 +42,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     @VisibleForTesting
     static final DateTimeFormatter ISO8601 = ISODateTimeFormat.dateTime().withZoneUTC();
 
-    private final ZooKeeperConnection _zooKeeperConnection;
+    private final NodeFactory _nodeFactory;
     private volatile boolean _closed = false;
 
     /** The ephemeral data that's been written to ZooKeeper.  Saved in case the connection is lost and then regained. */
@@ -51,8 +51,12 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     private final Metrics _metrics = new Metrics(ZooKeeperServiceRegistry.class);
 
     public ZooKeeperServiceRegistry(ZooKeeperConnection connection) {
-        checkNotNull(connection);
-        _zooKeeperConnection = connection;
+        this(new NodeFactory(connection));
+    }
+
+    @VisibleForTesting
+    ZooKeeperServiceRegistry(NodeFactory nodeFactory) {
+        _nodeFactory = checkNotNull(nodeFactory);
         _metrics.newGauge("registered-end-points", new Gauge<Integer>() {
             @Override
             public Integer value() {
@@ -82,7 +86,10 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
         checkState(data.length < MAX_DATA_SIZE, "Serialized form of ServiceEndPoint must be < 1MB.");
 
         String path = makeEndPointPath(endPoint);
-        _nodes.put(path, new ZooKeeperPersistentEphemeralNode(_zooKeeperConnection, path, data, CreateMode.EPHEMERAL));
+        ZooKeeperPersistentEphemeralNode oldNode = _nodes.put(path, _nodeFactory.create(path, data));
+        if (oldNode != null) {
+            closeNode(oldNode);
+        }
     }
 
     /** {@inheritDoc} */
@@ -94,7 +101,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
         String path = makeEndPointPath(endPoint);
         ZooKeeperPersistentEphemeralNode node = _nodes.remove(path);
         if (node != null) {
-            node.close(10, TimeUnit.SECONDS);
+            closeNode(node);
         }
     }
 
@@ -107,23 +114,14 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
         _closed = true;
 
         for (ZooKeeperPersistentEphemeralNode node : _nodes.values()) {
-            node.close(10, TimeUnit.SECONDS);
+            closeNode(node);
         }
         _nodes.clear();
         _metrics.close();
     }
 
-    /** @return The {@link ZooKeeperConnection} instance used by this registry. */
-    @VisibleForTesting
-    ZooKeeperConnection getZooKeeperConnection() {
-        return _zooKeeperConnection;
-    }
-
-    @VisibleForTesting
-    String getRegisteredEndPointPath(ServiceEndPoint endPoint) {
-        String path = makeEndPointPath(endPoint);
-        ZooKeeperPersistentEphemeralNode node = _nodes.get(path);
-        return (node != null) ? node.getActualPath() : null;
+    private void closeNode(ZooKeeperPersistentEphemeralNode node) {
+        node.close(10, TimeUnit.SECONDS);
     }
 
     /**
@@ -142,9 +140,23 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
      * @param endPoint The service end point to get the ZooKeeper path for.
      * @return The ZooKeeper path.
      */
-    private static String makeEndPointPath(ServiceEndPoint endPoint) {
+    @VisibleForTesting
+    static String makeEndPointPath(ServiceEndPoint endPoint) {
         String servicePath = makeServicePath(endPoint.getServiceName());
         String id = endPoint.getId();
         return ZKPaths.makePath(servicePath, id);
+    }
+
+    @VisibleForTesting
+    static class NodeFactory {
+        private final ZooKeeperConnection _connection;
+
+        NodeFactory(ZooKeeperConnection connection) {
+            _connection = checkNotNull(connection);
+        }
+
+        ZooKeeperPersistentEphemeralNode create(String path, byte[] data) {
+            return new ZooKeeperPersistentEphemeralNode(_connection, path, data, CreateMode.EPHEMERAL);
+        }
     }
 }
