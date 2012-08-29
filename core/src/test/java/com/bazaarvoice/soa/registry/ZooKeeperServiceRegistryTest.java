@@ -7,16 +7,12 @@ import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.bazaarvoice.zookeeper.recipes.ZooKeeperPersistentEphemeralNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Matchers;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry.MAX_DATA_SIZE;
@@ -24,6 +20,7 @@ import static com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry.makeEndPoint
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -36,21 +33,15 @@ public class ZooKeeperServiceRegistryTest {
     private static final String FOO_PATH = makeEndPointPath(FOO);
 
     private ZooKeeperServiceRegistry.NodeFactory _factoryMock;
-    private final List<ZooKeeperPersistentEphemeralNode> _nodeMocks = Lists.newArrayList();
+    private ZooKeeperPersistentEphemeralNode _nodeMock;
     private ZooKeeperServiceRegistry _registry;
 
     @Before
     public void setup() {
         _factoryMock = mock(ZooKeeperServiceRegistry.NodeFactory.class);
-        when(_factoryMock.create(eq(FOO_PATH), Matchers.<byte[]>any()))
-                .thenAnswer(new Answer<ZooKeeperPersistentEphemeralNode>() {
-                    @Override
-                    public ZooKeeperPersistentEphemeralNode answer(InvocationOnMock invocationOnMock) {
-                        ZooKeeperPersistentEphemeralNode mock = mock(ZooKeeperPersistentEphemeralNode.class);
-                        _nodeMocks.add(mock);
-                        return mock;
-                    }
-                });
+        _nodeMock = mock(ZooKeeperPersistentEphemeralNode.class);
+        ZooKeeperPersistentEphemeralNode subsequent = mock(ZooKeeperPersistentEphemeralNode.class);
+        when(_factoryMock.create(anyString(), any(byte[].class))).thenReturn(_nodeMock, subsequent);
         _registry = new ZooKeeperServiceRegistry(_factoryMock);
     }
 
@@ -123,7 +114,7 @@ public class ZooKeeperServiceRegistryTest {
 
         verify(_factoryMock).create(eq(FOO_PATH), dataCaptor.capture());
         assertEquals(FOO, ServiceEndPointJsonCodec.fromJson(new String(dataCaptor.getValue())));
-        verify(_nodeMocks.get(0), never()).close(anyLong(), any(TimeUnit.class));
+        verify(_nodeMock, never()).close(anyLong(), any(TimeUnit.class));
     }
 
     @Test
@@ -132,7 +123,7 @@ public class ZooKeeperServiceRegistryTest {
         _registry.register(FOO);
 
         verify(_factoryMock, times(2)).create(eq(FOO_PATH), Matchers.<byte[]>any());
-        verify(_nodeMocks.get(0)).close(anyLong(), any(TimeUnit.class));
+        verify(_nodeMock).close(anyLong(), any(TimeUnit.class));
     }
 
     @Test
@@ -141,7 +132,7 @@ public class ZooKeeperServiceRegistryTest {
 
         _registry.unregister(FOO);
 
-        verify(_nodeMocks.get(0)).close(anyLong(), any(TimeUnit.class));
+        verify(_nodeMock).close(anyLong(), any(TimeUnit.class));
     }
 
     @Test
@@ -165,9 +156,7 @@ public class ZooKeeperServiceRegistryTest {
 
         _registry.close();
 
-        for (ZooKeeperPersistentEphemeralNode node : _nodeMocks) {
-            verify(node).close(anyLong(), any(TimeUnit.class));
-        }
+        verify(_nodeMock).close(anyLong(), any(TimeUnit.class));
     }
 
     private static ServiceEndPoint newEndPoint(String serviceName, String id, String payload) {
