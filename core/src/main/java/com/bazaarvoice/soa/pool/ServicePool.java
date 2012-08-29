@@ -14,7 +14,7 @@ import com.bazaarvoice.soa.exceptions.NoCachedInstancesAvailableException;
 import com.bazaarvoice.soa.exceptions.NoSuitableHostsException;
 import com.bazaarvoice.soa.exceptions.OnlyBadHostsException;
 import com.bazaarvoice.soa.healthcheck.DefaultHealthCheckResults;
-import com.bazaarvoice.soa.metrics.UniqueMetricSource;
+import com.bazaarvoice.soa.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -60,7 +60,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final Set<ServiceEndPoint> _recentlyRemovedEndPoints;
     private final Future<?> _batchHealthChecksFuture;
     private final ServiceCache<S> _serviceCache;
-    private final UniqueMetricSource _metricSource;
+    private final Metrics _metrics;
     private final Timer _executions;
     private final Meter _executionFailures;
     private final Meter _badEndPointRate;
@@ -122,12 +122,12 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         _batchHealthChecksFuture = _healthCheckExecutor.scheduleAtFixedRate(new BatchHealthChecks(),
                 HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS, HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS, TimeUnit.SECONDS);
 
-        _metricSource = new UniqueMetricSource(getClass(), _serviceFactory.getServiceName());
-        _executions = _metricSource.newTimer("execution");
-        _executionFailures = _metricSource.newMeter("execution-failures", "failures");
-        _badEndPointRate = _metricSource.newMeter("bad-end-point-rate", "bad end points");
-        _badEndPointRecoveryRate = _metricSource.newMeter("bad-end-point-recovery-rate", "recoveries");
-        _metricSource.newGauge("failures-per-execution", new RatioGauge() {
+        _metrics = new Metrics(getClass(), _serviceFactory.getServiceName());
+        _executions = _metrics.newTimer("execution");
+        _executionFailures = _metrics.newMeter("execution-failures", "failures", TimeUnit.SECONDS);
+        _badEndPointRate = _metrics.newMeter("bad-end-point-rate", "bad end points", TimeUnit.SECONDS);
+        _badEndPointRecoveryRate = _metrics.newMeter("bad-end-point-recovery-rate", "recoveries", TimeUnit.SECONDS);
+        _metrics.newGauge("failures-per-execution", new RatioGauge() {
             @Override
             protected double getNumerator() {
                 return _executionFailures.count();
@@ -144,7 +144,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     public void close() {
         _batchHealthChecksFuture.cancel(true);
         _hostDiscovery.removeListener(_hostDiscoveryListener);
-        _metricSource.close();
+        _metrics.close();
 
         if (_shutdownHealthCheckExecutorOnClose) {
             _healthCheckExecutor.shutdownNow();

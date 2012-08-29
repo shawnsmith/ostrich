@@ -3,7 +3,7 @@ package com.bazaarvoice.soa.pool;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.exceptions.NoCachedInstancesAvailableException;
-import com.bazaarvoice.soa.metrics.UniqueMetricSource;
+import com.bazaarvoice.soa.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.MapMaker;
 import com.google.common.collect.Maps;
@@ -51,7 +51,7 @@ class ServiceCache<S> implements Closeable {
     private final Map<S, Long> _checkOutRevisions = Maps.newConcurrentMap();
     private final Future<?> _evictionFuture;
     private volatile boolean _isClosed = false;
-    private final UniqueMetricSource _metricSource;
+    private final Metrics _metrics;
     private final Meter _checkOuts;
     private final Meter _misses;
     private final Timer _evictionRuns;
@@ -79,11 +79,11 @@ class ServiceCache<S> implements Closeable {
         checkNotNull(serviceFactory);
         checkNotNull(executor);
 
-        _metricSource = new UniqueMetricSource(getClass(), serviceFactory.getServiceName());
-        _checkOuts = _metricSource.newMeter("check-outs", "check-outs");
-        _misses = _metricSource.newMeter("misses", "misses");
-        _evictionRuns = _metricSource.newTimer("eviction-runs");
-        _metricSource.newGauge("hit-percentage", new PercentGauge() {
+        _metrics = new Metrics(getClass(), serviceFactory.getServiceName());
+        _checkOuts = _metrics.newMeter("check-outs", "check-outs", TimeUnit.SECONDS);
+        _misses = _metrics.newMeter("misses", "misses", TimeUnit.SECONDS);
+        _evictionRuns = _metrics.newTimer("eviction-runs");
+        _metrics.newGauge("hit-percentage", new PercentGauge() {
             @Override
             protected double getNumerator() {
                 return _checkOuts.count() - _misses.count();
@@ -122,7 +122,7 @@ class ServiceCache<S> implements Closeable {
         poolConfig.numTestsPerEvictionRun = policy.getMaxNumServiceInstances();
 
         _pool = new GenericKeyedObjectPool<ServiceEndPoint, S>(new PoolServiceFactory<S>(serviceFactory, _misses,
-                _metricSource.newTimer("fills"), _metricSource.newMeter("evictions", "evictions")), poolConfig);
+                _metrics.newTimer("fills"), _metrics.newMeter("evictions", "evictions", TimeUnit.SECONDS)), poolConfig);
 
         // Don't schedule eviction if not caching or not expiring stale instances.
         _evictionFuture = (policy.getMaxNumServiceInstances() != 0)
@@ -222,7 +222,7 @@ class ServiceCache<S> implements Closeable {
         }
 
         _pool.clear();
-        _metricSource.close();
+        _metrics.close();
     }
 
     public void evict(ServiceEndPoint endPoint) {

@@ -3,7 +3,7 @@ package com.bazaarvoice.soa.discovery;
 import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceEndPointJsonCodec;
-import com.bazaarvoice.soa.metrics.UniqueMetricSource;
+import com.bazaarvoice.soa.metrics.Metrics;
 import com.bazaarvoice.zookeeper.internal.CuratorConnection;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
@@ -50,7 +50,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
     private final Set<ServiceEndPoint> _endPoints;
     private final Set<EndPointListener> _listeners;
     private final PathChildrenCache _pathCache;
-    private final UniqueMetricSource _metricSource;
+    private final Metrics _metrics;
     private final Meter _additions;
     private final Meter _removals;
     private final Meter _zooKeeperResets;
@@ -67,10 +67,10 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         checkArgument(curator.isStarted());
         checkArgument(!"".equals(serviceName));
 
-        _metricSource = new UniqueMetricSource(getClass(), serviceName);
-        _additions = _metricSource.newMeter("end-point-additions", "additions");
-        _removals = _metricSource.newMeter("end-point-removals", "removals");
-        _zooKeeperResets = _metricSource.newMeter("resets", "resets");
+        _metrics = new Metrics(getClass(), serviceName);
+        _additions = _metrics.newMeter("end-point-additions", "additions", TimeUnit.SECONDS);
+        _removals = _metrics.newMeter("end-point-removals", "removals", TimeUnit.SECONDS);
+        _zooKeeperResets = _metrics.newMeter("zookeeper-resets", "resets", TimeUnit.SECONDS);
 
         ThreadFactory threadFactory = new ThreadFactoryBuilder()
                 .setNameFormat(getClass().getSimpleName() + "(" + serviceName + ")-%d")
@@ -105,13 +105,13 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
                 .removalListener(new RemovalListener<ServiceEndPoint, Meter>() {
                     @Override
                     public void onRemoval(RemovalNotification<ServiceEndPoint, Meter> removalNotification) {
-                        _metricSource.removeMetric(endPointRemovalMetricName(removalNotification.getKey()));
+                        _metrics.removeMetric(endPointRemovalMetricName(removalNotification.getKey()));
                     }
                 })
                 .build(new CacheLoader<ServiceEndPoint, Meter>() {
                     @Override
                     public Meter load(ServiceEndPoint endPoint) {
-                        return _metricSource.newMeter(endPointRemovalMetricName(endPoint), "removals");
+                        return _metrics.newMeter(endPointRemovalMetricName(endPoint), "removals", TimeUnit.SECONDS);
                     }
                 });
     }
@@ -141,7 +141,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         _listeners.clear();
         _pathCache.close();
         _endPoints.clear();
-        _metricSource.close();
+        _metrics.close();
     }
 
     @VisibleForTesting

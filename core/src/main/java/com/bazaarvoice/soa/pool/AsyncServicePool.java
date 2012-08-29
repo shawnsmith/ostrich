@@ -5,7 +5,7 @@ import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceEndPointPredicate;
 import com.bazaarvoice.soa.exceptions.MaxRetriesException;
-import com.bazaarvoice.soa.metrics.UniqueMetricSource;
+import com.bazaarvoice.soa.metrics.Metrics;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Ticker;
 import com.google.common.collect.Lists;
@@ -18,6 +18,7 @@ import java.util.Collection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -34,7 +35,7 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
     private final boolean _shutdownPoolOnClose;
     private final ExecutorService _executor;
     private final boolean _shutdownExecutorOnClose;
-    private final UniqueMetricSource _metricSource;
+    private final Metrics _metrics;
     private final Meter _batches;
     private final Histogram _batchSize;
     private final Meter _failures;
@@ -46,11 +47,11 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
         _shutdownPoolOnClose = shutdownPoolOnClose;
         _executor = checkNotNull(executor);
         _shutdownExecutorOnClose = shutdownExecutorOnClose;
-        _metricSource = new UniqueMetricSource(getClass(), _pool.getServiceName());
-        _batches = _metricSource.newMeter("execute-on-batches", "batches");
-        _batchSize = _metricSource.newHistogram("execute-on-batch-size");
-        _failures = _metricSource.newMeter("execute-on-failures", "failuers");
-        _metricSource.newGauge("execute-on-failures-per-batch", new RatioGauge() {
+        _metrics = new Metrics(getClass(), _pool.getServiceName());
+        _batches = _metrics.newMeter("execute-on-batches", "batches", TimeUnit.SECONDS);
+        _batchSize = _metrics.newHistogram("execute-on-batch-size");
+        _failures = _metrics.newMeter("execute-on-failures", "failures", TimeUnit.SECONDS);
+        _metrics.newGauge("execute-on-failures-per-batch", new RatioGauge() {
             @Override
             protected double getNumerator() {
                 return _failures.count();
@@ -73,7 +74,7 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
             _pool.close();
         }
 
-        _metricSource.close();
+        _metrics.close();
     }
 
     @Override
