@@ -12,6 +12,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Matchers;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.util.concurrent.TimeUnit;
 
@@ -21,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.byteThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -32,17 +35,21 @@ public class ZooKeeperServiceRegistryTest {
     private static final ServiceEndPoint FOO = newEndPoint("Foo", "server:80", "");
     private static final String FOO_PATH = makeEndPointPath(FOO);
 
-    private ZooKeeperServiceRegistry.NodeFactory _factoryMock;
-    private ZooKeeperPersistentEphemeralNode _nodeMock;
+    private ZooKeeperServiceRegistry.NodeFactory _nodeFactory;
     private ZooKeeperServiceRegistry _registry;
 
     @Before
     public void setup() {
-        _factoryMock = mock(ZooKeeperServiceRegistry.NodeFactory.class);
-        _nodeMock = mock(ZooKeeperPersistentEphemeralNode.class);
-        ZooKeeperPersistentEphemeralNode subsequent = mock(ZooKeeperPersistentEphemeralNode.class);
-        when(_factoryMock.create(anyString(), any(byte[].class))).thenReturn(_nodeMock, subsequent);
-        _registry = new ZooKeeperServiceRegistry(_factoryMock);
+        _nodeFactory = mock(ZooKeeperServiceRegistry.NodeFactory.class);
+        when(_nodeFactory.create(anyString(), any(byte[].class)))
+                .thenAnswer(new Answer<ZooKeeperPersistentEphemeralNode>() {
+
+                    @Override
+                    public ZooKeeperPersistentEphemeralNode answer(InvocationOnMock invocation) throws Throwable {
+                        return mock(ZooKeeperPersistentEphemeralNode.class);
+                    }
+                });
+        _registry = new ZooKeeperServiceRegistry(_nodeFactory);
     }
 
     @After
@@ -108,38 +115,48 @@ public class ZooKeeperServiceRegistryTest {
 
     @Test
     public void testRegister() throws Exception {
+        ZooKeeperPersistentEphemeralNode node = mock(ZooKeeperPersistentEphemeralNode.class);
+        when(_nodeFactory.create(anyString(), any(byte[].class))).thenReturn(node);
+
         _registry.register(FOO);
 
         ArgumentCaptor<byte[]> dataCaptor = ArgumentCaptor.forClass(byte[].class);
 
-        verify(_factoryMock).create(eq(FOO_PATH), dataCaptor.capture());
+        verify(_nodeFactory).create(eq(FOO_PATH), dataCaptor.capture());
         assertEquals(FOO, ServiceEndPointJsonCodec.fromJson(new String(dataCaptor.getValue())));
-        verify(_nodeMock, never()).close(anyLong(), any(TimeUnit.class));
+        verify(node, never()).close(anyLong(), any(TimeUnit.class));
     }
 
     @Test
     public void testDuplicateRegister() throws Exception {
+        ZooKeeperPersistentEphemeralNode firstNode = mock(ZooKeeperPersistentEphemeralNode.class);
+        ZooKeeperPersistentEphemeralNode secondNode = mock(ZooKeeperPersistentEphemeralNode.class);
+        when(_nodeFactory.create(anyString(), any(byte[].class))).thenReturn(firstNode, secondNode);
+
         _registry.register(FOO);
         _registry.register(FOO);
 
-        verify(_factoryMock, times(2)).create(eq(FOO_PATH), Matchers.<byte[]>any());
-        verify(_nodeMock).close(anyLong(), any(TimeUnit.class));
+        verify(_nodeFactory, times(2)).create(eq(FOO_PATH), Matchers.<byte[]>any());
+        verify(firstNode).close(anyLong(), any(TimeUnit.class));
     }
 
     @Test
     public void testUnregister() throws Exception {
+        ZooKeeperPersistentEphemeralNode node = mock(ZooKeeperPersistentEphemeralNode.class);
+        when(_nodeFactory.create(anyString(), any(byte[].class))).thenReturn(node);
+
         _registry.register(FOO);
 
         _registry.unregister(FOO);
 
-        verify(_nodeMock).close(anyLong(), any(TimeUnit.class));
+        verify(node).close(anyLong(), any(TimeUnit.class));
     }
 
     @Test
     public void testUnregisterWithoutFirstRegistering() throws Exception {
         _registry.unregister(FOO);
 
-        verify(_factoryMock, never()).create(eq(FOO_PATH), Matchers.<byte[]>any());
+        verify(_nodeFactory, never()).create(eq(FOO_PATH), Matchers.<byte[]>any());
     }
 
     @Test
@@ -152,11 +169,14 @@ public class ZooKeeperServiceRegistryTest {
 
     @Test
     public void testServiceNodeIsDeletedWhenRegistryIsClosed() throws Exception {
+        ZooKeeperPersistentEphemeralNode node = mock(ZooKeeperPersistentEphemeralNode.class);
+        when(_nodeFactory.create(anyString(), any(byte[].class))).thenReturn(node);
+
         _registry.register(FOO);
 
         _registry.close();
 
-        verify(_nodeMock).close(anyLong(), any(TimeUnit.class));
+        verify(node).close(anyLong(), any(TimeUnit.class));
     }
 
     private static ServiceEndPoint newEndPoint(String serviceName, String id, String payload) {
