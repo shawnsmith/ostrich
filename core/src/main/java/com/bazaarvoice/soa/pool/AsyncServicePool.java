@@ -11,7 +11,8 @@ import com.google.common.base.Ticker;
 import com.google.common.collect.Lists;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Meter;
-import com.yammer.metrics.util.RatioGauge;
+import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.TimerContext;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -36,9 +37,10 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
     private final ExecutorService _executor;
     private final boolean _shutdownExecutorOnClose;
     private final Metrics _metrics;
-    private final Meter _batches;
-    private final Histogram _batchSize;
-    private final Meter _failures;
+    private final Timer _executionTime;
+    private final Meter _numExecuteSuccesses;
+    private final Meter _numExecuteFailures;
+    private final Histogram _executeBatchSize;
 
     AsyncServicePool(Ticker ticker, ServicePool<S> pool, boolean shutdownPoolOnClose,
                             ExecutorService executor, boolean shutdownExecutorOnClose) {
@@ -47,21 +49,13 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
         _shutdownPoolOnClose = shutdownPoolOnClose;
         _executor = checkNotNull(executor);
         _shutdownExecutorOnClose = shutdownExecutorOnClose;
-        _metrics = new Metrics(getClass(), _pool.getServiceName());
-        _batches = _metrics.newMeter("execute-on-batches", "batches", TimeUnit.SECONDS);
-        _batchSize = _metrics.newHistogram("execute-on-batch-size");
-        _failures = _metrics.newMeter("execute-on-failures", "failures", TimeUnit.SECONDS);
-        _metrics.newGauge("execute-on-failures-per-batch", new RatioGauge() {
-            @Override
-            protected double getNumerator() {
-                return _failures.count();
-            }
 
-            @Override
-            protected double getDenominator() {
-                return _batches.count();
-            }
-        });
+        String serviceName = _pool.getServiceName();
+        _metrics = new Metrics(getClass());
+        _executionTime = _metrics.newTimer(serviceName, "execution-time", TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+        _numExecuteSuccesses = _metrics.newMeter(serviceName, "num-execute-successes", "successes", TimeUnit.SECONDS);
+        _numExecuteFailures = _metrics.newMeter(serviceName, "num-execute-failures", "failures", TimeUnit.SECONDS);
+        _executeBatchSize = _metrics.newHistogram(serviceName, "execute-batch-size", false);
     }
 
     @Override
@@ -97,8 +91,6 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
                                                final ServiceCallback<S, R> callback) {
         Collection<Future<R>> futures = Lists.newArrayList();
 
-        _batches.mark();
-
         for (final ServiceEndPoint endPoint : _pool.getAllEndPoints()) {
             if (!predicate.apply(endPoint)) {
                 continue;
@@ -107,29 +99,37 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
             Future<R> future = _executor.submit(new Callable<R>() {
                 @Override
                 public R call() throws Exception {
+                    TimerContext timer = _executionTime.time();
                     Stopwatch sw = new Stopwatch(_ticker).start();
                     int numAttempts = 0;
-                    do {
-                        try {
-                            return _pool.executeOnEndPoint(endPoint, callback);
-                        } catch (Exception e) {
-                            _failures.mark();
-                            // Don't retry if exception is too severe.
-                            if (!_pool.isRetriableException(e)) {
-                                throw e;
-                            }
-                        }
-                    } while (retry.allowRetry(++numAttempts, sw.elapsedMillis()));
 
-                    throw new MaxRetriesException();
+                    try {
+                        do {
+                            try {
+                                R result = _pool.executeOnEndPoint(endPoint, callback);
+                                _numExecuteSuccesses.mark();
+                                return result;
+                            } catch (Exception e) {
+                                _numExecuteFailures.mark();
+
+                                // Don't retry if exception is too severe.
+                                if (!_pool.isRetriableException(e)) {
+                                    throw e;
+                                }
+                            }
+                        } while (retry.allowRetry(++numAttempts, sw.elapsedMillis()));
+
+                        throw new MaxRetriesException();
+                    } finally {
+                        timer.stop();
+                    }
                 }
             });
 
             futures.add(future);
         }
 
-        _batchSize.update(futures.size());
-
+        _executeBatchSize.update(futures.size());
         return futures;
     }
 }

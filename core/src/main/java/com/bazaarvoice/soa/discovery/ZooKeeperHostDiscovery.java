@@ -4,17 +4,12 @@ import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceEndPointJsonCodec;
 import com.bazaarvoice.soa.metrics.Metrics;
-import com.bazaarvoice.zookeeper.internal.CuratorConnection;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
+import com.bazaarvoice.zookeeper.internal.CuratorConnection;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -26,6 +21,7 @@ import com.netflix.curator.framework.recipes.cache.ChildData;
 import com.netflix.curator.framework.recipes.cache.PathChildrenCache;
 import com.netflix.curator.framework.recipes.cache.PathChildrenCacheEvent;
 import com.netflix.curator.framework.recipes.cache.PathChildrenCacheListener;
+import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Meter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,10 +47,10 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
     private final Set<EndPointListener> _listeners;
     private final PathChildrenCache _pathCache;
     private final Metrics _metrics;
-    private final Meter _additions;
-    private final Meter _removals;
-    private final Meter _zooKeeperResets;
-    private final LoadingCache<ServiceEndPoint, Meter> _removalsByEndPoint;
+    private final Meter _numZooKeeperResets;
+    private final Meter _numZooKeeperAdds;
+    private final Meter _numZooKeeperRemoves;
+    private final Meter _numZooKeeperChanges;
 
     public ZooKeeperHostDiscovery(ZooKeeperConnection connection, String serviceName) {
         this(((CuratorConnection) checkNotNull(connection)).getCurator(), serviceName);
@@ -66,11 +62,6 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         checkNotNull(serviceName);
         checkArgument(curator.isStarted());
         checkArgument(!"".equals(serviceName));
-
-        _metrics = new Metrics(getClass(), serviceName);
-        _additions = _metrics.newMeter("end-point-additions", "additions", TimeUnit.SECONDS);
-        _removals = _metrics.newMeter("end-point-removals", "removals", TimeUnit.SECONDS);
-        _zooKeeperResets = _metrics.newMeter("zookeeper-resets", "resets", TimeUnit.SECONDS);
 
         ThreadFactory threadFactory = new ThreadFactoryBuilder()
                 .setNameFormat(getClass().getSimpleName() + "(" + serviceName + ")-%d")
@@ -100,20 +91,24 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
             throw Throwables.propagate(t);
         }
 
-        _removalsByEndPoint = CacheBuilder.newBuilder()
-                .expireAfterAccess(7, TimeUnit.DAYS)
-                .removalListener(new RemovalListener<ServiceEndPoint, Meter>() {
-                    @Override
-                    public void onRemoval(RemovalNotification<ServiceEndPoint, Meter> removalNotification) {
-                        _metrics.removeMetric(endPointRemovalMetricName(removalNotification.getKey()));
-                    }
-                })
-                .build(new CacheLoader<ServiceEndPoint, Meter>() {
-                    @Override
-                    public Meter load(ServiceEndPoint endPoint) {
-                        return _metrics.newMeter(endPointRemovalMetricName(endPoint), "removals", TimeUnit.SECONDS);
-                    }
-                });
+        _metrics = new Metrics(getClass());
+        _metrics.newGauge(serviceName, "num-end-points", new Gauge<Integer>() {
+            @Override
+            public Integer value() {
+                return _endPoints.size();
+            }
+        });
+        _metrics.newGauge(serviceName, "num-listeners", new Gauge<Integer>() {
+            @Override
+            public Integer value() {
+                return _listeners.size();
+            }
+        });
+
+        _numZooKeeperResets = _metrics.newMeter(serviceName, "num-zookeeper-resets", "resets", TimeUnit.MINUTES);
+        _numZooKeeperAdds = _metrics.newMeter(serviceName, "num-zookeeper-adds", "adds", TimeUnit.MINUTES);
+        _numZooKeeperRemoves = _metrics.newMeter(serviceName, "num-zookeeper-removes", "removes", TimeUnit.MINUTES);
+        _numZooKeeperChanges = _metrics.newMeter(serviceName, "num-zookeeper-changes", "changes", TimeUnit.MINUTES);
     }
 
     @Override
@@ -153,7 +148,6 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         // synchronize the modification of _endPoints and firing of events so listeners always receive events in the
         // order they occur.
         if (_endPoints.add(endPoint)) {
-            _additions.mark();
             fireAddEvent(endPoint);
         }
     }
@@ -162,8 +156,6 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         // synchronize the modification of _endPoints and firing of events so listeners always receive events in the
         // order they occur.
         if (_endPoints.remove(endPoint)) {
-            _removals.mark();
-            _removalsByEndPoint.getUnchecked(endPoint).mark();
             fireRemoveEvent(endPoint);
         }
     }
@@ -200,7 +192,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         @Override
         public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {
             if (event.getType() == PathChildrenCacheEvent.Type.RESET) {
-                _zooKeeperResets.mark();
+                _numZooKeeperResets.mark();
                 clearEndPoints();
                 return;
             }
@@ -208,22 +200,21 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
             ServiceEndPoint endPoint = toEndPoint(event.getData());
             switch (event.getType()) {
                 case CHILD_ADDED:
+                    _numZooKeeperAdds.mark();
                     addEndPoint(endPoint);
                     break;
 
                 case CHILD_REMOVED:
+                    _numZooKeeperRemoves.mark();
                     removeEndPoint(endPoint);
                     break;
 
                 case CHILD_UPDATED:
+                    _numZooKeeperChanges.mark();
                     LOG.info("ServiceEndPoint data changed unexpectedly. End point ID: {}; ZooKeeperPath {}",
                             endPoint.getId(), event.getData().getPath());
                     break;
             }
         }
-    }
-
-    private String endPointRemovalMetricName(ServiceEndPoint endPoint) {
-        return endPoint.getId() + "-registry-removals";
     }
 }

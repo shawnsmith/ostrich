@@ -8,10 +8,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.MapMaker;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
-import com.yammer.metrics.util.PercentGauge;
+import com.yammer.metrics.util.RatioGauge;
 import org.apache.commons.pool.BaseKeyedPoolableObjectFactory;
 import org.apache.commons.pool.impl.GenericKeyedObjectPool;
 import org.slf4j.Logger;
@@ -20,11 +19,11 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -52,9 +51,11 @@ class ServiceCache<S> implements Closeable {
     private final Future<?> _evictionFuture;
     private volatile boolean _isClosed = false;
     private final Metrics _metrics;
-    private final Meter _checkOuts;
-    private final Meter _misses;
-    private final Timer _evictionRuns;
+    private final Timer _loadTimer;
+    private final AtomicInteger _requestCount = new AtomicInteger();
+    private final AtomicInteger _missCount = new AtomicInteger();
+    private final AtomicInteger _loadSuccessCount = new AtomicInteger();
+    private final AtomicInteger _loadFailureCount = new AtomicInteger();
 
     /**
      * Builds a basic service cache.
@@ -79,19 +80,29 @@ class ServiceCache<S> implements Closeable {
         checkNotNull(serviceFactory);
         checkNotNull(executor);
 
-        _metrics = new Metrics(getClass(), serviceFactory.getServiceName());
-        _checkOuts = _metrics.newMeter("check-outs", "check-outs", TimeUnit.SECONDS);
-        _misses = _metrics.newMeter("misses", "misses", TimeUnit.SECONDS);
-        _evictionRuns = _metrics.newTimer("eviction-runs");
-        _metrics.newGauge("hit-percentage", new PercentGauge() {
-            @Override
-            protected double getNumerator() {
-                return _checkOuts.count() - _misses.count();
-            }
+        String serviceName = serviceFactory.getServiceName();
+        _metrics = new Metrics(getClass());
+        _loadTimer = _metrics.newTimer(serviceName, "load-time", TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
 
-            @Override
-            protected double getDenominator() {
-                return _checkOuts.count();
+        _metrics.newGauge(serviceName, "cache-hit-ratio", new RatioGauge() {
+            @Override protected double getNumerator() { return _requestCount.intValue() - _missCount.intValue(); }
+            @Override protected double getDenominator() { return _requestCount.intValue(); }
+        });
+        _metrics.newGauge(serviceName, "cache-miss-ratio", new RatioGauge() {
+            @Override protected double getNumerator() { return _missCount.intValue(); }
+            @Override protected double getDenominator() { return _requestCount.intValue(); }
+        });
+
+        _metrics.newGauge(serviceName, "load-success-ratio", new RatioGauge() {
+            @Override protected double getNumerator() { return _loadSuccessCount.intValue(); }
+            @Override protected double getDenominator() {
+                return _loadSuccessCount.intValue() + _loadFailureCount.intValue();
+            }
+        });
+        _metrics.newGauge(serviceName, "load-failure-ratio", new RatioGauge() {
+            @Override protected double getNumerator() { return _loadFailureCount.intValue(); }
+            @Override protected double getDenominator() {
+                return _loadSuccessCount.intValue() + _loadFailureCount.intValue();
             }
         });
 
@@ -121,8 +132,7 @@ class ServiceCache<S> implements Closeable {
         // Make sure all instances in the pool are checked for staleness during eviction runs.
         poolConfig.numTestsPerEvictionRun = policy.getMaxNumServiceInstances();
 
-        _pool = new GenericKeyedObjectPool<ServiceEndPoint, S>(new PoolServiceFactory<S>(serviceFactory, _misses,
-                _metrics.newTimer("fills"), _metrics.newMeter("evictions", "evictions", TimeUnit.SECONDS)), poolConfig);
+        _pool = new GenericKeyedObjectPool<ServiceEndPoint, S>(new PoolServiceFactory<S>(serviceFactory), poolConfig);
 
         // Don't schedule eviction if not caching or not expiring stale instances.
         _evictionFuture = (policy.getMaxNumServiceInstances() != 0)
@@ -131,14 +141,12 @@ class ServiceCache<S> implements Closeable {
                 ? executor.scheduleAtFixedRate(new Runnable() {
                       @Override
                       public void run() {
-                          TimerContext timer = _evictionRuns.time();
                           try {
                               _pool.evict();
                           } catch (Exception e) {
                               // Should never happen, but log just in case. Swallow exception so thread doesn't die.
                               LOG.error("ServiceCache eviction run failed.", e);
                           }
-                          timer.stop();
                       }
                   }, EVICTION_DURATION_IN_SECONDS, EVICTION_DURATION_IN_SECONDS, TimeUnit.SECONDS)
                 : null;
@@ -161,8 +169,7 @@ class ServiceCache<S> implements Closeable {
      */
     public S checkOut(ServiceEndPoint endPoint) throws Exception {
         checkNotNull(endPoint);
-
-        _checkOuts.mark();
+        _requestCount.incrementAndGet();
 
         try {
             S service = _pool.borrowObject(endPoint);
@@ -172,8 +179,6 @@ class ServiceCache<S> implements Closeable {
 
             return service;
         } catch (NoSuchElementException e) {
-            _misses.mark();
-
             // This will happen if there are no available connections and there is no room for a new one,
             // or if a newly created connection is not valid.
             throw new NoCachedInstancesAvailableException();
@@ -233,34 +238,28 @@ class ServiceCache<S> implements Closeable {
         _pool.clear(endPoint);
     }
 
-    private static class PoolServiceFactory<S> extends BaseKeyedPoolableObjectFactory<ServiceEndPoint, S> {
+    private class PoolServiceFactory<S> extends BaseKeyedPoolableObjectFactory<ServiceEndPoint, S> {
         private final ServiceFactory<S> _serviceFactory;
-        private final Meter _misses;
-        private final Timer _fills;
-        private Meter _evictions;
 
-        public PoolServiceFactory(ServiceFactory<S> serviceFactory, Meter missesMeter, Timer fillsTimer,
-                                  Meter evictionsMeter) {
+        public PoolServiceFactory(ServiceFactory<S> serviceFactory) {
             _serviceFactory = serviceFactory;
-            _misses = missesMeter;
-            _fills = fillsTimer;
-            _evictions = evictionsMeter;
         }
 
         @Override
         public S makeObject(final ServiceEndPoint endPoint) throws Exception {
-            _misses.mark();
-            return _fills.time(new Callable<S>() {
-                @Override
-                public S call() throws Exception {
-                    return _serviceFactory.create(endPoint);
-                }
-            });
-        }
+            _missCount.incrementAndGet();
 
-        @Override
-        public void destroyObject(ServiceEndPoint key, S obj) throws Exception {
-            _evictions.mark();
+            TimerContext timer = _loadTimer.time();
+            try {
+                S service = _serviceFactory.create(endPoint);
+                _loadSuccessCount.incrementAndGet();
+                return service;
+            } catch (Exception e) {
+                _loadFailureCount.incrementAndGet();
+                throw e;
+            } finally {
+                timer.stop();
+            }
         }
     }
 }

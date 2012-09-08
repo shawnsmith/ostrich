@@ -4,7 +4,6 @@ import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceEndPointPredicate;
-import com.bazaarvoice.soa.ServicePoolStatistics;
 import com.bazaarvoice.soa.exceptions.MaxRetriesException;
 import com.bazaarvoice.soa.exceptions.ServiceException;
 import com.google.common.base.Ticker;
@@ -52,7 +51,7 @@ public class AsyncServicePoolTest {
 
     @Before
     public void setup() {
-        when(_mockPool.getServiceName()).thenReturn("test");
+        when(_mockPool.getServiceName()).thenReturn(Service.class.getSimpleName());
     }
 
     @After
