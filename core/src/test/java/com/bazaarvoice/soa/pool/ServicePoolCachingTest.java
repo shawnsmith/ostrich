@@ -307,7 +307,7 @@ public class ServicePoolCachingTest {
 
     private ServicePool<Service> newPool(ServiceCachingPolicy cachingPolicy) {
         ServicePool<Service> pool = new ServicePool<Service>(_ticker, _hostDiscovery, _serviceFactory,
-                cachingPolicy, _loadBalanceAlgorithm, _healthCheckExecutor, true);
+                cachingPolicy, null, _loadBalanceAlgorithm, _healthCheckExecutor, true);
         _pools.add(pool);
         return pool;
     }

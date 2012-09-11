@@ -6,6 +6,7 @@ import com.bazaarvoice.soa.LoadBalanceAlgorithm;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.loadbalance.RandomAlgorithm;
+import com.bazaarvoice.soa.partition.ConsistentHashPartitionFilter;
 import com.bazaarvoice.zookeeper.ZooKeeperConfiguration;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.google.common.io.Closeables;
@@ -198,6 +199,29 @@ public class ServicePoolBuilderTest {
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
                 .build();
+    }
+
+    @Test
+    public void testBuildWithNoPartitionFilter() throws IOException {
+        ServicePool<Service> service = (ServicePool<Service>) ServicePoolBuilder.create(Service.class)
+                .withServiceName("serviceName")
+                .withServiceFactory(_serviceFactory)
+                .withCachingPolicy(_cachingPolicy)
+                .withHostDiscovery(_hostDiscovery)
+                .build();
+        assertTrue(service.getPartitionFilter() == null);
+    }
+
+    @Test
+    public void testBuildWithPartitionFilter() throws IOException {
+        ServicePool<Service> service = (ServicePool<Service>) ServicePoolBuilder.create(Service.class)
+                .withServiceName("serviceName")
+                .withServiceFactory(_serviceFactory)
+                .withCachingPolicy(_cachingPolicy)
+                .withHostDiscovery(_hostDiscovery)
+                .withPartitionFilter(new ConsistentHashPartitionFilter())
+                .build();
+        assertTrue(service.getPartitionFilter() instanceof ConsistentHashPartitionFilter);
     }
 
     @Test

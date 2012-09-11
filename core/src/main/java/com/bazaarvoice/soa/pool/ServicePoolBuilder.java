@@ -3,10 +3,13 @@ package com.bazaarvoice.soa.pool;
 import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.HostDiscoverySource;
 import com.bazaarvoice.soa.LoadBalanceAlgorithm;
+import com.bazaarvoice.soa.PartitionContext;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.discovery.ZooKeeperHostDiscovery;
 import com.bazaarvoice.soa.loadbalance.RandomAlgorithm;
+import com.bazaarvoice.soa.partition.PartitionFilter;
+import com.bazaarvoice.soa.partition.PartitionKey;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
@@ -31,6 +34,8 @@ public class ServicePoolBuilder<S> {
     private String _serviceName;
     private ScheduledExecutorService _healthCheckExecutor;
     private ServiceCachingPolicy _cachingPolicy;
+    private PartitionFilter _partitionFilter;
+    private PartitionContextSupplier _partitionContextSupplier;
     private LoadBalanceAlgorithm _loadBalanceAlgorithm = new RandomAlgorithm();
     private ExecutorService _asyncExecutor;
 
@@ -165,8 +170,37 @@ public class ServicePoolBuilder<S> {
     }
 
     /**
+     * Uses the specified partition filter on every service pool operation to narrow down the set of end points that
+     * may be used to service a particular request.
+     *
+     * @param partitionFilter The {@link PartitionFilter} to use
+     * @return  this
+     */
+    public ServicePoolBuilder<S> withPartitionFilter(PartitionFilter partitionFilter) {
+        _partitionFilter = partitionFilter;
+        return this;
+    }
+
+    /**
+     * Uses the specified partition filter on every service pool operation to narrow down the set of end points that
+     * may be used to service a particular request.  For dynamic proxy-based service pools, use the {@link PartitionKey}
+     * annotations on the specified annotated service class to determine how to construct the {@link PartitionContext}
+     * for each service call.
+     *
+     * @param partitionFilter The {@link PartitionFilter} to use
+     * @param annotatedServiceClass A service class with {@link PartitionKey} annotations.
+     * @return  this
+     */
+    public ServicePoolBuilder<S> withPartitionFilter(PartitionFilter partitionFilter,
+                                                     Class<? extends S> annotatedServiceClass) {
+        _partitionFilter = partitionFilter;
+        _partitionContextSupplier = new AnnotationPartitionContextSupplier(_serviceType, annotatedServiceClass);
+        return this;
+    }
+
+    /**
      * Sets the {@code LoadBalanceAlgorithm} that should be used for this service.
-     * <p>
+     *
      * @param algorithm A load balance algorithm to choose between available end points for the service.
      * @return this
      */
@@ -217,7 +251,7 @@ public class ServicePoolBuilder<S> {
      *         {@link java.io.Closeable} interface.
      */
     public S buildProxy(RetryPolicy retryPolicy) {
-        return ServicePoolProxy.create(_serviceType, retryPolicy, build(), true);
+        return ServicePoolProxy.create(_serviceType, retryPolicy, build(), _partitionContextSupplier, true);
     }
 
     @VisibleForTesting
@@ -240,8 +274,8 @@ public class ServicePoolBuilder<S> {
             _healthCheckExecutor = Executors.newScheduledThreadPool(DEFAULT_NUM_HEALTH_CHECK_THREADS, threadFactory);
         }
 
-        return new ServicePool<S>(Ticker.systemTicker(), hostDiscovery, _serviceFactory,
-                _cachingPolicy, _loadBalanceAlgorithm, _healthCheckExecutor, shutdownHealthCheckExecutorOnClose);
+        return new ServicePool<S>(Ticker.systemTicker(), hostDiscovery, _serviceFactory, _cachingPolicy,
+                _partitionFilter, _loadBalanceAlgorithm, _healthCheckExecutor, shutdownHealthCheckExecutorOnClose);
     }
 
     private HostDiscovery findHostDiscovery(String serviceName) {

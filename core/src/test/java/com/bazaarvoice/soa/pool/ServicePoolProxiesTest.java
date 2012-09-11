@@ -15,7 +15,7 @@ public class ServicePoolProxiesTest {
     public void testClose() throws IOException {
         @SuppressWarnings("unchecked")
         com.bazaarvoice.soa.ServicePool<Service> pool = mock(com.bazaarvoice.soa.ServicePool.class);
-        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool, true);
+        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool, null, true);
 
         ServicePoolProxies.close(service);
 
@@ -28,7 +28,7 @@ public class ServicePoolProxiesTest {
         com.bazaarvoice.soa.ServicePool<Service> pool = mock(com.bazaarvoice.soa.ServicePool.class);
         HealthCheckResults results = mock(HealthCheckResults.class);
         when(pool.checkForHealthyEndPoint()).thenReturn(results);
-        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool, true);
+        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool, null, true);
 
         assertSame(results, ServicePoolProxies.checkForHealthyEndPoint(service));
     }
@@ -42,7 +42,7 @@ public class ServicePoolProxiesTest {
     @Test
     public void testPoolGetter() {
         com.bazaarvoice.soa.ServicePool<Service> pool = mock(com.bazaarvoice.soa.ServicePool.class);
-        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool, true);
+        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool, null, true);
 
         assertSame(pool, ServicePoolProxies.getPool(service));
     }

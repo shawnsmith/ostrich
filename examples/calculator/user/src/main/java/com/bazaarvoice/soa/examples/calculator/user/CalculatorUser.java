@@ -49,7 +49,7 @@ public class CalculatorUser {
                         });
                 LOG.info("i:{}, result:{}", i, result);
             } catch (Exception e) {
-                LOG.info("i:{}, {}", i, e);
+                LOG.warn("i:{}, {}", i, e);
             }
 
             Thread.sleep(500);

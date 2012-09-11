@@ -1,5 +1,6 @@
 package com.bazaarvoice.soa.pool;
 
+import com.bazaarvoice.soa.PartitionContextBuilder;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceCallback;
 import org.junit.Test;
@@ -27,13 +28,13 @@ public class ServicePoolProxyTest {
     public void testProxyDoesNotOverrideClose() throws IOException {
         // Because this proxy is created with shutdownPoolOnClose=false, the Service.close() method is passed
         // through to the underlying service implementation.
-        Service service = ServicePoolProxy.create(Service.class, NEVER_RETRY, _pool, false);
+        Service service = ServicePoolProxy.create(Service.class, NEVER_RETRY, _pool, null, false);
         service.close();
 
         // Capture and execute the callback.
         @SuppressWarnings("unchecked") ArgumentCaptor<ServiceCallback<Service, ?>> captor =
                 (ArgumentCaptor) ArgumentCaptor.forClass(ServiceCallback.class);
-        verify(_pool).execute(same(NEVER_RETRY), captor.capture());
+        verify(_pool).execute(same(PartitionContextBuilder.empty()), same(NEVER_RETRY), captor.capture());
         captor.getValue().call(FOO_SERVICE);
 
         verify(FOO_SERVICE).close();
@@ -42,21 +43,21 @@ public class ServicePoolProxyTest {
 
     @Test
     public void testProxyDoesNotImplementCloseable() throws IOException {
-        Service service = ServicePoolProxy.create(Service.class, NEVER_RETRY, _pool, false);
+        Service service = ServicePoolProxy.create(Service.class, NEVER_RETRY, _pool, null, false);
 
         assertFalse(service instanceof Closeable);
     }
 
     @Test
     public void testProxyImplementsCloseable() throws IOException {
-        Service service = ServicePoolProxy.create(Service.class, NEVER_RETRY, _pool, true);
+        Service service = ServicePoolProxy.create(Service.class, NEVER_RETRY, _pool, null, true);
 
         assertTrue(service instanceof Closeable);
     }
 
     @Test
     public void testProxyCallsExecutorShutdownOnClose() throws IOException {
-        Service service = ServicePoolProxy.create(Service.class, NEVER_RETRY, _pool, true);
+        Service service = ServicePoolProxy.create(Service.class, NEVER_RETRY, _pool, null, true);
         service.close();
 
         verify(_pool).close();
@@ -64,7 +65,7 @@ public class ServicePoolProxyTest {
 
     @Test
     public void testGetServicePool() {
-        ServicePoolProxy<Service> proxy = new ServicePoolProxy<Service>(Service.class, NEVER_RETRY, _pool, false);
+        ServicePoolProxy<Service> proxy = new ServicePoolProxy<Service>(Service.class, NEVER_RETRY, _pool, null, false);
 
         assertSame(_pool, proxy.getServicePool());
     }
