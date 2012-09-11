@@ -34,8 +34,7 @@ public class Metrics implements Closeable {
     }
 
     private final MetricsRegistry _registry;
-    private final String _domain;
-    private final String _type;
+    private final Class<?> _domain;
 
     public Metrics(Class<?> owner) {
         this(DEFAULT_METRICS_REGISTRY, owner);
@@ -47,8 +46,7 @@ public class Metrics implements Closeable {
         checkNotNull(registry);
 
         _registry = registry;
-        _domain = owner.getPackage() != null ? owner.getPackage().getName() : "";
-        _type = owner.getSimpleName();
+        _domain = owner;
     }
 
     public void close() {
@@ -103,7 +101,7 @@ public class Metrics implements Closeable {
 
     @VisibleForTesting
     MetricName newName(String scope, String name) {
-        return new MetricName(_domain, _type, name, scope);
+        return new MetricName(_domain, name, scope);
     }
 
     @VisibleForTesting
