@@ -45,8 +45,13 @@ public class CalculatorServiceFactory implements ServiceFactory<CalculatorServic
     }
 
     @Override
+    public String getServiceName() {
+        return "calculator";
+    }
+
+    @Override
     public void configure(ServicePoolBuilder<CalculatorService> servicePoolBuilder) {
-        servicePoolBuilder.withServiceName("calculator");
+        // We're fine with the default configuration, including the random load balancer, so we do nothing.
     }
 
     @Override

@@ -48,6 +48,7 @@ import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -109,6 +110,7 @@ public class ServicePoolTest {
         });
 
         _serviceFactory = (ServiceFactory<Service>) mock(ServiceFactory.class);
+        when(_serviceFactory.getServiceName()).thenReturn(Service.class.getSimpleName());
         when(_serviceFactory.create(FOO_ENDPOINT)).thenReturn(FOO_SERVICE);
         when(_serviceFactory.create(BAR_ENDPOINT)).thenReturn(BAR_SERVICE);
         when(_serviceFactory.create(BAZ_ENDPOINT)).thenReturn(BAZ_SERVICE);
@@ -402,6 +404,19 @@ public class ServicePoolTest {
                 eq(com.bazaarvoice.soa.pool.ServicePool.HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS),
                 eq(com.bazaarvoice.soa.pool.ServicePool.HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS),
                 eq(TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testStatsPassedToLoadBalancer() {
+        _pool.execute(NEVER_RETRY, new ServiceCallback<Service, Void>() {
+            @Override
+            public Void call(Service service) throws ServiceException {
+                return null;
+            }
+        });
+
+        verify(_loadBalanceAlgorithm).choose(Matchers.<Iterable<ServiceEndPoint>>any(),
+                same(_pool.getServicePoolStatistics()));
     }
 
     @Test

@@ -39,6 +39,7 @@ public class ServicePoolBuilderTest {
     @Before
     public void setup() {
         _serviceFactory = (ServiceFactory<Service>) mock(ServiceFactory.class);
+        when(_serviceFactory.getServiceName()).thenReturn(Service.class.getSimpleName());
 
         _cachingPolicy = mock(ServiceCachingPolicy.class);
         when(_cachingPolicy.getCacheExhaustionAction()).thenReturn(ServiceCachingPolicy.ExhaustionAction.GROW);
@@ -81,7 +82,6 @@ public class ServicePoolBuilderTest {
     @Test(expected = IllegalStateException.class)
     public void testBuildWithNoHostDiscoveryAndNoZooKeeperConnection() {
         ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHealthCheckExecutor(_healthCheckExecutor)
@@ -91,15 +91,28 @@ public class ServicePoolBuilderTest {
     @Test(expected = NullPointerException.class)
     public void testBuildWithNoServiceFactory() {
         ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
                 .build();
     }
 
-    @Test(expected = NullPointerException.class)
-    public void testBuildWithNoServiceName() {
+    @Test(expected = IllegalArgumentException.class)
+    public void testBuildWithNullServiceName() {
+        when(_serviceFactory.getServiceName()).thenReturn(null);
+
+        ServicePoolBuilder.create(Service.class)
+                .withServiceFactory(_serviceFactory)
+                .withCachingPolicy(_cachingPolicy)
+                .withHostDiscovery(_hostDiscovery)
+                .withHealthCheckExecutor(_healthCheckExecutor)
+                .build();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testBuildWithEmptyServiceName() {
+        when(_serviceFactory.getServiceName()).thenReturn("");
+
         ServicePoolBuilder.create(Service.class)
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
@@ -111,7 +124,6 @@ public class ServicePoolBuilderTest {
     @Test
     public void testBuildWithNullLoadBalanceAlgorithm() {
         ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
@@ -127,7 +139,6 @@ public class ServicePoolBuilderTest {
             connection = new ZooKeeperConfiguration().withConnectString(zooKeeperServer.getConnectString()).connect();
 
             ServicePoolBuilder.create(Service.class)
-                    .withServiceName("serviceName")
                     .withServiceFactory(_serviceFactory)
                     .withCachingPolicy(_cachingPolicy)
                     .withZooKeeperHostDiscovery(connection)
@@ -148,7 +159,6 @@ public class ServicePoolBuilderTest {
         com.bazaarvoice.soa.pool.ServicePool<Service> pool = ServicePoolBuilder.create(Service.class)
                 .withHostDiscoverySource(source)
                 .withHostDiscovery(_hostDiscovery)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .buildInternal();
@@ -163,7 +173,6 @@ public class ServicePoolBuilderTest {
         com.bazaarvoice.soa.pool.ServicePool<Service> pool = ServicePoolBuilder.create(Service.class)
                 .withHostDiscoverySource(source)
                 .withHostDiscovery(_hostDiscovery)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .buildInternal();
@@ -173,7 +182,6 @@ public class ServicePoolBuilderTest {
     @Test
     public void testBuildWithNoHealthCheckExecutor() {
         ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
@@ -183,7 +191,6 @@ public class ServicePoolBuilderTest {
     @Test
     public void testBuildWithNoAsyncExecutor() {
         ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
@@ -194,7 +201,6 @@ public class ServicePoolBuilderTest {
     @Test
     public void testBuildWithNoCachingPolicy() {
         ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
@@ -204,7 +210,6 @@ public class ServicePoolBuilderTest {
     @Test
     public void testBuildWithNoPartitionFilter() throws IOException {
         ServicePool<Service> service = (ServicePool<Service>) ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
@@ -215,7 +220,6 @@ public class ServicePoolBuilderTest {
     @Test
     public void testBuildWithPartitionFilter() throws IOException {
         ServicePool<Service> service = (ServicePool<Service>) ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
@@ -227,7 +231,6 @@ public class ServicePoolBuilderTest {
     @Test
     public void testBuildWithNoLoadBalanceAlgorithm() throws IOException {
         ServicePool<Service> service = (ServicePool<Service>) ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
@@ -239,7 +242,6 @@ public class ServicePoolBuilderTest {
     public void testBuildWithLoadBalanceAlgorithm() throws IOException {
         LoadBalanceAlgorithm loadBalanceAlgorithm = mock(LoadBalanceAlgorithm.class);
         ServicePool<Service> service = (ServicePool<Service>) ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withLoadBalanceAlgorithm(loadBalanceAlgorithm)
@@ -251,7 +253,6 @@ public class ServicePoolBuilderTest {
     @Test
     public void testBuildWithAsyncExecutor() {
         ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
@@ -265,7 +266,6 @@ public class ServicePoolBuilderTest {
     @Test
     public void testBuildAsyncWithNoAsyncExecutor() {
         ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
@@ -276,7 +276,6 @@ public class ServicePoolBuilderTest {
     @Test
     public void testBuildAsync() {
         ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
@@ -288,7 +287,6 @@ public class ServicePoolBuilderTest {
     @Test
     public void testBuildProxy() throws IOException {
         Service service = ServicePoolBuilder.create(Service.class)
-                .withServiceName("serviceName")
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)

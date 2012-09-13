@@ -45,9 +45,13 @@ public class DictionaryServiceFactory implements ServiceFactory<DictionaryServic
     }
 
     @Override
+    public String getServiceName() {
+        return "dictionary";
+    }
+
+    @Override
     public void configure(ServicePoolBuilder<DictionaryService> servicePoolBuilder) {
-        servicePoolBuilder.withServiceName("dictionary")
-                .withPartitionFilter(new DictionaryPartitionFilter(), DictionaryClient.class);
+        servicePoolBuilder.withPartitionFilter(new DictionaryPartitionFilter(), DictionaryClient.class);
     }
 
     @Override

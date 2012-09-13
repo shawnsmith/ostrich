@@ -83,6 +83,7 @@ public class ServicePoolCachingTest {
                 .thenReturn(FOO_ENDPOINT);
 
         _serviceFactory = (ServiceFactory<Service>) mock(ServiceFactory.class);
+        when(_serviceFactory.getServiceName()).thenReturn(Service.class.getSimpleName());
         when(_serviceFactory.create(any(ServiceEndPoint.class))).then(new Answer<Service>() {
             @Override
             public Service answer(InvocationOnMock invocation) throws Throwable {
