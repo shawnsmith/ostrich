@@ -9,6 +9,7 @@ import com.bazaarvoice.soa.discovery.ZooKeeperHostDiscovery;
 import com.bazaarvoice.soa.loadbalance.RandomAlgorithm;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.base.Ticker;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -19,6 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
@@ -45,7 +47,8 @@ public class ServicePoolBuilder<S> {
     /**
      * Adds a {@link HostDiscoverySource} instance to the builder.  Multiple instances of {@code HostDiscoverySource}
      * may be specified.  The service pool will use the first source to return a non-null instance of
-     * {@link HostDiscovery} for the service name configured by {@link #withServiceName(String)}.
+     * {@link HostDiscovery} for the service name provided by the {@link ServiceFactory#getServiceName()} method of
+     * the factory configured by {@link #withServiceFactory}.
      *
      * @param hostDiscoverySource a host discovery source to use to find the {@link HostDiscovery} when constructing
      * the {@link ServicePool}
@@ -99,17 +102,6 @@ public class ServicePoolBuilder<S> {
     }
 
     /**
-     * Sets the service name used by host discovery to identify service end points that implement the service.
-     * <p>
-     * @param serviceName the service name used to register end points with the service registry.
-     * @return this
-     */
-    public ServicePoolBuilder<S> withServiceName(String serviceName) {
-        _serviceName = checkNotNull(serviceName);
-        return this;
-    }
-
-    /**
      * Adds a {@code ServiceFactory} instance to the builder.  The {@code ServiceFactory#configure} method will be
      * called at this time to allow the {@code ServiceFactory} to set service pool settings on the builder.
      * <p>
@@ -118,6 +110,8 @@ public class ServicePoolBuilder<S> {
      */
     public ServicePoolBuilder<S> withServiceFactory(ServiceFactory<S> serviceFactory) {
         _serviceFactory = checkNotNull(serviceFactory);
+        checkArgument(!Strings.isNullOrEmpty(serviceFactory.getServiceName()), "Service name must be configured");
+        _serviceName = serviceFactory.getServiceName();
         _serviceFactory.configure(this);
         return this;
     }
@@ -194,9 +188,8 @@ public class ServicePoolBuilder<S> {
 
         boolean shutdownAsyncExecutorOnClose = (_asyncExecutor == null);
         if (_asyncExecutor == null) {
-            String serviceName = checkNotNull(_serviceName, "Service name must be configured.");
             ThreadFactory threadFactory = new ThreadFactoryBuilder()
-                    .setNameFormat(serviceName + "-AsyncExecutorThread-%d")
+                    .setNameFormat(_serviceName + "-AsyncExecutorThread-%d")
                     .setDaemon(true)
                     .build();
             _asyncExecutor = Executors.newCachedThreadPool(threadFactory);
@@ -224,8 +217,7 @@ public class ServicePoolBuilder<S> {
     ServicePool<S> buildInternal() {
         checkNotNull(_serviceFactory);
 
-        String serviceName = checkNotNull(_serviceName, "Service name must be configured.");
-        HostDiscovery hostDiscovery = findHostDiscovery(serviceName);
+        HostDiscovery hostDiscovery = findHostDiscovery(_serviceName);
 
         if (_cachingPolicy == null) {
             _cachingPolicy = ServiceCachingPolicyBuilder.NO_CACHING;
@@ -234,7 +226,7 @@ public class ServicePoolBuilder<S> {
         boolean shutdownHealthCheckExecutorOnClose = (_healthCheckExecutor == null);
         if (_healthCheckExecutor == null) {
             ThreadFactory threadFactory = new ThreadFactoryBuilder()
-                    .setNameFormat(serviceName + "-HealthCheckThread-%d")
+                    .setNameFormat(_serviceName + "-HealthCheckThread-%d")
                     .setDaemon(true)
                     .build();
             _healthCheckExecutor = Executors.newScheduledThreadPool(DEFAULT_NUM_HEALTH_CHECK_THREADS, threadFactory);

@@ -9,9 +9,15 @@ import com.bazaarvoice.soa.pool.ServicePoolBuilder;
  */
 public interface ServiceFactory<S> {
     /**
-     * Calls the specified {@code ServicePoolBuilder} to set service pool-related settings for this service.
+     * Gets the name of the service this factory provides.
+     * @return The name of the service.
+     */
+    String getServiceName();
+
+    /**
+     * Calls the specified {@code ServicePoolBuilder} to set optional service pool related settings for this service.
      * <p>
-     * This <em>must</em> configure the service name.  This <em>should</em> configure default policies appropriate
+     * This <em>should</em> configure default policies appropriate
      * for this service like a default load balance algorithm.
      *
      * @param servicePoolBuilder the service pool builder to configure.
