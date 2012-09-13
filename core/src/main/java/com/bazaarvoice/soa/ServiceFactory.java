@@ -17,8 +17,8 @@ public interface ServiceFactory<S> {
     /**
      * Calls the specified {@code ServicePoolBuilder} to set optional service pool related settings for this service.
      * <p>
-     * This <em>should</em> configure default policies appropriate
-     * for this service like a default load balance algorithm.
+     * This <em>should</em> configure default policies appropriate for this service like a default load balance
+     * algorithm.
      *
      * @param servicePoolBuilder the service pool builder to configure.
      */
