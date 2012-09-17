@@ -1,5 +1,6 @@
 package com.bazaarvoice.soa.pool;
 
+import com.bazaarvoice.soa.PartitionContext;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServiceEndPoint;
@@ -96,6 +97,18 @@ public class AsyncServicePoolTest {
         pool.execute(NEVER_RETRY, callback);
 
         verify(_mockPool).execute(same(NEVER_RETRY), same(callback));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testExecutesPartitionContextInPool() {
+        AsyncServicePool<Service> pool = newAsyncPool(MoreExecutors.sameThreadExecutor());
+
+        ServiceCallback<Service, Void> callback = (ServiceCallback<Service, Void>) mock(ServiceCallback.class);
+        PartitionContext context = mock(PartitionContext.class);
+        pool.execute(context, NEVER_RETRY, callback);
+
+        verify(_mockPool).execute(same(context), same(NEVER_RETRY), same(callback));
     }
 
     @SuppressWarnings("unchecked")

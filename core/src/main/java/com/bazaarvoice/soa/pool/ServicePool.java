@@ -4,6 +4,8 @@ import com.bazaarvoice.soa.HealthCheckResult;
 import com.bazaarvoice.soa.HealthCheckResults;
 import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.LoadBalanceAlgorithm;
+import com.bazaarvoice.soa.PartitionContext;
+import com.bazaarvoice.soa.PartitionContextBuilder;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServiceEndPoint;
@@ -16,6 +18,7 @@ import com.bazaarvoice.soa.exceptions.NoSuitableHostsException;
 import com.bazaarvoice.soa.exceptions.OnlyBadHostsException;
 import com.bazaarvoice.soa.healthcheck.DefaultHealthCheckResults;
 import com.bazaarvoice.soa.metrics.Metrics;
+import com.bazaarvoice.soa.partition.PartitionFilter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Predicate;
@@ -56,6 +59,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final ServiceFactory<S> _serviceFactory;
     private final ScheduledExecutorService _healthCheckExecutor;
     private final boolean _shutdownHealthCheckExecutorOnClose;
+    private final PartitionFilter _partitionFilter;
     private final LoadBalanceAlgorithm _loadBalanceAlgorithm;
     private final ServicePoolStatistics _servicePoolStatistics;
     private final Set<ServiceEndPoint> _badEndPoints;
@@ -71,8 +75,8 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
 
     ServicePool(Ticker ticker, HostDiscovery hostDiscovery,
                 ServiceFactory<S> serviceFactory, ServiceCachingPolicy cachingPolicy,
-                LoadBalanceAlgorithm loadBalanceAlgorithm, ScheduledExecutorService healthCheckExecutor,
-                boolean shutdownHealthCheckExecutorOnClose) {
+                PartitionFilter partitionFilter, LoadBalanceAlgorithm loadBalanceAlgorithm,
+                ScheduledExecutorService healthCheckExecutor, boolean shutdownHealthCheckExecutorOnClose) {
         _ticker = checkNotNull(ticker);
         _hostDiscovery = checkNotNull(hostDiscovery);
         _serviceFactory = checkNotNull(serviceFactory);
@@ -87,6 +91,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 .asMap());
         checkNotNull(cachingPolicy);
         _serviceCache = new ServiceCache<S>(cachingPolicy, serviceFactory);
+        _partitionFilter = checkNotNull(partitionFilter);
         _loadBalanceAlgorithm = checkNotNull(loadBalanceAlgorithm);
 
         _servicePoolStatistics = new ServicePoolStatistics() {
@@ -162,10 +167,15 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
 
     @Override
     public <R> R execute(RetryPolicy retry, ServiceCallback<S, R> callback) {
+        return execute(PartitionContextBuilder.empty(), retry, callback);
+    }
+
+    @Override
+    public <R> R execute(PartitionContext partitionContext, RetryPolicy retry, ServiceCallback<S, R> callback) {
         Stopwatch sw = new Stopwatch(_ticker).start();
         int numAttempts = 0;
         do {
-            ServiceEndPoint endPoint = chooseEndPoint(getValidEndPoints());
+            ServiceEndPoint endPoint = chooseEndPoint(getValidEndPoints(), partitionContext);
 
             try {
                 R result = executeOnEndPoint(endPoint, callback);
@@ -214,7 +224,11 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         return goodHosts;
     }
 
-    private ServiceEndPoint chooseEndPoint(Iterable<ServiceEndPoint> endPoints) {
+    private ServiceEndPoint chooseEndPoint(Iterable<ServiceEndPoint> endPoints, PartitionContext partitionContext) {
+        endPoints = _partitionFilter.filter(endPoints, partitionContext);
+        if (endPoints == null || Iterables.isEmpty(endPoints)) {
+            throw new NoSuitableHostsException();
+        }
         ServiceEndPoint endPoint = _loadBalanceAlgorithm.choose(endPoints, _servicePoolStatistics);
         if (endPoint == null) {
             throw new NoSuitableHostsException();
@@ -290,6 +304,11 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     }
 
     @VisibleForTesting
+    PartitionFilter getPartitionFilter() {
+        return _partitionFilter;
+    }
+
+    @VisibleForTesting
     LoadBalanceAlgorithm getLoadBalanceAlgorithm() {
         return _loadBalanceAlgorithm;
     }
@@ -321,7 +340,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
             ServiceEndPoint endPoint;
             try {
                 // Prefer end points in the order the load balancer recommends.
-                endPoint = chooseEndPoint(endPoints);
+                endPoint = chooseEndPoint(endPoints, PartitionContextBuilder.empty());
             } catch (Exception e) {
                 // Load balancer didn't like our end points, so just go sequentially.
                 endPoint = endPoints.iterator().next();
