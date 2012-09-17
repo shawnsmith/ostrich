@@ -21,6 +21,7 @@ import com.netflix.curator.framework.recipes.cache.ChildData;
 import com.netflix.curator.framework.recipes.cache.PathChildrenCache;
 import com.netflix.curator.framework.recipes.cache.PathChildrenCacheEvent;
 import com.netflix.curator.framework.recipes.cache.PathChildrenCacheListener;
+import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Meter;
 import org.slf4j.Logger;
@@ -47,6 +48,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
     private final Set<EndPointListener> _listeners;
     private final PathChildrenCache _pathCache;
     private final Metrics _metrics;
+    private final Counter _numListeners;
     private final Meter _numZooKeeperResets;
     private final Meter _numZooKeeperAdds;
     private final Meter _numZooKeeperRemoves;
@@ -98,13 +100,8 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
                 return _endPoints.size();
             }
         });
-        _metrics.newGauge(serviceName, "num-listeners", new Gauge<Integer>() {
-            @Override
-            public Integer value() {
-                return _listeners.size();
-            }
-        });
 
+        _numListeners = _metrics.newCounter(serviceName, "num-listeners");
         _numZooKeeperResets = _metrics.newMeter(serviceName, "num-zookeeper-resets", "resets", TimeUnit.MINUTES);
         _numZooKeeperAdds = _metrics.newMeter(serviceName, "num-zookeeper-adds", "adds", TimeUnit.MINUTES);
         _numZooKeeperRemoves = _metrics.newMeter(serviceName, "num-zookeeper-removes", "removes", TimeUnit.MINUTES);
@@ -124,11 +121,13 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
     @Override
     public void addListener(EndPointListener listener) {
         _listeners.add(listener);
+        _numListeners.inc();
     }
 
     @Override
     public void removeListener(EndPointListener listener) {
         _listeners.remove(listener);
+        _numListeners.dec();
     }
 
     @Override

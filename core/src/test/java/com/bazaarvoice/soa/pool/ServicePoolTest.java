@@ -727,8 +727,8 @@ public class ServicePoolTest {
     public void testIsHealthyHandlesExceptions() {
         when(_serviceFactory.isHealthy(FOO_ENDPOINT)).thenThrow(new RuntimeException());
 
-        // Even though an exception was thrown we shouldn't see it, instead false should be returned from isHealthy
-        assertFalse(_pool.isHealthy(FOO_ENDPOINT).isHealthy());
+        // Even though an exception was thrown we shouldn't see it, instead false should be returned from checkHealth
+        assertFalse(_pool.checkHealth(FOO_ENDPOINT).isHealthy());
     }
 
     @Test

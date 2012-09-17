@@ -64,10 +64,10 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final Future<?> _batchHealthChecksFuture;
     private final ServiceCache<S> _serviceCache;
     private final Metrics _metrics;
-    private final Timer _executionTime;
+    private final Timer _callbackExecutionTime;
     private final Timer _healthCheckTime;
     private final Meter _numExecuteSuccesses;
-    private final Meter _numExecuteFailures;
+    private final Meter _numExecuteAttemptFailures;
 
     ServicePool(Ticker ticker, HostDiscovery hostDiscovery,
                 ServiceFactory<S> serviceFactory, ServiceCachingPolicy cachingPolicy,
@@ -129,14 +129,16 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
 
         String serviceName = _serviceFactory.getServiceName();
         _metrics = new Metrics(getClass());
-        _executionTime = _metrics.newTimer(serviceName, "execution-time", TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+        _callbackExecutionTime = _metrics.newTimer(serviceName, "execution-time", TimeUnit.MILLISECONDS,
+                TimeUnit.SECONDS);
         _healthCheckTime = _metrics.newTimer(serviceName, "health-check-time", TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
         _numExecuteSuccesses = _metrics.newMeter(serviceName, "num-execute-successes", "successes", TimeUnit.SECONDS);
-        _numExecuteFailures = _metrics.newMeter(serviceName, "num-execute-failures", "failures", TimeUnit.SECONDS);
+        _numExecuteAttemptFailures = _metrics.newMeter(serviceName, "num-execute-attempt-failures", "failures",
+                TimeUnit.SECONDS);
         _metrics.newGauge(serviceName, "num-valid-end-points", new Gauge<Integer>() {
             @Override
             public Integer value() {
-                return Iterables.size(Iterables.filter(_hostDiscovery.getHosts(), _badEndPointFilter));
+                return Iterables.size(_hostDiscovery.getHosts()) - _badEndPoints.size();
             }
         });
         _metrics.newGauge(serviceName, "num-bad-end-points", new Gauge<Integer>() {
@@ -170,7 +172,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 _numExecuteSuccesses.mark();
                 return result;
             } catch (Exception e) {
-                _numExecuteFailures.mark();
+                _numExecuteAttemptFailures.mark();
 
                 // Don't retry if exception is too severe.
                 if (!isRetriableException(e)) {
@@ -231,7 +233,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         try {
             service = _serviceCache.checkOut(endPoint);
 
-            TimerContext timer = _executionTime.time();
+            TimerContext timer = _callbackExecutionTime.time();
             try {
                 return callback.call(service);
             } finally {
@@ -325,12 +327,12 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 endPoint = endPoints.iterator().next();
             }
 
-            HealthCheckResult result = isHealthy(endPoint);
+            HealthCheckResult result = checkHealth(endPoint);
             aggregate.addHealthCheckResult(result);
 
             if (!result.isHealthy()) {
                 Exception exception = ((FailedHealthCheckResult) result).getException();
-                if (isRetriableException(exception)) {
+                if (exception == null || isRetriableException(exception)) {
                     LOG.info("Unhealthy end point discovered. End point ID: {}", endPoint.getId());
                     endPoints.remove(endPoint);
                     markEndPointAsBad(endPoint);
@@ -378,7 +380,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     }
 
     @VisibleForTesting
-    HealthCheckResult isHealthy(ServiceEndPoint endPoint) {
+    HealthCheckResult checkHealth(ServiceEndPoint endPoint) {
         // We have to be very careful to not allow any exceptions to make it out of of this method, if they do then
         // subsequent scheduled invocations of the Runnable may not happen, and we could stop checking health checks
         // completely.  So we intentionally handle all possible exceptions here.
@@ -410,7 +412,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
 
         @Override
         public void run() {
-            HealthCheckResult result = isHealthy(_endPoint);
+            HealthCheckResult result = checkHealth(_endPoint);
             if (result.isHealthy()) {
                 _badEndPoints.remove(_endPoint);
             }
@@ -422,7 +424,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         @Override
         public void run() {
             for (ServiceEndPoint endPoint : _badEndPoints) {
-                HealthCheckResult result = isHealthy(endPoint);
+                HealthCheckResult result = checkHealth(endPoint);
                 if (result.isHealthy()) {
                     _badEndPoints.remove(endPoint);
                 }

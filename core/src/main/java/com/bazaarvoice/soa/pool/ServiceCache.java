@@ -8,6 +8,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.MapMaker;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
 import com.yammer.metrics.util.RatioGauge;
@@ -23,7 +24,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -52,10 +52,10 @@ class ServiceCache<S> implements Closeable {
     private volatile boolean _isClosed = false;
     private final Metrics _metrics;
     private final Timer _loadTimer;
-    private final AtomicInteger _requestCount = new AtomicInteger();
-    private final AtomicInteger _missCount = new AtomicInteger();
-    private final AtomicInteger _loadSuccessCount = new AtomicInteger();
-    private final AtomicInteger _loadFailureCount = new AtomicInteger();
+    private final Meter _requestCount;
+    private final Meter _missCount;
+    private final Meter _loadSuccessCount;
+    private final Meter _loadFailureCount;
 
     /**
      * Builds a basic service cache.
@@ -84,25 +84,30 @@ class ServiceCache<S> implements Closeable {
         _metrics = new Metrics(getClass());
         _loadTimer = _metrics.newTimer(serviceName, "load-time", TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
 
+        _requestCount = _metrics.newMeter(serviceName, "num-cache-requests", "requests", TimeUnit.SECONDS);
+        _missCount = _metrics.newMeter(serviceName, "num-cache-misses", "misses", TimeUnit.SECONDS);
+        _loadSuccessCount = _metrics.newMeter(serviceName, "num-loads", "loads", TimeUnit.SECONDS);
+        _loadFailureCount = _metrics.newMeter(serviceName, "num-load-failures", "load-failures", TimeUnit.SECONDS);
+
         _metrics.newGauge(serviceName, "cache-hit-ratio", new RatioGauge() {
-            @Override protected double getNumerator() { return _requestCount.intValue() - _missCount.intValue(); }
-            @Override protected double getDenominator() { return _requestCount.intValue(); }
+            @Override protected double getNumerator() { return _requestCount.count() - _missCount.count(); }
+            @Override protected double getDenominator() { return _requestCount.count(); }
         });
         _metrics.newGauge(serviceName, "cache-miss-ratio", new RatioGauge() {
-            @Override protected double getNumerator() { return _missCount.intValue(); }
-            @Override protected double getDenominator() { return _requestCount.intValue(); }
+            @Override protected double getNumerator() { return _missCount.count(); }
+            @Override protected double getDenominator() { return _requestCount.count(); }
         });
 
         _metrics.newGauge(serviceName, "load-success-ratio", new RatioGauge() {
-            @Override protected double getNumerator() { return _loadSuccessCount.intValue(); }
+            @Override protected double getNumerator() { return _loadSuccessCount.count(); }
             @Override protected double getDenominator() {
-                return _loadSuccessCount.intValue() + _loadFailureCount.intValue();
+                return _loadSuccessCount.count() + _loadFailureCount.count();
             }
         });
         _metrics.newGauge(serviceName, "load-failure-ratio", new RatioGauge() {
-            @Override protected double getNumerator() { return _loadFailureCount.intValue(); }
+            @Override protected double getNumerator() { return _loadFailureCount.count(); }
             @Override protected double getDenominator() {
-                return _loadSuccessCount.intValue() + _loadFailureCount.intValue();
+                return _loadSuccessCount.count() + _loadFailureCount.count();
             }
         });
 
@@ -169,7 +174,7 @@ class ServiceCache<S> implements Closeable {
      */
     public S checkOut(ServiceEndPoint endPoint) throws Exception {
         checkNotNull(endPoint);
-        _requestCount.incrementAndGet();
+        _requestCount.mark();
 
         try {
             S service = _pool.borrowObject(endPoint);
@@ -179,6 +184,8 @@ class ServiceCache<S> implements Closeable {
 
             return service;
         } catch (NoSuchElementException e) {
+            _missCount.mark();
+
             // This will happen if there are no available connections and there is no room for a new one,
             // or if a newly created connection is not valid.
             throw new NoCachedInstancesAvailableException();
@@ -247,15 +254,15 @@ class ServiceCache<S> implements Closeable {
 
         @Override
         public S makeObject(final ServiceEndPoint endPoint) throws Exception {
-            _missCount.incrementAndGet();
+            _missCount.mark();
 
             TimerContext timer = _loadTimer.time();
             try {
                 S service = _serviceFactory.create(endPoint);
-                _loadSuccessCount.incrementAndGet();
+                _loadSuccessCount.mark();
                 return service;
             } catch (Exception e) {
-                _loadFailureCount.incrementAndGet();
+                _loadFailureCount.mark();
                 throw e;
             } finally {
                 timer.stop();
