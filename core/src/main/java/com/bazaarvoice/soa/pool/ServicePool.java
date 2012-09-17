@@ -57,6 +57,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final ScheduledExecutorService _healthCheckExecutor;
     private final boolean _shutdownHealthCheckExecutorOnClose;
     private final LoadBalanceAlgorithm _loadBalanceAlgorithm;
+    private final ServicePoolStatistics _servicePoolStatistics;
     private final Set<ServiceEndPoint> _badEndPoints;
     private final Predicate<ServiceEndPoint> _badEndPointFilter;
     private final Set<ServiceEndPoint> _recentlyRemovedEndPoints;
@@ -70,7 +71,8 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
 
     ServicePool(Ticker ticker, HostDiscovery hostDiscovery,
                 ServiceFactory<S> serviceFactory, ServiceCachingPolicy cachingPolicy,
-                ScheduledExecutorService healthCheckExecutor, boolean shutdownHealthCheckExecutorOnClose) {
+                LoadBalanceAlgorithm loadBalanceAlgorithm, ScheduledExecutorService healthCheckExecutor,
+                boolean shutdownHealthCheckExecutorOnClose) {
         _ticker = checkNotNull(ticker);
         _hostDiscovery = checkNotNull(hostDiscovery);
         _serviceFactory = checkNotNull(serviceFactory);
@@ -85,7 +87,9 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 .asMap());
         checkNotNull(cachingPolicy);
         _serviceCache = new ServiceCache<S>(cachingPolicy, serviceFactory);
-        _loadBalanceAlgorithm = checkNotNull(_serviceFactory.getLoadBalanceAlgorithm(new ServicePoolStatistics() {
+        _loadBalanceAlgorithm = checkNotNull(loadBalanceAlgorithm);
+
+        _servicePoolStatistics = new ServicePoolStatistics() {
             @Override
             public int getNumIdleCachedInstances(ServiceEndPoint endPoint) {
                 return _serviceCache.getNumIdleInstances(endPoint);
@@ -95,7 +99,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
             public int getNumActiveInstances(ServiceEndPoint endPoint) {
                 return _serviceCache.getNumActiveInstances(endPoint);
             }
-        }));
+        };
 
         // Watch end points as they are removed from host discovery so that we can remove them from our set of bad
         // end points as well.  This will prevent the bad end points set from growing in an unbounded fashion.
@@ -209,7 +213,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     }
 
     private ServiceEndPoint chooseEndPoint(Iterable<ServiceEndPoint> endPoints) {
-        ServiceEndPoint endPoint = _loadBalanceAlgorithm.choose(endPoints);
+        ServiceEndPoint endPoint = _loadBalanceAlgorithm.choose(endPoints, _servicePoolStatistics);
         if (endPoint == null) {
             throw new NoSuitableHostsException();
         }
@@ -281,6 +285,16 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     @VisibleForTesting
     HostDiscovery getHostDiscovery() {
         return _hostDiscovery;
+    }
+
+    @VisibleForTesting
+    LoadBalanceAlgorithm getLoadBalanceAlgorithm() {
+        return _loadBalanceAlgorithm;
+    }
+
+    @VisibleForTesting
+    ServicePoolStatistics getServicePoolStatistics() {
+        return _servicePoolStatistics;
     }
 
     @VisibleForTesting
