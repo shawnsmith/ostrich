@@ -1,5 +1,6 @@
 package com.bazaarvoice.soa.partition;
 
+import com.bazaarvoice.soa.PartitionContext;
 import com.bazaarvoice.soa.PartitionContextBuilder;
 import com.bazaarvoice.soa.ServiceEndPoint;
 import com.google.common.collect.ImmutableList;
@@ -7,6 +8,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.UUID;
 
 import static java.util.Collections.singleton;
 import static org.junit.Assert.assertEquals;
@@ -38,7 +40,7 @@ public class ConsistentHashPartitionFilterTest {
     }
 
     @Test
-    public void testHash2Foo() {
+    public void testHashToFoo() {
         ConsistentHashPartitionFilter filter = new ConsistentHashPartitionFilter();
         List<ServiceEndPoint> endPoints = ImmutableList.of(FOO, BAR);
 
@@ -48,13 +50,24 @@ public class ConsistentHashPartitionFilterTest {
     }
 
     @Test
-    public void testHash2Bar() {
+    public void testHashToBar() {
         ConsistentHashPartitionFilter filter = new ConsistentHashPartitionFilter();
         List<ServiceEndPoint> endPoints = ImmutableList.of(FOO, BAR);
 
         // It just so happens that "c" hashes to the same place as "bar".  As long as the ConsistentHashEndPointFilter
         // implementation doesn't change in a backward-compatible way, this should be deterministic and testable.
         assertEquals(singleton(BAR), filter.filter(endPoints, PartitionContextBuilder.of("c")));
+    }
+
+    @Test
+    public void testConsistency() {
+        ConsistentHashPartitionFilter filter = new ConsistentHashPartitionFilter();
+        List<ServiceEndPoint> endPoints = ImmutableList.of(FOO, BAR);
+
+        // Generate a context to reuse and ensure consistency. What's in the context doesn't matter.
+        PartitionContext context = PartitionContextBuilder.of(UUID.randomUUID().toString());
+
+        assertEquals(filter.filter(endPoints, context), filter.filter(endPoints, context));
     }
 
     @Test

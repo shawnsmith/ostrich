@@ -29,8 +29,8 @@ class AnnotationPartitionContextSupplier implements PartitionContextSupplier {
      * <p>
      * At runtime the {@code Method} passed to the {@link #forCall(java.lang.reflect.Method, Object[])} method is
      * expected to belong to the interface class.  But the interface shouldn't have {@link PartitionKey} annotations
-     * since that's an implementation concern.  As a result, this constructor expects the annotations to be on the
-     * found on the implementation class.
+     * since that's an implementation concern.  As a result, this constructor expects the annotations to be found on the
+     * implementation class.
      */
     <S> AnnotationPartitionContextSupplier(Class<S> ifc, Class<? extends S> impl) {
         checkArgument(ifc.isAssignableFrom(impl));

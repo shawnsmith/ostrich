@@ -106,22 +106,27 @@ public class WordRangeTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testRangeOverlap1() {
+    public void testReverseRange() {
+        new WordRange("z-a");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testRangeOverlapSecondContained() {
         new WordRange("a-z,b-y");
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testRangeOverlap2() {
+    public void testRangeOverlapFirstContained() {
         new WordRange("b-y,a-z");
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testRangeOverlap3() {
+    public void testRangeOverlapEdgeHigh() {
         new WordRange("a-k,k-z");
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testRangeOverlap4() {
+    public void testRangeOverlapEdgeLow() {
         new WordRange("k-z,a-k");
     }
 }

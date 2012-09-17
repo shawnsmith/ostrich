@@ -10,7 +10,6 @@ import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -41,7 +40,7 @@ public class ConsistentHashPartitionFilter implements PartitionFilter {
      * ({@link com.bazaarvoice.soa.PartitionContext#get()}) to determine the partition.
      */
     public ConsistentHashPartitionFilter() {
-        this("");
+        this(Collections.<String>emptyList());
     }
 
     /**
@@ -64,7 +63,7 @@ public class ConsistentHashPartitionFilter implements PartitionFilter {
      * Constructs a {@code ConsistentHashPartitionFilter} that concatenates the partition context values for the
      * specified set of keys to determine the partition.
      */
-    public ConsistentHashPartitionFilter(List<String> partitionKeys, int entriesPerEndPoint) {
+    private ConsistentHashPartitionFilter(List<String> partitionKeys, int entriesPerEndPoint) {
         _partitionKeys = partitionKeys;
         _entriesPerEndPoint = entriesPerEndPoint;
     }
@@ -89,6 +88,14 @@ public class ConsistentHashPartitionFilter implements PartitionFilter {
         // the PartitionContext for the configured partition keys.
         Hasher hasher = Hashing.md5().newHasher();
         boolean empty = true;
+        if (_partitionKeys.isEmpty()) {
+            // Use the default context.
+            Object value = partitionContext.get();
+            if (value != null) {
+                hasher.putString(value.toString());
+                empty = false;
+            }
+        }
         for (String partitionKey : _partitionKeys) {
             Object value = partitionContext.get(partitionKey);
             if (value != null) {
@@ -143,9 +150,9 @@ public class ConsistentHashPartitionFilter implements PartitionFilter {
             Hasher hasher = Hashing.md5().newHasher();
             hasher.putInt(i);
             hasher.putString(endPointId);
-            IntBuffer buf = ByteBuffer.wrap(hasher.hash().asBytes()).asIntBuffer();
+            ByteBuffer buf = ByteBuffer.wrap(hasher.hash().asBytes());
             while (buf.hasRemaining() && list.size() < _entriesPerEndPoint) {
-                list.add(buf.get());
+                list.add(buf.getInt());
             }
         }
         return list;

@@ -6,7 +6,8 @@ import com.bazaarvoice.soa.LoadBalanceAlgorithm;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.loadbalance.RandomAlgorithm;
-import com.bazaarvoice.soa.partition.ConsistentHashPartitionFilter;
+import com.bazaarvoice.soa.partition.IdentityPartitionFilter;
+import com.bazaarvoice.soa.partition.PartitionFilter;
 import com.bazaarvoice.zookeeper.ZooKeeperConfiguration;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.google.common.io.Closeables;
@@ -34,6 +35,7 @@ public class ServicePoolBuilderTest {
     private HostDiscovery _hostDiscovery;
     private ScheduledExecutorService _healthCheckExecutor;
     private ExecutorService _asyncExecutor;
+    private PartitionFilter _partitionFilter;
 
     @SuppressWarnings("unchecked")
     @Before
@@ -47,6 +49,7 @@ public class ServicePoolBuilderTest {
         _hostDiscovery = mock(HostDiscovery.class);
         _healthCheckExecutor = mock(ScheduledExecutorService.class);
         _asyncExecutor = mock(ExecutorService.class);
+        _partitionFilter = mock(PartitionFilter.class);
     }
 
     @Test(expected = NullPointerException.class)
@@ -85,6 +88,7 @@ public class ServicePoolBuilderTest {
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHealthCheckExecutor(_healthCheckExecutor)
+                .withPartitionFilter(_partitionFilter)
                 .build();
     }
 
@@ -94,6 +98,7 @@ public class ServicePoolBuilderTest {
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
+                .withPartitionFilter(_partitionFilter)
                 .build();
     }
 
@@ -106,6 +111,7 @@ public class ServicePoolBuilderTest {
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
+                .withPartitionFilter(_partitionFilter)
                 .build();
     }
 
@@ -118,6 +124,7 @@ public class ServicePoolBuilderTest {
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
+                .withPartitionFilter(_partitionFilter)
                 .build();
     }
 
@@ -128,6 +135,7 @@ public class ServicePoolBuilderTest {
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
+                .withPartitionFilter(_partitionFilter)
                 .build();
     }
 
@@ -142,6 +150,7 @@ public class ServicePoolBuilderTest {
                     .withServiceFactory(_serviceFactory)
                     .withCachingPolicy(_cachingPolicy)
                     .withZooKeeperHostDiscovery(connection)
+                    .withPartitionFilter(_partitionFilter)
                     .build();
         } finally {
             Closeables.closeQuietly(connection);
@@ -161,6 +170,7 @@ public class ServicePoolBuilderTest {
                 .withHostDiscovery(_hostDiscovery)
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
+                .withPartitionFilter(_partitionFilter)
                 .buildInternal();
         assertSame(overrideDiscovery, pool.getHostDiscovery());
     }
@@ -175,6 +185,7 @@ public class ServicePoolBuilderTest {
                 .withHostDiscovery(_hostDiscovery)
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
+                .withPartitionFilter(_partitionFilter)
                 .buildInternal();
         assertSame(_hostDiscovery, pool.getHostDiscovery());
     }
@@ -185,6 +196,7 @@ public class ServicePoolBuilderTest {
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
+                .withPartitionFilter(_partitionFilter)
                 .build();
     }
 
@@ -195,6 +207,7 @@ public class ServicePoolBuilderTest {
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
+                .withPartitionFilter(_partitionFilter)
                 .build();
     }
 
@@ -204,6 +217,7 @@ public class ServicePoolBuilderTest {
                 .withServiceFactory(_serviceFactory)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
+                .withPartitionFilter(_partitionFilter)
                 .build();
     }
 
@@ -214,7 +228,7 @@ public class ServicePoolBuilderTest {
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .build();
-        assertTrue(service.getPartitionFilter() == null);
+        assertTrue(service.getPartitionFilter() instanceof IdentityPartitionFilter);
     }
 
     @Test
@@ -223,9 +237,9 @@ public class ServicePoolBuilderTest {
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
-                .withPartitionFilter(new ConsistentHashPartitionFilter())
+                .withPartitionFilter(_partitionFilter)
                 .build();
-        assertTrue(service.getPartitionFilter() instanceof ConsistentHashPartitionFilter);
+        assertSame(_partitionFilter, service.getPartitionFilter());
     }
 
     @Test
@@ -234,6 +248,7 @@ public class ServicePoolBuilderTest {
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
+                .withPartitionFilter(_partitionFilter)
                 .build();
         assertTrue(service.getLoadBalanceAlgorithm() instanceof RandomAlgorithm);
     }
@@ -246,6 +261,7 @@ public class ServicePoolBuilderTest {
                 .withCachingPolicy(_cachingPolicy)
                 .withLoadBalanceAlgorithm(loadBalanceAlgorithm)
                 .withHostDiscovery(_hostDiscovery)
+                .withPartitionFilter(_partitionFilter)
                 .build();
         assertEquals(loadBalanceAlgorithm, service.getLoadBalanceAlgorithm());
     }
@@ -258,6 +274,7 @@ public class ServicePoolBuilderTest {
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
                 .withAsyncExecutor(_asyncExecutor)
+                .withPartitionFilter(_partitionFilter)
                 .build();
 
         verifyZeroInteractions(_asyncExecutor);
@@ -270,6 +287,7 @@ public class ServicePoolBuilderTest {
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
+                .withPartitionFilter(_partitionFilter)
                 .buildAsync();
     }
 
@@ -281,6 +299,7 @@ public class ServicePoolBuilderTest {
                 .withHostDiscovery(_hostDiscovery)
                 .withHealthCheckExecutor(_healthCheckExecutor)
                 .withAsyncExecutor(_asyncExecutor)
+                .withPartitionFilter(_partitionFilter)
                 .buildAsync();
     }
 
@@ -290,8 +309,39 @@ public class ServicePoolBuilderTest {
                 .withServiceFactory(_serviceFactory)
                 .withCachingPolicy(_cachingPolicy)
                 .withHostDiscovery(_hostDiscovery)
+                .withPartitionFilter(_partitionFilter)
                 .buildProxy(mock(RetryPolicy.class));
         assertTrue(service instanceof Closeable);
+    }
+
+    @Test
+    public void testBuildProxyWithAnnotations() {
+        ServicePoolBuilder.create(Service.class)
+                .withServiceFactory(_serviceFactory)
+                .withCachingPolicy(_cachingPolicy)
+                .withHostDiscovery(_hostDiscovery)
+                .withPartitionContextAnnotations()
+                .buildProxy(mock(RetryPolicy.class));
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testBuildProxyWithAnnotationsFromNull() {
+        ServicePoolBuilder.create(Service.class)
+                .withServiceFactory(_serviceFactory)
+                .withCachingPolicy(_cachingPolicy)
+                .withHostDiscovery(_hostDiscovery)
+                .withPartitionContextAnnotationsFrom(null)
+                .buildProxy(mock(RetryPolicy.class));
+    }
+
+    @Test
+    public void testBuildProxyWithAnnotationsFrom() {
+        ServicePoolBuilder.create(Service.class)
+                .withServiceFactory(_serviceFactory)
+                .withCachingPolicy(_cachingPolicy)
+                .withHostDiscovery(_hostDiscovery)
+                .withPartitionContextAnnotationsFrom(ServiceChild.class)
+                .buildProxy(mock(RetryPolicy.class));
     }
 
     @Test
@@ -304,4 +354,6 @@ public class ServicePoolBuilderTest {
 
     // A dummy interface for testing...
     private static interface Service {}
+
+    private static class ServiceChild implements Service{}
 }

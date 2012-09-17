@@ -1,7 +1,6 @@
 package com.bazaarvoice.soa.pool;
 
 import com.bazaarvoice.soa.PartitionContext;
-import com.bazaarvoice.soa.PartitionContextBuilder;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceCallback;
 import com.bazaarvoice.soa.ServicePool;
@@ -21,29 +20,29 @@ class ServicePoolProxy<S> extends AbstractInvocationHandler {
     private final Class<S> _serviceType;
     private final RetryPolicy _retryPolicy;
     private final ServicePool<S> _servicePool;
-    private final PartitionContextSupplier _partitionContextFactory;
+    private final PartitionContextSupplier _partitionContextSupplier;
     private final boolean _shutdownPoolOnClose;
 
     static <S> S create(Class<S> serviceType, RetryPolicy retryPolicy, ServicePool<S> pool,
-                        PartitionContextSupplier partitionContextFactory, boolean shutdownPoolOnClose) {
+                        PartitionContextSupplier partitionContextSupplier, boolean shutdownPoolOnClose) {
         ClassLoader loader = Thread.currentThread().getContextClassLoader();
         Class<?>[] interfaces = shutdownPoolOnClose
                 ? new Class<?>[] {serviceType, Closeable.class}
                 : new Class<?>[] {serviceType};
 
         ServicePoolProxy<S> proxy = new ServicePoolProxy<S>(
-                serviceType, retryPolicy, pool, partitionContextFactory, shutdownPoolOnClose);
+                serviceType, retryPolicy, pool, partitionContextSupplier, shutdownPoolOnClose);
         return serviceType.cast(Proxy.newProxyInstance(loader, interfaces, proxy));
     }
 
     ServicePoolProxy(Class<S> serviceType, RetryPolicy retryPolicy, ServicePool<S> servicePool,
-                     PartitionContextSupplier partitionContextFactory, boolean shutdownPoolOnClose) {
+                     PartitionContextSupplier partitionContextSupplier, boolean shutdownPoolOnClose) {
         checkState(serviceType.isInterface(), "Proxy functionality is only available for interface service types.");
 
         _serviceType = checkNotNull(serviceType);
         _retryPolicy = checkNotNull(retryPolicy);
         _servicePool = checkNotNull(servicePool);
-        _partitionContextFactory = partitionContextFactory;
+        _partitionContextSupplier = checkNotNull(partitionContextSupplier);
         _shutdownPoolOnClose = shutdownPoolOnClose;
     }
 
@@ -62,9 +61,7 @@ class ServicePoolProxy<S> extends AbstractInvocationHandler {
             return null;
         }
 
-        PartitionContext partitionContext = _partitionContextFactory != null
-                ? _partitionContextFactory.forCall(method, args)
-                : PartitionContextBuilder.empty();
+        PartitionContext partitionContext = _partitionContextSupplier.forCall(method, args);
 
         // Delegate the method through to a service provider in the pool.
         return _servicePool.execute(partitionContext, _retryPolicy, new ServiceCallback<S, Object>() {

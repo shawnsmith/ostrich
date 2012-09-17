@@ -10,6 +10,7 @@ import java.util.NavigableMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 
 /**
@@ -35,6 +36,9 @@ public class WordRange implements Predicate<String> {
             String from = matcher.group(1).toLowerCase();
             String to = matcher.group(2).toLowerCase() + Character.MAX_VALUE;
 
+            // Make sure the low end of the range is less than the high end, unless the high end is open.
+            checkArgument(from.compareTo(to) <= 0 || to.isEmpty(), "Low end of range must be first: %s", range);
+
             // Check that the range don't overlap with each other (the apply fn below assumes ranges are disjoint)
             Map.Entry<String, String> existingRange = ranges.floorEntry(to);
             if (existingRange != null && existingRange.getValue().compareTo(from) >= 0) {
@@ -46,9 +50,8 @@ public class WordRange implements Predicate<String> {
 
             ranges.put(from, to);
         }
-        if (ranges.isEmpty()) {
-            throw new IllegalArgumentException(format("Empty word range: %s", rangeString));
-        }
+        checkArgument(!ranges.isEmpty(), "Empty word range: %s", rangeString);
+
         this.ranges = ranges;
     }
 

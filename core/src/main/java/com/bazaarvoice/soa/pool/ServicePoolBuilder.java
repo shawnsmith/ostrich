@@ -3,11 +3,11 @@ package com.bazaarvoice.soa.pool;
 import com.bazaarvoice.soa.HostDiscovery;
 import com.bazaarvoice.soa.HostDiscoverySource;
 import com.bazaarvoice.soa.LoadBalanceAlgorithm;
-import com.bazaarvoice.soa.PartitionContext;
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServiceFactory;
 import com.bazaarvoice.soa.discovery.ZooKeeperHostDiscovery;
 import com.bazaarvoice.soa.loadbalance.RandomAlgorithm;
+import com.bazaarvoice.soa.partition.IdentityPartitionFilter;
 import com.bazaarvoice.soa.partition.PartitionFilter;
 import com.bazaarvoice.soa.partition.PartitionKey;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
@@ -36,8 +36,8 @@ public class ServicePoolBuilder<S> {
     private String _serviceName;
     private ScheduledExecutorService _healthCheckExecutor;
     private ServiceCachingPolicy _cachingPolicy;
-    private PartitionFilter _partitionFilter;
-    private PartitionContextSupplier _partitionContextSupplier;
+    private PartitionFilter _partitionFilter = new IdentityPartitionFilter();
+    private PartitionContextSupplier _partitionContextSupplier = new EmptyPartitionContextSupplier();
     private LoadBalanceAlgorithm _loadBalanceAlgorithm = new RandomAlgorithm();
     private ExecutorService _asyncExecutor;
 
@@ -171,23 +171,41 @@ public class ServicePoolBuilder<S> {
      * @return  this
      */
     public ServicePoolBuilder<S> withPartitionFilter(PartitionFilter partitionFilter) {
-        _partitionFilter = partitionFilter;
+        _partitionFilter = checkNotNull(partitionFilter);
         return this;
     }
 
     /**
-     * Uses the specified partition filter on every service pool operation to narrow down the set of end points that
-     * may be used to service a particular request.  For dynamic proxy-based service pools, use the {@link PartitionKey}
-     * annotations on the specified annotated service class to determine how to construct the {@link PartitionContext}
-     * for each service call.
+     * Makes the built proxy generate partition context based on the {@link PartitionKey} annotation
+     * on method arguments in class {@code S}.
+     * <p>
+     * If {@code S} is not annotated, or annotated differently than desired, consider using
+     * {@link #withPartitionContextAnnotationsFrom(Class)} instead.
+     * <p>
+     * NOTE: This is only useful if building a proxy with {@link #buildProxy(com.bazaarvoice.soa.RetryPolicy)}.  If
+     * partition context is necessary with a normal service pool, then can be provided directly by calling
+     * {@link com.bazaarvoice.soa.ServicePool#execute(com.bazaarvoice.soa.PartitionContext,
+     * com.bazaarvoice.soa.RetryPolicy, com.bazaarvoice.soa.ServiceCallback)}.
      *
-     * @param partitionFilter The {@link PartitionFilter} to use
-     * @param annotatedServiceClass A service class with {@link PartitionKey} annotations.
-     * @return  this
+     * @return this
      */
-    public ServicePoolBuilder<S> withPartitionFilter(PartitionFilter partitionFilter,
-                                                     Class<? extends S> annotatedServiceClass) {
-        _partitionFilter = partitionFilter;
+    public ServicePoolBuilder<S> withPartitionContextAnnotations() {
+        return withPartitionContextAnnotationsFrom(_serviceType);
+    }
+
+    /**
+     * Uses {@link PartitionKey} annotations from the specified class to generate partition context in the built proxy.
+     * <p>
+     * NOTE: This is only useful if building a proxy with {@link #buildProxy(com.bazaarvoice.soa.RetryPolicy)}.  If
+     * partition context is necessary with a normal service pool, then can be provided directly by calling
+     * {@link com.bazaarvoice.soa.ServicePool#execute(com.bazaarvoice.soa.PartitionContext,
+     * com.bazaarvoice.soa.RetryPolicy, com.bazaarvoice.soa.ServiceCallback)}.
+     *
+     * @param annotatedServiceClass A service class with {@link PartitionKey} annotations.
+     * @return this
+     */
+    public ServicePoolBuilder<S> withPartitionContextAnnotationsFrom(Class<? extends S> annotatedServiceClass) {
+        checkNotNull(annotatedServiceClass);
         _partitionContextSupplier = new AnnotationPartitionContextSupplier(_serviceType, annotatedServiceClass);
         return this;
     }

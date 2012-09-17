@@ -79,7 +79,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 .asMap());
         checkNotNull(cachingPolicy);
         _serviceCache = new ServiceCache<S>(cachingPolicy, serviceFactory);
-        _partitionFilter = partitionFilter;
+        _partitionFilter = checkNotNull(partitionFilter);
         _loadBalanceAlgorithm = checkNotNull(loadBalanceAlgorithm);
 
         _servicePoolStatistics = new ServicePoolStatistics() {
@@ -187,11 +187,9 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     }
 
     private ServiceEndPoint chooseEndPoint(Iterable<ServiceEndPoint> endPoints, PartitionContext partitionContext) {
-        if (_partitionFilter != null) {
-            endPoints = _partitionFilter.filter(endPoints, partitionContext);
-            if (Iterables.isEmpty(endPoints)) {
-                throw new NoSuitableHostsException();
-            }
+        endPoints = _partitionFilter.filter(endPoints, partitionContext);
+        if (endPoints == null || Iterables.isEmpty(endPoints)) {
+            throw new NoSuitableHostsException();
         }
         ServiceEndPoint endPoint = _loadBalanceAlgorithm.choose(endPoints, _servicePoolStatistics);
         if (endPoint == null) {

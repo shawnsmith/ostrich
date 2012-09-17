@@ -43,7 +43,7 @@ public interface ServicePool<S> extends Closeable {
 
     /**
      * Execute a request synchronously against one of the remote services in this <code>ServicePool</code> using
-     * the specified partition information to choose the implementation of the server.
+     * the specified partition information to narrow down the suitable service end points.
      *
      * @param partitionContext The partition context.
      * @param retryPolicy The retry policy for the operation.

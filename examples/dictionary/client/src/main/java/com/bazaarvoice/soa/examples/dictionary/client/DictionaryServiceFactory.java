@@ -51,7 +51,9 @@ public class DictionaryServiceFactory implements ServiceFactory<DictionaryServic
 
     @Override
     public void configure(ServicePoolBuilder<DictionaryService> servicePoolBuilder) {
-        servicePoolBuilder.withPartitionFilter(new DictionaryPartitionFilter(), DictionaryClient.class);
+        // Set up partitioning on the builder.
+        servicePoolBuilder.withPartitionFilter(new DictionaryPartitionFilter())
+                .withPartitionContextAnnotationsFrom(DictionaryClient.class);
     }
 
     @Override

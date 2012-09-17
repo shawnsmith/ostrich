@@ -2,9 +2,7 @@ package com.bazaarvoice.soa;
 
 import com.google.common.collect.ImmutableMap;
 
-import java.util.AbstractMap;
 import java.util.Map;
-import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -63,33 +61,26 @@ public final class PartitionContextBuilder {
         return new Context(_map.build());
     }
 
-    private static class Context extends AbstractMap<String, Object> implements PartitionContext {
+    private static class Context implements PartitionContext {
         private final ImmutableMap<String, Object> _map;
 
         private Context(ImmutableMap<String, Object> map) {
             _map = checkNotNull(map);
         }
 
-        /**
-         * Returns the partition context value associated with the default key, the empty string.
-         */
+        @Override
         public Object get() {
-            return get("");
+            return _map.get("");
         }
 
         @Override
-        public boolean containsKey(Object key) {
-            return _map.containsKey(key);
-        }
-
-        @Override
-        public Object get(Object key) {
+        public Object get(String key) {
             return _map.get(key);
         }
 
         @Override
-        public Set<Entry<String, Object>> entrySet() {
-            return _map.entrySet();
+        public Map<String, Object> asMap() {
+            return _map;
         }
 
         @Override

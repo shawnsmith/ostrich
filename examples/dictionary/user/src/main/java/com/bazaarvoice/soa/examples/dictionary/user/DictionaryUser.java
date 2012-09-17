@@ -89,6 +89,8 @@ public class DictionaryUser {
                 .withMaxServiceInstanceIdleTime(5, TimeUnit.MINUTES)
                 .build();
 
+        // The service is partitioned, but partition filtering is configured by the ServiceFactory in this case
+        // when the builder calls its configure() method.
         DictionaryService service = ServicePoolBuilder.create(DictionaryService.class)
                 .withServiceFactory(new DictionaryServiceFactory(configuration.getHttpClientConfiguration()))
                 .withZooKeeperHostDiscovery(zooKeeper)

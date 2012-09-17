@@ -34,24 +34,36 @@ public class AnnotationPartitionContextSupplierTest {
                 new AnnotationPartitionContextSupplier(MyService.class, MyServiceImpl.class);
         PartitionContext partitionContext = contextSupplier.forCall(MyService.class.getMethod("noArgs"));
 
-        assertTrue(partitionContext.isEmpty());
+        assertTrue(partitionContext.asMap().isEmpty());
     }
 
     @Test
-    public void testSingleArg() throws Exception {
+    public void testUnnamedKey() throws Exception {
         PartitionContextSupplier contextSupplier =
                 new AnnotationPartitionContextSupplier(MyService.class, MyServiceImpl.class);
 
-        // Call oneArg(String)
-        assertEquals(ImmutableMap.of("", "a"),
-                contextSupplier.forCall(MyService.class.getMethod("oneArg", String.class), "a"));
+        // Call unnamed(String)
+        assertEquals(ImmutableMap.<String, Object>of("", "a"),
+                contextSupplier.forCall(MyService.class.getMethod("unnamed", String.class), "a").asMap());
+    }
 
-        // Call oneArg(int)
-        assertEquals(ImmutableMap.of("n", 5),
-                contextSupplier.forCall(MyService.class.getMethod("oneArg", int.class), 5));
+    @Test
+    public void testNamedKey() throws Exception {
+        PartitionContextSupplier contextSupplier =
+                new AnnotationPartitionContextSupplier(MyService.class, MyServiceImpl.class);
 
-        // Call oneArg(boolean)
-        assertTrue(contextSupplier.forCall(MyService.class.getMethod("oneArg", boolean.class), false).isEmpty());
+        // Call unnamed(int)
+        assertEquals(ImmutableMap.<String, Object>of("n", 5),
+                contextSupplier.forCall(MyService.class.getMethod("named", int.class), 5).asMap());
+    }
+
+    @Test
+    public void testNoKeys() throws Exception {
+        PartitionContextSupplier contextSupplier =
+                new AnnotationPartitionContextSupplier(MyService.class, MyServiceImpl.class);
+
+        // Call unnamed(boolean)
+        assertTrue(contextSupplier.forCall(MyService.class.getMethod("noKey", boolean.class), false).asMap().isEmpty());
     }
 
     @Test
@@ -59,8 +71,9 @@ public class AnnotationPartitionContextSupplierTest {
         PartitionContextSupplier contextSupplier =
                 new AnnotationPartitionContextSupplier(MyService.class, MyServiceImpl.class);
 
-        assertEquals(ImmutableMap.of("", "a"),
-                contextSupplier.forCall(MyService.class.getMethod("twoArg", int.class, String.class), 1, "a"));
+        assertEquals(ImmutableMap.<String, Object>of("", "a"),
+                contextSupplier.forCall(MyService.class.getMethod("twoArgsOneKey", int.class, String.class), 1, "a")
+        .asMap());
     }
 
     /**
@@ -72,8 +85,8 @@ public class AnnotationPartitionContextSupplierTest {
                 new AnnotationPartitionContextSupplier(MyService.class, MyServiceImpl.class);
 
         assertEquals(ImmutableMap.<String, Object>of("", "one", "b", "two", "c", "three"), contextSupplier.forCall(
-                MyService.class.getMethod("threeArg", String.class, String.class, String.class),
-                "one", "two", "three"));
+                MyService.class.getMethod("threeKey", String.class, String.class, String.class),
+                "one", "two", "three").asMap());
     }
 
     /**
@@ -87,16 +100,16 @@ public class AnnotationPartitionContextSupplierTest {
                 MyService.class.getMethod("covariant", String.class),
                 "value");
 
-        assertEquals(ImmutableMap.of("", "value"), partitionContext);
+        assertEquals(ImmutableMap.<String, Object>of("", "value"), partitionContext.asMap());
     }
 
     private static interface MyService {
         void noArgs();
-        void oneArg(String string);
-        void oneArg(int num);
-        void oneArg(boolean flag);
-        void twoArg(int num, String string);
-        void threeArg(String a1, String a2, String a3);
+        void unnamed(String string);
+        void named(int num);
+        void noKey(boolean flag);
+        void twoArgsOneKey(int num, String string);
+        void threeKey(String a1, String a2, String a3);
         List covariant(String string);
     }
 
@@ -104,21 +117,21 @@ public class AnnotationPartitionContextSupplierTest {
         @Override
         public void noArgs() {}
         @Override
-        public void oneArg(@PartitionKey String string) {}
+        public void unnamed(@PartitionKey String string) {}
         @Override
-        public void oneArg(@PartitionKey("n") int num) {}
+        public void named(@PartitionKey ("n") int num) {}
         @Override
-        public void oneArg(boolean flag) {}
+        public void noKey(boolean flag) {}
         @Override
-        public void twoArg(int num, @PartitionKey String string) {}
+        public void twoArgsOneKey(int num, @PartitionKey String string) {}
         @Override
-        public void threeArg(@PartitionKey String x, @PartitionKey("b") String y, @PartitionKey("c") String z) {}
+        public void threeKey(@PartitionKey String x, @PartitionKey ("b") String y, @PartitionKey ("c") String z) {}
         @Override
         public ArrayList covariant(@PartitionKey String string) {return null;}
     }
 
     private static class MyServiceDup extends MyServiceImpl {
         @Override
-        public void twoArg(@PartitionKey int num, @PartitionKey String string) {}
+        public void twoArgsOneKey(@PartitionKey int num, @PartitionKey String string) {}
     }
 }
