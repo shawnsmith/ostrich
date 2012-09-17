@@ -53,8 +53,21 @@ public class AnnotationPartitionContextSupplierTest {
                 new AnnotationPartitionContextSupplier(MyService.class, MyServiceImpl.class);
 
         // Call unnamed(int)
-        assertEquals(ImmutableMap.<String, Object>of("n", 5),
-                contextSupplier.forCall(MyService.class.getMethod("named", int.class), 5).asMap());
+        assertEquals(ImmutableMap.<String, Object>of("n", "named"),
+                contextSupplier.forCall(MyService.class.getMethod("named", String.class), "named").asMap());
+    }
+
+    @Test
+    public void testOverloadedMethod() throws Exception {
+        PartitionContextSupplier contextSupplier =
+                new AnnotationPartitionContextSupplier(MyService.class, MyServiceImpl.class);
+
+        // Call overloaded(String)
+        assertEquals(ImmutableMap.<String, Object>of("string", "data"),
+                contextSupplier.forCall(MyService.class.getMethod("overloaded", String.class), "data").asMap());
+        // Call overloaded(int)
+        assertEquals(ImmutableMap.<String, Object>of("int", 5),
+                contextSupplier.forCall(MyService.class.getMethod("overloaded", int.class), 5).asMap());
     }
 
     @Test
@@ -106,7 +119,9 @@ public class AnnotationPartitionContextSupplierTest {
     private static interface MyService {
         void noArgs();
         void unnamed(String string);
-        void named(int num);
+        void named(String string);
+        void overloaded(int num);
+        void overloaded(String string);
         void noKey(boolean flag);
         void twoArgsOneKey(int num, String string);
         void threeKey(String a1, String a2, String a3);
@@ -119,7 +134,11 @@ public class AnnotationPartitionContextSupplierTest {
         @Override
         public void unnamed(@PartitionKey String string) {}
         @Override
-        public void named(@PartitionKey ("n") int num) {}
+        public void named(@PartitionKey ("n") String string) {}
+        @Override
+        public void overloaded(@PartitionKey ("string") String string) {}
+        @Override
+        public void overloaded(@PartitionKey ("int") int num) {}
         @Override
         public void noKey(boolean flag) {}
         @Override

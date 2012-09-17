@@ -104,7 +104,7 @@ In some cases it may be more convenient to have an object that actually implemen
 `ServicePool`. In this case, you can build a dynamic proxy that will implement the requested interface, but pass all
 calls through to service end points in the pool. In this case retry policy will have to be specified at build time.
 
-```
+```java
 CalculatorService service = ServicePoolBuilder.create(CalculatorService.class)
                 .withZooKeeperHostDiscovery(zooKeeper)
                 .withServiceFactory(new CalculatorServiceFactory())
