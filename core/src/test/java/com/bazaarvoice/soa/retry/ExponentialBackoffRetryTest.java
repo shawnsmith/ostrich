@@ -1,6 +1,7 @@
 package com.bazaarvoice.soa.retry;
 
 import com.bazaarvoice.soa.RetryPolicy;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
@@ -52,41 +53,64 @@ public class ExponentialBackoffRetryTest {
     @Test
     public void testBaseSleepTimeUnits() {
         SleepingRetry retry = new ExponentialBackoffRetry(10, 20, 1000, TimeUnit.SECONDS);
-        long sleepTimeMs = retry.getSleepTimeMs(1, 0);
 
-        assertTrue(sleepTimeMs == 20000 || sleepTimeMs == 40000);
+        long sleepTimeMs = retry.getSleepTimeMs(1, 0);
+        assertBetween(20000, sleepTimeMs, 40000);
     }
 
     @Test
     public void testMaxSleepTimeUnits() {
         SleepingRetry retry = new ExponentialBackoffRetry(10, 50, 20, TimeUnit.SECONDS);
-        long sleepTimeMs = retry.getSleepTimeMs(1, 0);
 
-        assertTrue(sleepTimeMs == 20000);
+        long sleepTimeMs = retry.getSleepTimeMs(1, 0);
+        assertBetween(10000, sleepTimeMs, 20000);
     }
 
     @Test
     public void testFirstRetrySleepTime() {
         SleepingRetry retry = new ExponentialBackoffRetry(10, 20, 1000, TimeUnit.MILLISECONDS);
-        long sleepTimeMs = retry.getSleepTimeMs(1, 0);
 
-        assertTrue(sleepTimeMs == 20 || sleepTimeMs == 40);
+        long sleepTimeMs = retry.getSleepTimeMs(1, 0);
+        assertBetween(20, sleepTimeMs, 40);
     }
 
     @Test
     public void testSecondRetrySleepTime() {
         SleepingRetry retry = new ExponentialBackoffRetry(10, 20, 1000, TimeUnit.MILLISECONDS);
-        long sleepTimeMs = retry.getSleepTimeMs(2, 0);
 
-        assertTrue(sleepTimeMs == 20 || sleepTimeMs == 40 || sleepTimeMs == 60 || sleepTimeMs == 80);
+        long sleepTimeMs = retry.getSleepTimeMs(2, 0);
+        assertBetween(40, sleepTimeMs, 80);
+    }
+
+    @Test
+    public void testRetryBaseMoreThanMaxSleepTime() {
+        SleepingRetry retry = new ExponentialBackoffRetry(10, 60, 50, TimeUnit.MILLISECONDS);
+
+        long sleepTimeMs = retry.getSleepTimeMs(1, 0);
+        Assert.assertEquals(50, sleepTimeMs);
+    }
+
+    @Test
+    public void testMinRetrySleepTime() {
+        SleepingRetry retry = new ExponentialBackoffRetry(10, 10, 50, TimeUnit.MILLISECONDS);
+        for (int i = 1; i <= 10; i++) {
+            long sleepTimeMs = retry.getSleepTimeMs(i, 0);
+            assertTrue(sleepTimeMs >= Math.min(10 * (1 << (i - 1)), 25));
+        }
     }
 
     @Test
     public void testMaxRetrySleepTime() {
-        SleepingRetry retry = new ExponentialBackoffRetry(10, 20, 50, TimeUnit.MILLISECONDS);
-        for (int i = 0; i < 10; i++) {
-            long sleepTimeMs = retry.getSleepTimeMs(4, 0);
+        SleepingRetry retry = new ExponentialBackoffRetry(10, 10, 50, TimeUnit.MILLISECONDS);
+        for (int i = 1; i <= 10; i++) {
+            long sleepTimeMs = retry.getSleepTimeMs(i, 0);
             assertTrue(sleepTimeMs <= 50);
         }
+    }
+
+    /** Asserts expectedLowerBound <= actual <= expectedUpperBound. */
+    private void assertBetween(long expectedLowerBound, long actual, long expectedUpperBound) {
+        assertTrue("Expected: " + expectedLowerBound + " <= " + actual, expectedLowerBound <= actual);
+        assertTrue("Expected: " + expectedUpperBound + " >= " + actual, expectedUpperBound >= actual);
     }
 }
