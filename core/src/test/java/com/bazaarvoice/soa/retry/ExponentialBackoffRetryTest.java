@@ -55,7 +55,7 @@ public class ExponentialBackoffRetryTest {
         SleepingRetry retry = new ExponentialBackoffRetry(10, 20, 1000, TimeUnit.SECONDS);
 
         long sleepTimeMs = retry.getSleepTimeMs(1, 0);
-        assertBetween(20000, sleepTimeMs, 40000);
+        assertBetween(TimeUnit.SECONDS.toMillis(20), sleepTimeMs, TimeUnit.SECONDS.toMillis(40));
     }
 
     @Test
@@ -63,7 +63,7 @@ public class ExponentialBackoffRetryTest {
         SleepingRetry retry = new ExponentialBackoffRetry(10, 50, 20, TimeUnit.SECONDS);
 
         long sleepTimeMs = retry.getSleepTimeMs(1, 0);
-        assertBetween(10000, sleepTimeMs, 20000);
+        assertBetween(TimeUnit.SECONDS.toMillis(10), sleepTimeMs, TimeUnit.SECONDS.toMillis(20));
     }
 
     @Test

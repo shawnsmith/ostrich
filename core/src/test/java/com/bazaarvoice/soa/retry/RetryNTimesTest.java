@@ -29,9 +29,9 @@ public class RetryNTimesTest {
     }
 
     @Test
-    public void testPositiveSleepUnit() {
+    public void testPositiveSleepUnits() {
         RetryNTimes retry = new RetryNTimes(1, 123, TimeUnit.SECONDS);
-        assertEquals(123000, retry.getSleepTimeMs(1, 0));
+        assertEquals(TimeUnit.SECONDS.toMillis(123), retry.getSleepTimeMs(1, 0));
     }
 
     @Test(expected = IllegalArgumentException.class)
