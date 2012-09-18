@@ -9,7 +9,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * A retry policy that permits a fixed number of attempts at executing an operation.  After each attempt the
  * application will delay for a bounded exponentially increasing time period before trying again.  The actual delay
- * interval is randomized to avoid the "thundering herd" affect when there are many clients all attempting to retry
+ * interval is randomized to avoid the "thundering herd" effect when there are many clients all attempting to retry
  * at the same time.
  */
 public class ExponentialBackoffRetry extends SleepingRetry {
@@ -18,7 +18,7 @@ public class ExponentialBackoffRetry extends SleepingRetry {
     private final long _maxSleepTimeMs;
 
     /**
-     * Attempt the operation at most {@code maxNumAttempts} times, sleeping an bounded exponentially increase time
+     * Attempt the operation at most {@code maxNumAttempts} times, sleeping a bounded exponentially increasing time
      * duration after each failed attempt.
      * @param maxNumAttempts The maximum number of attempts.  This is equal one plus the maximum number of retries.
      *                       This should be greater than zero.  For backward compatibility zero is accepted, but one
