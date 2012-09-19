@@ -8,7 +8,6 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Meter;
-import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.Timer;
@@ -49,14 +48,14 @@ public class Metrics implements Closeable {
         return new Metrics(DEFAULT_METRICS_REGISTRY, owner);
     }
 
-    public static Metrics forInstancedClass(Class<?> owner, String instanceScope) {
-        Metrics metrics = forClass(owner);
-        metrics.instanceGauge(instanceScope);
+    public static Metrics forInstance(Object instance, String instanceScope) {
+        checkNotNull(instance);
+        Metrics metrics = forClass(instance.getClass());
+        metrics.addInstance(instance, instanceScope);
         return metrics;
     }
 
-    @VisibleForTesting
-    Metrics(MetricsRegistry registry, Class<?> owner) {
+    private Metrics(MetricsRegistry registry, Class<?> owner) {
         checkNotNull(owner);
         checkNotNull(registry);
 
@@ -74,19 +73,6 @@ public class Metrics implements Closeable {
                 _registry.removeMetric(metricName);
             }
         }
-    }
-
-    private boolean checkForRemoval(Metric metric) {
-        if (metric instanceof InstanceGauge) {
-            InstanceGauge instanceGauge = (InstanceGauge) metric;
-            // Remove any instances we registered from the InstanceGauge.
-            for (Reference<?> reference : _instanceReferences) {
-                instanceGauge.remove(reference);
-            }
-            // Don't clean up an instance gauge if there are still active instances.
-            return instanceGauge.value() == 0;
-        }
-        return true;
     }
 
     /** @see MetricsRegistry#newGauge(MetricName, Gauge) */
@@ -120,9 +106,10 @@ public class Metrics implements Closeable {
     }
 
     @VisibleForTesting
-    InstanceGauge instanceGauge(String scope) {
+    InstanceGauge addInstance(Object instance, String scope) {
+        // Use an existing instance gauge if there is one registered already.
         _instanceGauge = (InstanceGauge) _registry.newGauge(newRegisteredName(scope, "num-instances"), _instanceGauge);
-        _instanceReferences.add(_instanceGauge.add(this));
+        _instanceReferences.add(_instanceGauge.add(instance));
         _instanceScope = scope;
         return _instanceGauge;
     }

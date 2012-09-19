@@ -52,7 +52,7 @@ class AsyncServicePool<S> implements com.bazaarvoice.soa.AsyncServicePool<S> {
         _shutdownExecutorOnClose = shutdownExecutorOnClose;
 
         String serviceName = _pool.getServiceName();
-        _metrics = Metrics.forInstancedClass(getClass(), serviceName);
+        _metrics = Metrics.forInstance(this, serviceName);
         _executionTime = _metrics.newTimer(serviceName, "execution-time", TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
         _numExecuteSuccesses = _metrics.newMeter(serviceName, "num-execute-successes", "successes", TimeUnit.SECONDS);
         _numExecuteFailures = _metrics.newMeter(serviceName, "num-execute-failures", "failures", TimeUnit.SECONDS);

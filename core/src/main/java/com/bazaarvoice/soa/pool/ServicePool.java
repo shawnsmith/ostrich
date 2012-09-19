@@ -133,7 +133,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
                 HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS, HEALTH_CHECK_POLL_INTERVAL_IN_SECONDS, TimeUnit.SECONDS);
 
         String serviceName = _serviceFactory.getServiceName();
-        _metrics = Metrics.forInstancedClass(getClass(), serviceName);
+        _metrics = Metrics.forInstance(this, serviceName);
         _callbackExecutionTime = _metrics.newTimer(serviceName, "callback-execution-time", TimeUnit.MILLISECONDS,
                 TimeUnit.SECONDS);
         _healthCheckTime = _metrics.newTimer(serviceName, "health-check-time", TimeUnit.MILLISECONDS, TimeUnit.SECONDS);

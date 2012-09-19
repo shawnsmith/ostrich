@@ -80,7 +80,7 @@ class ServiceCache<S> implements Closeable {
         checkNotNull(executor);
 
         String serviceName = serviceFactory.getServiceName();
-        _metrics = Metrics.forInstancedClass(getClass(), serviceName);
+        _metrics = Metrics.forInstance(this, serviceName);
         _loadTimer = _metrics.newTimer(serviceName, "load-time", TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
 
         _metrics.newGauge(serviceName, "cache-hit-ratio", new RatioGauge() {

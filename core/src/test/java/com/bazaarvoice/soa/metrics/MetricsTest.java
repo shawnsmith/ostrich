@@ -6,6 +6,7 @@ import com.yammer.metrics.core.MetricName;
 import org.junit.After;
 import org.junit.Test;
 
+import java.lang.ref.WeakReference;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -13,11 +14,15 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
 public class MetricsTest {
-    private final Metrics _metrics = Metrics.forClass(getClass());
+    private static final Service INSTANCE_ONE = new Service();
+    private static final Service INSTANCE_TWO = new Service();
+
+    private final Metrics _metrics = Metrics.forClass(Service.class);
 
     @After
     public void teardown() {
@@ -30,18 +35,27 @@ public class MetricsTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void testNullDomainScoped() {
-        Metrics.forInstancedClass(null, "scope");
+    public void testInstanceNullInstance() {
+        Metrics.forInstance(null, "scope");
     }
 
     @Test(expected = NullPointerException.class)
-    public void testNullInstanceScope() {
-        Metrics.forInstancedClass(getClass(), null);
+    public void testInstanceNullScope() {
+        Metrics.forInstance(this, null);
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testEmptyInstanceScope() {
-        Metrics.forInstancedClass(getClass(), "");
+    public void testInstanceEmptyScope() {
+        Metrics.forInstance(this, "");
+    }
+
+    @Test
+    public void testInstanceInfersDomain() {
+        Metrics metrics = Metrics.forInstance(this, "scope");
+
+        assertEquals(new MetricName(getClass(), "name", "scope"), metrics.newName("scope", "name"));
+
+        metrics.close();
     }
 
     @Test
@@ -224,28 +238,31 @@ public class MetricsTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void testInstanceGaugeNullScope() {
-        _metrics.instanceGauge(null);
+    public void testAddInstanceNullScope() {
+        _metrics.addInstance(this, null);
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testInstanceGaugeEmptyScope() {
-        _metrics.instanceGauge("");
+    public void testAddInstanceEmptyScope() {
+        _metrics.addInstance(this, "");
     }
 
     @Test
-    public void testInstanceGaugeAddsInstance() {
-        assertEquals(1, _metrics.instanceGauge("scope").value().intValue());
+    public void testAddInstance() {
+        assertEquals(1, _metrics.addInstance(this, "scope").value().intValue());
     }
 
     @Test
     public void testInstanceGaugeReused() {
-        Metrics instancedMetrics = Metrics.forInstancedClass(getClass(), "scope");
-        Gauge<Integer> gauge = _metrics.instanceGauge("scope");
-
+        //Metrics instancedMetrics = Metrics.forInstance(INSTANCE_ONE, "scope");
+        Metrics metrics = Metrics.forClass(Service.class);
+        Gauge<Integer> gauge1 = metrics.addInstance(INSTANCE_ONE, "scope");
+        Gauge<Integer> gauge = _metrics.addInstance(INSTANCE_TWO, "scope");
+        assertSame(gauge, gauge1);
         assertEquals(2, gauge.value().intValue());
 
-        instancedMetrics.close();
+        //instancedMetrics.close();
+        metrics.close();
     }
 
     @Test
@@ -259,7 +276,7 @@ public class MetricsTest {
 
     @Test
     public void testCloseUnregistersInstanceGauge() {
-        Metrics metrics = Metrics.forInstancedClass(getClass(), "scope");
+        Metrics metrics = Metrics.forInstance(this, "scope");
 
         metrics.close();
         assertNotRegistered("scope", "num-instances");
@@ -267,8 +284,8 @@ public class MetricsTest {
 
     @Test
     public void testCloseKeepsActiveInstanceGauge() {
-        Metrics metrics = Metrics.forInstancedClass(getClass(), "scope");
-        Metrics moreMetrics = Metrics.forInstancedClass(getClass(), "scope");
+        Metrics metrics = Metrics.forInstance(INSTANCE_ONE, "scope");
+        Metrics moreMetrics = Metrics.forInstance(INSTANCE_TWO, "scope");
 
         metrics.close();
         assertRegistered("scope", "num-instances");
@@ -276,8 +293,9 @@ public class MetricsTest {
         moreMetrics.close();
     }
 
-    @Test public void testCloseDecreasesInstanceCount() {
-        Gauge<Integer> gauge = _metrics.instanceGauge("scope");
+    @Test
+    public void testCloseDecreasesInstanceCount() {
+        Gauge<Integer> gauge = _metrics.addInstance(this, "scope");
 
         _metrics.close();
         assertEquals(0, gauge.value().intValue());
@@ -285,8 +303,8 @@ public class MetricsTest {
 
     @Test
     public void testCloseKeepsWhenActiveInstancesExist() {
-        Metrics metrics = Metrics.forInstancedClass(getClass(), "scope");
-        Metrics moreMetrics = Metrics.forInstancedClass(getClass(), "scope");
+        Metrics metrics = Metrics.forInstance(INSTANCE_ONE, "scope");
+        Metrics moreMetrics = Metrics.forInstance(INSTANCE_TWO, "scope");
 
         metrics.newCounter("scope", "name");
         moreMetrics.newCounter("scope", "name");
@@ -299,8 +317,8 @@ public class MetricsTest {
 
     @Test
     public void testCloseUnregistersDifferentScopeWhenActiveInstancesExist() {
-        Metrics metrics = Metrics.forInstancedClass(getClass(), "scope");
-        Metrics moreMetrics = Metrics.forInstancedClass(getClass(), "scope");
+        Metrics metrics = Metrics.forInstance(INSTANCE_ONE, "scope");
+        Metrics moreMetrics = Metrics.forInstance(INSTANCE_TWO, "scope");
 
         metrics.newCounter("different", "name");
 
@@ -312,8 +330,8 @@ public class MetricsTest {
 
     @Test
     public void testCloseUnregistersWhenLastActiveInstance() {
-        Metrics metrics = Metrics.forInstancedClass(getClass(), "scope");
-        Metrics moreMetrics = Metrics.forInstancedClass(getClass(), "scope");
+        Metrics metrics = Metrics.forInstance(INSTANCE_ONE, "scope");
+        Metrics moreMetrics = Metrics.forInstance(INSTANCE_TWO, "scope");
 
         metrics.newCounter("scope", "name");
         moreMetrics.newCounter("scope", "name");
@@ -352,4 +370,7 @@ public class MetricsTest {
     private static <T> void assertNotEquals(T a, T b) {
         assertThat(a, not(equalTo(b)));
     }
+
+    // Dummy class for testing.
+    private static class Service {}
 }
