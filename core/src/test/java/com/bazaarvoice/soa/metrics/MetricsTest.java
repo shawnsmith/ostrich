@@ -254,15 +254,12 @@ public class MetricsTest {
 
     @Test
     public void testInstanceGaugeReused() {
-        //Metrics instancedMetrics = Metrics.forInstance(INSTANCE_ONE, "scope");
-        Metrics metrics = Metrics.forClass(Service.class);
-        Gauge<Integer> gauge1 = metrics.addInstance(INSTANCE_ONE, "scope");
+        Metrics instancedMetrics = Metrics.forInstance(INSTANCE_ONE, "scope");
         Gauge<Integer> gauge = _metrics.addInstance(INSTANCE_TWO, "scope");
-        assertSame(gauge, gauge1);
+
         assertEquals(2, gauge.value().intValue());
 
-        //instancedMetrics.close();
-        metrics.close();
+        instancedMetrics.close();
     }
 
     @Test
