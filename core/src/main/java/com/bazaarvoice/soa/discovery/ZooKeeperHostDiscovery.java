@@ -93,7 +93,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
             throw Throwables.propagate(t);
         }
 
-        _metrics = new Metrics(getClass());
+        _metrics = Metrics.forInstancedClass(getClass(), serviceName);
         _metrics.newGauge(serviceName, "num-end-points", new Gauge<Integer>() {
             @Override
             public Integer value() {

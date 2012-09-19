@@ -3,15 +3,19 @@ package com.bazaarvoice.soa.metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Meter;
+import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.Timer;
 
 import java.io.Closeable;
+import java.lang.ref.Reference;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -28,6 +32,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class Metrics implements Closeable {
     private static MetricsRegistry DEFAULT_METRICS_REGISTRY = com.yammer.metrics.Metrics.defaultRegistry();
 
+    private InstanceGauge _instanceGauge = new InstanceGauge();
+    private String _instanceScope = null;
+    private final List<Reference<?>> _instanceReferences = Lists.newLinkedList();
+    private final List<MetricName> _registeredMetrics = Lists.newLinkedList();
+
     /** Set the metrics registry that should be used by the SOA library for creating and registering metrics. */
     public static void setMetricsRegistry(MetricsRegistry registry) {
         DEFAULT_METRICS_REGISTRY = checkNotNull(registry);
@@ -36,8 +45,14 @@ public class Metrics implements Closeable {
     private final MetricsRegistry _registry;
     private final Class<?> _domain;
 
-    public Metrics(Class<?> owner) {
-        this(DEFAULT_METRICS_REGISTRY, owner);
+    public static Metrics forClass(Class<?> owner) {
+        return new Metrics(DEFAULT_METRICS_REGISTRY, owner);
+    }
+
+    public static Metrics forInstancedClass(Class<?> owner, String instanceScope) {
+        Metrics metrics = forClass(owner);
+        metrics.instanceGauge(instanceScope);
+        return metrics;
     }
 
     @VisibleForTesting
@@ -50,53 +65,66 @@ public class Metrics implements Closeable {
     }
 
     public void close() {
-        MetricName template = newName("", "");
-        for (MetricName name : _registry.allMetrics().keySet()) {
-            if (Objects.equal(name.getGroup(), template.getGroup()) &&
-                    Objects.equal(name.getType(), template.getType())) {
-                _registry.removeMetric(name);
+        for (Reference<?> reference : _instanceReferences) {
+            _instanceGauge.remove(reference);
+        }
+        for (MetricName metricName : _registeredMetrics) {
+            // Don't unregister if we have other instances with the same scope.
+            if (_instanceGauge.value() == 0 || !Objects.equal(_instanceScope, metricName.getScope())) {
+                _registry.removeMetric(metricName);
             }
         }
     }
 
+    private boolean checkForRemoval(Metric metric) {
+        if (metric instanceof InstanceGauge) {
+            InstanceGauge instanceGauge = (InstanceGauge) metric;
+            // Remove any instances we registered from the InstanceGauge.
+            for (Reference<?> reference : _instanceReferences) {
+                instanceGauge.remove(reference);
+            }
+            // Don't clean up an instance gauge if there are still active instances.
+            return instanceGauge.value() == 0;
+        }
+        return true;
+    }
+
     /** @see MetricsRegistry#newGauge(MetricName, Gauge) */
     public <T> Gauge<T> newGauge(String scope, String name, Gauge<T> metric) {
-        checkNotNullOrEmpty(scope);
-        checkNotNullOrEmpty(name);
         checkNotNull(metric);
-        return _registry.newGauge(newName(scope, name), metric);
+        return _registry.newGauge(newRegisteredName(scope, name), metric);
     }
 
     /** @see MetricsRegistry#newCounter(com.yammer.metrics.core.MetricName) */
     public Counter newCounter(String scope, String name) {
-        checkNotNullOrEmpty(scope);
-        checkNotNullOrEmpty(name);
-        return _registry.newCounter(newName(scope, name));
+        return _registry.newCounter(newRegisteredName(scope, name));
     }
 
     /** @see MetricsRegistry#newHistogram(MetricName, boolean) */
     public Histogram newHistogram(String scope, String name, boolean biased) {
-        checkNotNullOrEmpty(scope);
-        checkNotNullOrEmpty(name);
-        return _registry.newHistogram(newName(scope, name), biased);
+        return _registry.newHistogram(newRegisteredName(scope, name), biased);
     }
 
     /** @see MetricsRegistry#newMeter(MetricName, String, TimeUnit) */
     public Meter newMeter(String scope, String name, String eventType, TimeUnit unit) {
-        checkNotNullOrEmpty(scope);
-        checkNotNullOrEmpty(name);
         checkNotNullOrEmpty(eventType);
         checkNotNull(unit);
-        return _registry.newMeter(newName(scope, name), eventType, unit);
+        return _registry.newMeter(newRegisteredName(scope, name), eventType, unit);
     }
 
     /** @see MetricsRegistry#newTimer(MetricName, TimeUnit, TimeUnit) */
     public Timer newTimer(String scope, String name, TimeUnit durationUnit, TimeUnit rateUnit) {
-        checkNotNullOrEmpty(scope);
-        checkNotNullOrEmpty(name);
         checkNotNull(durationUnit);
         checkNotNull(rateUnit);
-        return _registry.newTimer(newName(scope, name), durationUnit, rateUnit);
+        return _registry.newTimer(newRegisteredName(scope, name), durationUnit, rateUnit);
+    }
+
+    @VisibleForTesting
+    InstanceGauge instanceGauge(String scope) {
+        _instanceGauge = (InstanceGauge) _registry.newGauge(newRegisteredName(scope, "num-instances"), _instanceGauge);
+        _instanceReferences.add(_instanceGauge.add(this));
+        _instanceScope = scope;
+        return _instanceGauge;
     }
 
     @VisibleForTesting
@@ -104,13 +132,22 @@ public class Metrics implements Closeable {
         return new MetricName(_domain, name, scope);
     }
 
+    private MetricName newRegisteredName(String scope, String name) {
+        checkNotNullOrEmpty(scope);
+        checkNotNullOrEmpty(name);
+
+        MetricName metricName = newName(scope, name);
+        _registeredMetrics.add(metricName);
+        return metricName;
+    }
+
     @VisibleForTesting
     MetricsRegistry getRegistry() {
         return _registry;
     }
 
-    private static void checkNotNullOrEmpty(String name) {
-        checkNotNull(name);
-        checkArgument(!Strings.isNullOrEmpty(name));
+    private static void checkNotNullOrEmpty(String string) {
+        checkNotNull(string);
+        checkArgument(!Strings.isNullOrEmpty(string));
     }
 }

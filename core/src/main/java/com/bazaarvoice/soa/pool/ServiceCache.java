@@ -81,7 +81,7 @@ class ServiceCache<S> implements Closeable {
         checkNotNull(executor);
 
         String serviceName = serviceFactory.getServiceName();
-        _metrics = new Metrics(getClass());
+        _metrics = Metrics.forInstancedClass(getClass(), serviceName);
         _loadTimer = _metrics.newTimer(serviceName, "load-time", TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
 
         _requestCount = _metrics.newMeter(serviceName, "num-cache-requests", "requests", TimeUnit.SECONDS);

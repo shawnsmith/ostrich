@@ -51,7 +51,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     /** The ephemeral data that's been written to ZooKeeper.  Saved in case the connection is lost and then regained. */
     private final Map<String, ZooKeeperPersistentEphemeralNode> _nodes = Maps.newConcurrentMap();
 
-    private final Metrics _metrics = new Metrics(ZooKeeperServiceRegistry.class);
+    private final Metrics _metrics = Metrics.forClass(ZooKeeperServiceRegistry.class);
     private final LoadingCache<String, Counter> _numRegisteredEndpoints = CacheBuilder.newBuilder()
             .build(new CacheLoader<String, Counter>() {
                 @Override

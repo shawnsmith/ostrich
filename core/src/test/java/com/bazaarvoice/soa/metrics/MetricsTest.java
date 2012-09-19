@@ -17,7 +17,7 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
 public class MetricsTest {
-    private final Metrics _metrics = new Metrics(getClass());
+    private final Metrics _metrics = Metrics.forClass(getClass());
 
     @After
     public void teardown() {
@@ -26,12 +26,22 @@ public class MetricsTest {
 
     @Test(expected = NullPointerException.class)
     public void testNullDomain() {
-        new Metrics(null);
+        Metrics.forClass(null);
     }
 
     @Test(expected = NullPointerException.class)
     public void testNullDomainScoped() {
-        new Metrics(null);
+        Metrics.forInstancedClass(null, "scope");
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testNullInstanceScope() {
+        Metrics.forInstancedClass(getClass(), null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testEmptyInstanceScope() {
+        Metrics.forInstancedClass(getClass(), "");
     }
 
     @Test
@@ -213,12 +223,103 @@ public class MetricsTest {
         assertRegistered("scope", "name");
     }
 
+    @Test(expected = NullPointerException.class)
+    public void testInstanceGaugeNullScope() {
+        _metrics.instanceGauge(null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testInstanceGaugeEmptyScope() {
+        _metrics.instanceGauge("");
+    }
+
+    @Test
+    public void testInstanceGaugeAddsInstance() {
+        assertEquals(1, _metrics.instanceGauge("scope").value().intValue());
+    }
+
+    @Test
+    public void testInstanceGaugeReused() {
+        Metrics instancedMetrics = Metrics.forInstancedClass(getClass(), "scope");
+        Gauge<Integer> gauge = _metrics.instanceGauge("scope");
+
+        assertEquals(2, gauge.value().intValue());
+
+        instancedMetrics.close();
+    }
+
     @Test
     public void testCloseUnregisters() {
         _metrics.newCounter("scope", "name");
         assertRegistered("scope", "name");
 
         _metrics.close();
+        assertNotRegistered("scope", "name");
+    }
+
+    @Test
+    public void testCloseUnregistersInstanceGauge() {
+        Metrics metrics = Metrics.forInstancedClass(getClass(), "scope");
+
+        metrics.close();
+        assertNotRegistered("scope", "num-instances");
+    }
+
+    @Test
+    public void testCloseKeepsActiveInstanceGauge() {
+        Metrics metrics = Metrics.forInstancedClass(getClass(), "scope");
+        Metrics moreMetrics = Metrics.forInstancedClass(getClass(), "scope");
+
+        metrics.close();
+        assertRegistered("scope", "num-instances");
+
+        moreMetrics.close();
+    }
+
+    @Test public void testCloseDecreasesInstanceCount() {
+        Gauge<Integer> gauge = _metrics.instanceGauge("scope");
+
+        _metrics.close();
+        assertEquals(0, gauge.value().intValue());
+    }
+
+    @Test
+    public void testCloseKeepsWhenActiveInstancesExist() {
+        Metrics metrics = Metrics.forInstancedClass(getClass(), "scope");
+        Metrics moreMetrics = Metrics.forInstancedClass(getClass(), "scope");
+
+        metrics.newCounter("scope", "name");
+        moreMetrics.newCounter("scope", "name");
+
+        metrics.close();
+        assertRegistered("scope", "name");
+
+        moreMetrics.close();
+    }
+
+    @Test
+    public void testCloseUnregistersDifferentScopeWhenActiveInstancesExist() {
+        Metrics metrics = Metrics.forInstancedClass(getClass(), "scope");
+        Metrics moreMetrics = Metrics.forInstancedClass(getClass(), "scope");
+
+        metrics.newCounter("different", "name");
+
+        metrics.close();
+        assertNotRegistered("different", "name");
+
+        moreMetrics.close();
+    }
+
+    @Test
+    public void testCloseUnregistersWhenLastActiveInstance() {
+        Metrics metrics = Metrics.forInstancedClass(getClass(), "scope");
+        Metrics moreMetrics = Metrics.forInstancedClass(getClass(), "scope");
+
+        metrics.newCounter("scope", "name");
+        moreMetrics.newCounter("scope", "name");
+
+        metrics.close();
+        moreMetrics.close();
         assertNotRegistered("scope", "name");
     }
 
