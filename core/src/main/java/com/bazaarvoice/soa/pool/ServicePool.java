@@ -405,20 +405,18 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         // completely.  So we intentionally handle all possible exceptions here.
         Stopwatch sw = new Stopwatch(_ticker).start();
 
+        HealthCheckResult result;
         try {
-            TimerContext timer = _healthCheckTime.time();
-            try {
-                if (_serviceFactory.isHealthy(endPoint)) {
-                    return new SuccessfulHealthCheckResult(endPoint.getId(), sw.elapsedTime(TimeUnit.NANOSECONDS));
-                }
-            } finally {
-                timer.stop();
-            }
+            result =  _serviceFactory.isHealthy(endPoint)
+                    ? new SuccessfulHealthCheckResult(endPoint.getId(), sw.elapsedTime(TimeUnit.NANOSECONDS))
+                    : new FailedHealthCheckResult(endPoint.getId(), sw.elapsedTime(TimeUnit.NANOSECONDS));
         } catch (Exception e) {
-            return new FailedHealthCheckResult(endPoint.getId(), sw.elapsedTime(TimeUnit.NANOSECONDS), e);
+            result = new FailedHealthCheckResult(endPoint.getId(), sw.elapsedTime(TimeUnit.NANOSECONDS), e);
         }
 
-        return new FailedHealthCheckResult(endPoint.getId(), sw.elapsedTime(TimeUnit.NANOSECONDS));
+        _healthCheckTime.update(result.getResponseTime(TimeUnit.NANOSECONDS), TimeUnit.NANOSECONDS);
+
+        return result;
     }
 
     @VisibleForTesting
