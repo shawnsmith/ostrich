@@ -15,6 +15,15 @@ public abstract class ServicePoolProxies {
     private ServicePoolProxies() {} // Prevent instantiation
 
     /**
+     * Returns true if the specified object is a dynamic service proxy created by {@link ServicePoolBuilder#buildProxy}.
+     * @param dynamicProxy An object that might be service dynamic proxy.
+     * @return true if the specified object is a dynamic service proxy.
+     */
+    public static boolean isProxy(Object dynamicProxy) {
+        return dynamicProxy instanceof Proxy && Proxy.getInvocationHandler(dynamicProxy) instanceof ServicePoolProxy;
+    }
+
+    /**
      * Closes the service pool associated with the specified dynamic service proxy.
      * @param dynamicProxy A service pool dynamic proxy created by {@link ServicePoolBuilder#buildProxy}.
      * @param <S> The service interface type.
