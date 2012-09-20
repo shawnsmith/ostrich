@@ -1,8 +1,9 @@
-package com.bazaarvoice.soa.pool;
+package com.bazaarvoice.soa.dropwizard.pool;
 
 import com.bazaarvoice.soa.RetryPolicy;
 import com.bazaarvoice.soa.ServicePool;
-import com.bazaarvoice.soa.dropwizard.pool.ManagedServicePoolProxy;
+import com.bazaarvoice.soa.pool.PartitionContextSupplierHelper;
+import com.bazaarvoice.soa.pool.ServicePoolProxyHelper;
 import com.yammer.dropwizard.lifecycle.Managed;
 import org.junit.Test;
 
@@ -11,8 +12,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 
-// Not in the com.bazaarvoice.soa.dropwizard.pool package because it needs package-protected access to the
-// ServicePoolProxy class to create valid dynamic service proxies.
 public class ManagedServicePoolProxyTest {
     @Test(expected = IllegalArgumentException.class)
     public void testNull() {
@@ -28,8 +27,8 @@ public class ManagedServicePoolProxyTest {
     @Test
     public void testStart() throws Exception {
         ServicePool<Service> pool = mock(ServicePool.class);
-        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool,
-                mock(PartitionContextSupplier.class), true);
+        Service service = ServicePoolProxyHelper.create(Service.class, mock(RetryPolicy.class), pool,
+                PartitionContextSupplierHelper.mock(), true);
         Managed managed = new ManagedServicePoolProxy(service);
 
         managed.start();
@@ -40,8 +39,8 @@ public class ManagedServicePoolProxyTest {
     @Test
     public void testStop() throws Exception {
         ServicePool<Service> pool = mock(ServicePool.class);
-        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool,
-                mock(PartitionContextSupplier.class), true);
+        Service service = ServicePoolProxyHelper.create(Service.class, mock(RetryPolicy.class), pool,
+                PartitionContextSupplierHelper.mock(), true);
         Managed managed = new ManagedServicePoolProxy(service);
 
         managed.stop();
