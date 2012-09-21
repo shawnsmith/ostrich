@@ -31,12 +31,16 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
     private ZooKeeperServiceRegistry _registry;
     private ZooKeeperHostDiscovery _discovery;
+    private CuratorFramework _curator;
+    private ZooKeeperConnection _connection;
 
     @Override
     public void setup() throws Exception {
         super.setup();
+        _curator = newCurator();
+        _connection = newMockZooKeeperConnection(_curator);
         _registry = new ZooKeeperServiceRegistry(newZooKeeperConnection());
-        _discovery = new ZooKeeperHostDiscovery(newCurator(), FOO.getServiceName());
+        _discovery = new ZooKeeperHostDiscovery(_connection, FOO.getServiceName());
     }
 
     @Override
@@ -53,12 +57,12 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
     @Test(expected = NullPointerException.class)
     public void testNullServiceName() throws Exception {
-        new ZooKeeperHostDiscovery(newCurator(), null);
+        new ZooKeeperHostDiscovery(_connection, null);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testEmptyServiceName() throws Exception {
-        new ZooKeeperHostDiscovery(newCurator(), "");
+        new ZooKeeperHostDiscovery(_connection, "");
     }
 
     @Test
@@ -90,7 +94,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
     public void testWaitForData() throws Exception {
         // Create the HostDiscovery after registration is done so there's at least one initial host
         _registry.register(FOO);
-        HostDiscovery discovery = new ZooKeeperHostDiscovery(newCurator(), FOO.getServiceName());
+        HostDiscovery discovery = new ZooKeeperHostDiscovery(_connection, FOO.getServiceName());
         assertEquals(Iterables.size(discovery.getHosts()), 1);
     }
 
@@ -107,7 +111,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
     public void testAlreadyExistingEndPointsDoNotFireEvents() throws Exception {
         _registry.register(FOO);
 
-        HostDiscovery discovery = new ZooKeeperHostDiscovery(newCurator(), FOO.getServiceName());
+        HostDiscovery discovery = new ZooKeeperHostDiscovery(_connection, FOO.getServiceName());
         assertEquals(Iterables.size(discovery.getHosts()), 1);
 
         CountingListener eventCounter = new CountingListener();
@@ -126,7 +130,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
         _registry.register(FOO);
         assertTrue(waitUntilSize(_discovery.getHosts(), 1));
 
-        killSession(_discovery.getCurator());
+        killSession(_curator);
 
         // The entry gets cleaned up because we've lost contact with ZooKeeper
         assertTrue(waitUntilSize(_discovery.getHosts(), 0));
@@ -137,7 +141,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
         _registry.register(FOO);
         assertTrue(waitUntilSize(_discovery.getHosts(), 1));
 
-        killSession(_discovery.getCurator());
+        killSession(_curator);
 
         // The entry gets cleaned up because we've lost contact with ZooKeeper
         assertTrue(waitUntilSize(_discovery.getHosts(), 0));
@@ -193,7 +197,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
         _registry.register(FOO);
         assertTrue(trigger.addedWithin(10, TimeUnit.SECONDS));
 
-        killSession(_discovery.getCurator());
+        killSession(_curator);
 
         // The entry gets cleaned up because we've lost contact with ZooKeeper
         assertTrue(trigger.removedWithin(10, TimeUnit.SECONDS));
@@ -210,7 +214,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
         EndPointTrigger trigger = new EndPointTrigger();
         _discovery.addListener(trigger);
 
-        killSession(_discovery.getCurator());
+        killSession(_curator);
 
         // The entry gets cleaned up because we've lost contact with ZooKeeper
         assertTrue(trigger.removedWithin(10, TimeUnit.SECONDS));
@@ -246,7 +250,7 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
 
         // Unregister FOO and create a new HostDiscovery instance as close together as we can, so they race.
         _registry.unregister(FOO);
-        HostDiscovery discovery = new ZooKeeperHostDiscovery(curator, FOO.getServiceName());
+        HostDiscovery discovery = new ZooKeeperHostDiscovery(newMockZooKeeperConnection(curator), FOO.getServiceName());
         assertTrue(waitUntilSize(discovery.getHosts(), 0));
     }
 
