@@ -9,6 +9,7 @@ import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.bazaarvoice.zookeeper.recipes.discovery.NodeDataParser;
 import com.bazaarvoice.zookeeper.recipes.discovery.NodeListener;
 import com.bazaarvoice.zookeeper.recipes.discovery.ZooKeeperNodeDiscovery;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ConcurrentHashMultiset;
 import com.google.common.collect.Iterables;
@@ -58,14 +59,14 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         _endPoints = ConcurrentHashMultiset.create();
 
         _nodeDiscovery = new ZooKeeperNodeDiscovery<ServiceEndPoint>(
-            connection,
-            servicePath,
-            new NodeDataParser<ServiceEndPoint>() {
-                public ServiceEndPoint parse(String path, byte[] nodeData) {
-                    String json = new String(nodeData, Charsets.UTF_8);
-                    return ServiceEndPointJsonCodec.fromJson(json);
+                connection,
+                servicePath,
+                new NodeDataParser<ServiceEndPoint>() {
+                    public ServiceEndPoint parse(String path, byte[] nodeData) {
+                        String json = new String(nodeData, Charsets.UTF_8);
+                        return ServiceEndPointJsonCodec.fromJson(json);
+                    }
                 }
-            }
         );
 
         _nodeDiscovery.addListener(new ServiceListener());
@@ -74,7 +75,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         _metrics.newGauge(serviceName, "num-end-points", new Gauge<Integer>() {
             @Override
             public Integer value() {
-                return _endPoints.size();
+                return Iterables.size(getHosts());
             }
         });
 
@@ -115,6 +116,11 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         _nodeDiscovery.close();
         _endPoints.clear();
         _metrics.close();
+    }
+
+    @VisibleForTesting
+    ZooKeeperNodeDiscovery<ServiceEndPoint> getNodeDiscovery() {
+        return _nodeDiscovery;
     }
 
     private void addServiceEndPoint(ServiceEndPoint serviceEndPoint) {
@@ -163,7 +169,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         public void onNodeUpdated(String path, ServiceEndPoint node) {
             _numZooKeeperChanges.mark();
             LOG.info("ServiceEndPoint data changed unexpectedly. End point ID: {}; ZooKeeperPath {}",
-                node.getId(), path);
+                    node.getId(), path);
         }
 
         @Override

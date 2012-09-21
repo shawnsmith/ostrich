@@ -5,6 +5,7 @@ import com.bazaarvoice.soa.ServiceEndPoint;
 import com.bazaarvoice.soa.ServiceEndPointBuilder;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
+import com.bazaarvoice.zookeeper.recipes.discovery.NodeListener;
 import com.bazaarvoice.zookeeper.test.ZooKeeperTest;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Closeables;
@@ -50,17 +51,17 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
         super.teardown();
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test (expected = NullPointerException.class)
     public void testNullConfiguration() {
         new ZooKeeperHostDiscovery((ZooKeeperConnection) null, FOO.getServiceName());
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test (expected = NullPointerException.class)
     public void testNullServiceName() throws Exception {
         new ZooKeeperHostDiscovery(_connection, null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test (expected = IllegalArgumentException.class)
     public void testEmptyServiceName() throws Exception {
         new ZooKeeperHostDiscovery(_connection, "");
     }
@@ -105,6 +106,44 @@ public class ZooKeeperHostDiscoveryTest extends ZooKeeperTest {
         assertTrue(waitUntilSize(_discovery.getHosts(), 1));
         assertTrue(_discovery.contains(FOO));
         assertFalse(_discovery.contains(BAR));
+    }
+
+    @Test
+    public void testDuplicateEntryRemoval() throws Exception {
+        _registry.register(FOO);
+        assertTrue(waitUntilSize(_discovery.getHosts(), 1));
+
+        final Trigger addTrigger = new Trigger();
+        final Trigger removeTrigger = new Trigger();
+        _discovery.getNodeDiscovery().addListener(new NodeListener<ServiceEndPoint>() {
+            @Override
+            public void onNodeAdded(String s, ServiceEndPoint serviceEndPoint) {
+                addTrigger.fire();
+            }
+
+            @Override
+            public void onNodeRemoved(String s, ServiceEndPoint serviceEndPoint) {
+                removeTrigger.fire();
+            }
+
+            @Override
+            public void onNodeUpdated(String s, ServiceEndPoint serviceEndPoint) {
+            }
+
+            @Override
+            public void onZooKeeperReset() {
+            }
+        });
+
+        // Duplicate node needs to be registered in a different Registry.
+        ZooKeeperServiceRegistry duplicateRegistry = new ZooKeeperServiceRegistry(newZooKeeperConnection());
+        duplicateRegistry.register(FOO);
+        addTrigger.firedWithin(10, TimeUnit.SECONDS);
+
+        duplicateRegistry.unregister(FOO);
+        removeTrigger.firedWithin(10, TimeUnit.SECONDS);
+
+        assertTrue(Iterables.contains(_discovery.getHosts(), FOO));
     }
 
     @Test
