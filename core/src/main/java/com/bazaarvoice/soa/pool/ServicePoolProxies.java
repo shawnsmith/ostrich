@@ -5,6 +5,7 @@ import com.google.common.io.Closeables;
 
 import java.lang.reflect.Proxy;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -55,6 +56,7 @@ public abstract class ServicePoolProxies {
      */
     public static <S> com.bazaarvoice.soa.ServicePool<S> getPool(S dynamicProxy) {
         checkNotNull(dynamicProxy);
+        checkArgument(isProxy(dynamicProxy));
         @SuppressWarnings("unchecked") ServicePoolProxy<S> poolProxy = (ServicePoolProxy<S>)
                 Proxy.getInvocationHandler(dynamicProxy);
         return poolProxy.getServicePool();

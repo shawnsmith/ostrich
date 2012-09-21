@@ -1,13 +1,18 @@
 package com.bazaarvoice.soa.pool;
 
-import com.bazaarvoice.soa.RetryPolicy;
+import com.google.common.reflect.Reflection;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Test helper that exposes package-private methods on {@link ServicePoolProxy}.
  */
 public class ServicePoolProxyHelper {
-    public static <S> S create(Class<S> serviceType, RetryPolicy retryPolicy, com.bazaarvoice.soa.ServicePool<S> pool,
-                        PartitionContextSupplier partitionContextSupplier, boolean shutdownPoolOnClose) {
-        return ServicePoolProxy.create(serviceType, retryPolicy, pool, partitionContextSupplier, shutdownPoolOnClose);
+    public static <S> S createMock(Class<S> serviceType, com.bazaarvoice.soa.ServicePool<S> pool) {
+        @SuppressWarnings("unchecked")
+        ServicePoolProxy<S> servicePoolProxy = mock(ServicePoolProxy.class);
+        when(servicePoolProxy.getServicePool()).thenReturn(pool);
+        return Reflection.newProxy(serviceType, servicePoolProxy);
     }
 }

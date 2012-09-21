@@ -23,12 +23,12 @@ public class ServicePoolProxiesTest {
     }
 
     @Test
-    public void testIsNotProxyObject() throws IOException {
+    public void testIsNotProxyNonProxy() throws IOException {
         assertFalse(ServicePoolProxies.isProxy(new Object()));
     }
 
     @Test
-    public void testIsNotProxy() throws IOException {
+    public void testIsNotProxyNonServicePoolProxy() throws IOException {
         Service service = Reflection.newProxy(Service.class, mock(InvocationHandler.class));
 
         assertFalse(ServicePoolProxies.isProxy(service));
@@ -37,9 +37,8 @@ public class ServicePoolProxiesTest {
     @Test
     public void testIsProxy() throws IOException {
         @SuppressWarnings("unchecked")
-        ServicePool<Service> pool = mock(ServicePool.class);
-        PartitionContextSupplier supplier = mock(PartitionContextSupplier.class);
-        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool, supplier, true);
+        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), mock(ServicePool.class),
+                mock(PartitionContextSupplier.class), true);
 
         assertTrue(ServicePoolProxies.isProxy(service));
     }
@@ -48,8 +47,8 @@ public class ServicePoolProxiesTest {
     public void testClose() throws IOException {
         @SuppressWarnings("unchecked")
         ServicePool<Service> pool = mock(ServicePool.class);
-        PartitionContextSupplier supplier = mock(PartitionContextSupplier.class);
-        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool, supplier, true);
+        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool,
+                mock(PartitionContextSupplier.class), true);
 
         ServicePoolProxies.close(service);
 
@@ -58,27 +57,32 @@ public class ServicePoolProxiesTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testFindFirstHealthyEndPoint() {
+    public void testCheckForHealthyEndPoint() {
         ServicePool<Service> pool = mock(ServicePool.class);
-        PartitionContextSupplier supplier = mock(PartitionContextSupplier.class);
         HealthCheckResults results = mock(HealthCheckResults.class);
         when(pool.checkForHealthyEndPoint()).thenReturn(results);
-        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool, supplier, true);
+        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool,
+                mock(PartitionContextSupplier.class), true);
 
         assertSame(results, ServicePoolProxies.checkForHealthyEndPoint(service));
     }
 
     @Test(expected = NullPointerException.class)
-    public void testNullProxy() {
+    public void testGetPoolNullProxy() {
         ServicePoolProxies.getPool(null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetPoolNonServicePoolProxy() {
+        ServicePoolProxies.getPool(Reflection.newProxy(Service.class, mock(InvocationHandler.class)));
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testPoolGetter() {
+    public void testGetPool() {
         ServicePool<Service> pool = mock(ServicePool.class);
-        PartitionContextSupplier supplier = mock(PartitionContextSupplier.class);
-        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool, supplier, true);
+        Service service = ServicePoolProxy.create(Service.class, mock(RetryPolicy.class), pool,
+                mock(PartitionContextSupplier.class), true);
 
         assertSame(pool, ServicePoolProxies.getPool(service));
     }
