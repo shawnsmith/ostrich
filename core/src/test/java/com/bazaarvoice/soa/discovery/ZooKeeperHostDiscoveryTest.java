@@ -48,20 +48,25 @@ public class ZooKeeperHostDiscoveryTest {
     @Before
     public void setup() throws Exception {
         ZooKeeperHostDiscovery.NodeDiscoveryFactory factory = mock(ZooKeeperHostDiscovery.NodeDiscoveryFactory.class);
-        ArgumentCaptor<NodeListener<ServiceEndPoint>> listenerCaptor =
-                (ArgumentCaptor) ArgumentCaptor.forClass(NodeListener.class);
-        ArgumentCaptor<NodeDataParser<ServiceEndPoint>> parserCaptor =
-                (ArgumentCaptor) ArgumentCaptor.forClass(NodeDataParser.class);
         ZooKeeperNodeDiscovery<ServiceEndPoint> nodeDiscovery = mock(ZooKeeperNodeDiscovery.class);
         ZooKeeperConnection connection = mock(ZooKeeperConnection.class);
         when(factory.create(Matchers.<ZooKeeperConnection>any(ZooKeeperConnection.class), anyString(),
                 Matchers.<NodeDataParser<ServiceEndPoint>>any())).thenReturn(nodeDiscovery);
+
         _discovery = new ZooKeeperHostDiscovery(factory, connection, FOO.getServiceName());
+
+        // Capture the parser.
+        ArgumentCaptor<NodeDataParser<ServiceEndPoint>> parserCaptor =
+                (ArgumentCaptor) ArgumentCaptor.forClass(NodeDataParser.class);
         verify(factory).create(same(connection), eq(ZooKeeperServiceRegistry.makeServicePath("Foo")),
                 parserCaptor.capture());
+        _parser = parserCaptor.getValue();
+
+        // Capture the listener.
+        ArgumentCaptor<NodeListener<ServiceEndPoint>> listenerCaptor =
+                (ArgumentCaptor) ArgumentCaptor.forClass(NodeListener.class);
         verify(nodeDiscovery).addListener(listenerCaptor.capture());
         _listener = listenerCaptor.getValue();
-        _parser = parserCaptor.getValue();
     }
 
     @After
@@ -96,15 +101,15 @@ public class ZooKeeperHostDiscoveryTest {
 
     @Test
     public void testRegisterService() {
-        _listener.onNodeAdded("path", FOO);
+        addNode("path", FOO);
 
         assertEquals(ImmutableList.of(FOO), ImmutableList.copyOf(_discovery.getHosts()));
     }
 
     @Test
     public void testUnregisterService() {
-        _listener.onNodeAdded("path", FOO);
-        _listener.onNodeRemoved("path", FOO);
+        addNode("path", FOO);
+        removeNode("path", FOO);
 
         assertTrue(Iterables.isEmpty(_discovery.getHosts()));
     }
@@ -112,7 +117,7 @@ public class ZooKeeperHostDiscoveryTest {
     @Test
     public void testClose() throws IOException {
         // After closing, HostDiscovery returns no hosts so clients won't work if they accidentally keep using it.
-        _listener.onNodeAdded("path", FOO);
+        addNode("path", FOO);
         _discovery.close();
 
         assertTrue(Iterables.isEmpty(_discovery.getHosts()));
@@ -124,11 +129,15 @@ public class ZooKeeperHostDiscoveryTest {
     public void testExistingData() throws Exception {
         ZooKeeperHostDiscovery.NodeDiscoveryFactory factory = mock(ZooKeeperHostDiscovery.NodeDiscoveryFactory.class);
         ZooKeeperNodeDiscovery<ServiceEndPoint> nodeDiscovery = mock(ZooKeeperNodeDiscovery.class);
-        final ArgumentCaptor<NodeListener<ServiceEndPoint>> listenerCaptor =
-                (ArgumentCaptor) ArgumentCaptor.forClass(NodeListener.class);
         when(factory.create(Matchers.<ZooKeeperConnection>any(), anyString(),
                 Matchers.<NodeDataParser<ServiceEndPoint>>any())).thenReturn(nodeDiscovery);
+
+        // Capture the listener.
+        final ArgumentCaptor<NodeListener<ServiceEndPoint>> listenerCaptor =
+                (ArgumentCaptor) ArgumentCaptor.forClass(NodeListener.class);
         doNothing().when(nodeDiscovery).addListener(listenerCaptor.capture());
+
+        // Add FOO when nodeDiscovery.start() is called. This is NodeDiscovery's behavior when it has data when started.
         doAnswer(new Answer() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
@@ -136,9 +145,13 @@ public class ZooKeeperHostDiscoveryTest {
                 return null;
             }
         }).when(nodeDiscovery).start();
+
         HostDiscovery discovery = new ZooKeeperHostDiscovery(factory, mock(ZooKeeperConnection.class),
                 FOO.getServiceName());
+
         assertEquals(ImmutableList.of(FOO), ImmutableList.copyOf(discovery.getHosts()));
+
+        discovery.close();
     }
 
     @Test
@@ -146,8 +159,8 @@ public class ZooKeeperHostDiscoveryTest {
         CountingListener endPointListener = new CountingListener();
         _discovery.addListener(endPointListener);
 
-        _listener.onNodeAdded("path-one", FOO);
-        _listener.onNodeAdded("path-two", FOO);
+        addNode("path-one", FOO);
+        addNode("path-two", FOO);
 
         assertEquals(1, endPointListener.getNumAdds());
         assertEquals(ImmutableList.of(FOO), ImmutableList.copyOf(_discovery.getHosts()));
@@ -158,10 +171,10 @@ public class ZooKeeperHostDiscoveryTest {
         CountingListener endPointListener = new CountingListener();
         _discovery.addListener(endPointListener);
 
-        _listener.onNodeAdded("path-one", FOO);
-        _listener.onNodeAdded("path-two", FOO);
+        addNode("path-one", FOO);
+        addNode("path-two", FOO);
 
-        _listener.onNodeRemoved("path-one", FOO);
+        removeNode("path-one", FOO);
 
         assertEquals(0, endPointListener.getNumRemoves());
         assertEquals(ImmutableList.of(FOO), ImmutableList.copyOf(_discovery.getHosts()));
@@ -172,11 +185,11 @@ public class ZooKeeperHostDiscoveryTest {
         CountingListener endPointListener = new CountingListener();
         _discovery.addListener(endPointListener);
 
-        _listener.onNodeAdded("path-one", FOO);
-        _listener.onNodeAdded("path-two", FOO);
+        addNode("path-one", FOO);
+        addNode("path-two", FOO);
 
-        _listener.onNodeRemoved("path-one", FOO);
-        _listener.onNodeRemoved("path-two", FOO);
+        removeNode("path-one", FOO);
+        removeNode("path-two", FOO);
 
         assertEquals(1, endPointListener.getNumRemoves());
         assertTrue(Iterables.isEmpty(_discovery.getHosts()));
@@ -184,7 +197,7 @@ public class ZooKeeperHostDiscoveryTest {
 
     @Test
     public void testAlreadyExistingEndPointsDoNotFireEvents() throws Exception {
-        _listener.onNodeAdded("path", FOO);
+        addNode("path", FOO);
 
         CountingListener endPointListener = new CountingListener();
         _discovery.addListener(endPointListener);
@@ -197,7 +210,7 @@ public class ZooKeeperHostDiscoveryTest {
         CountingListener endPointListener = new CountingListener();
         _discovery.addListener(endPointListener);
 
-        _listener.onNodeAdded("path", FOO);
+        addNode("path", FOO);
         assertEquals(1, endPointListener.getNumAdds());
     }
 
@@ -206,8 +219,8 @@ public class ZooKeeperHostDiscoveryTest {
         CountingListener endPointListener = new CountingListener();
         _discovery.addListener(endPointListener);
 
-        _listener.onNodeAdded("path", FOO);
-        _listener.onNodeRemoved("path", FOO);
+        addNode("path", FOO);
+        removeNode("path", FOO);
         assertEquals(1, endPointListener.getNumRemoves());
     }
 
@@ -217,8 +230,8 @@ public class ZooKeeperHostDiscoveryTest {
         _discovery.addListener(eventCounter);
         _discovery.removeListener(eventCounter);
 
-        _listener.onNodeAdded("path", FOO);
-        _listener.onNodeRemoved("path", FOO);
+        addNode("path", FOO);
+        removeNode("path", FOO);
         assertEquals(0, eventCounter.getNumEvents());
     }
 
@@ -229,13 +242,21 @@ public class ZooKeeperHostDiscoveryTest {
         _discovery.addListener(endPointListener1);
         _discovery.addListener(endPointListener2);
 
-        _listener.onNodeAdded("path", FOO);
+        addNode("path", FOO);
         assertEquals(1, endPointListener1.getNumAdds());
         assertEquals(1, endPointListener2.getNumAdds());
 
-        _listener.onNodeRemoved("path", FOO);
+        removeNode("path", FOO);
         assertEquals(1, endPointListener1.getNumRemoves());
         assertEquals(1, endPointListener2.getNumRemoves());
+    }
+    
+    private void addNode(String path, ServiceEndPoint endPoint) {
+        _listener.onNodeAdded(path, endPoint);
+    }
+    
+    private void removeNode(String path, ServiceEndPoint endPoint) {
+        _listener.onNodeRemoved(path, endPoint);
     }
 
     private static final class CountingListener implements HostDiscovery.EndPointListener {
