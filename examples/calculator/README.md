@@ -72,7 +72,11 @@ definition of the user configuration object can be found in
 `com.bazaarvoice.soa.examples.calculator.user.CalculatorConfiguration`. The ZooKeeper connect string and namespace can
 be set in the server and client configurations by defining the `"zooKeeper"` object.
 
-    $ echo "{\"zooKeeper\":{\"connectString\":\"localhost:2181\",\"namespace\":\"/examplenamespace\"}}" > /tmp/config.yaml
+    $ echo '{ "zooKeeper" : {
+            "connectString" : "localhost:2181",
+            "namespace" : "/examplenamespace"
+            }
+        }' > /tmp/config.yaml
     $ cd examples/calculator/service
     $ java -jar target/calculator-service-*.jar server /tmp/config.yaml
 
