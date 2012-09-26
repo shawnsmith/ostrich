@@ -15,7 +15,7 @@ based upon which AWS Region (e.g., us_east_1, us_west_2, eu_west_1) and Environm
 ```java
 // Connect to the default ZooKeeper ensemble as inferred by Chameleon
 ZooKeeperConnection zookeeper = new ZooKeeperConfiguration()
-  .setRetryNTimes(new RetryNTimes(3, 100))
+  .withBoundedExponentialBackoffRetry(100, 1000, 5)
   .connect();
 ```
 
@@ -29,8 +29,8 @@ String connectString = Joiner.on(",").join("zookeeper1:2181",
                                            "zookeeper2:2181",
                                            "zookeeper3:2181");
 ZooKeeperConnection zookeeper = new ZooKeeperConfiguration()
-  .setConnectString(connectString)
-  .setRetryNTimes(new RetryNTimes(3, 100))
+  .withConnectString(connectString)
+  .withBoundedExponentialBackoffRetry(100, 1000, 5)
   .connect();
 ```
 

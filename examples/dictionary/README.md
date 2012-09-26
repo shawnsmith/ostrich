@@ -17,21 +17,21 @@ Running the Example
 
         $ vagrant up
 
-3.  Create a minimal YAML configuration file:
-
-        $ echo "{}" > /tmp/config.yaml
-
-4.  In one window, start a dictionary server to handle words in the range `a-k`:
+3.  In one window, start a dictionary server to handle words in the range `a-k`:
 
         $ cd examples/dictionary/service
         $ java -Ddw.wordRange=a-k -Ddw.http.port=8080 -Ddw.http.adminPort=8081 \
-            -jar target/dictionary-service-*.jar server /tmp/config.yaml
+            -jar target/dictionary-service-*.jar server
 
-5.  In another window, start a second dictionary server to handle words in the range `l-z`:
+4.  In another window, start a second dictionary server to handle words in the range `l-z`:
 
         $ cd examples/dictionary/service
         $ java -Ddw.wordRange=l-z -Ddw.http.port=8180 -Ddw.http.adminPort=8181 \
-            -jar target/dictionary-service-*.jar server /tmp/config.yaml
+            -jar target/dictionary-service-*.jar server
+
+5.  Create a minimal YAML configuration file for the dictionary client:
+
+        $ echo "{}" > /tmp/config.yaml
 
 6.  In another window, run a dictionary client to spell check a file:
 
@@ -40,66 +40,12 @@ Running the Example
 
 Configuration
 -------------
-Ostrich uses [chameleon](https://github.com/bazaarvoice/chameleon) for setting the default ZooKeeper connect string.
-The ZooKeeper connect string inferred by chameleon can be overridden in chameleon through an environment variable or
-system property. The ZooKeeper connect string can be set in ostrich programmatically through the ZooKeeperConfiguration
-object. In this example, the ZooKeeperConfiguration object is exposed through DropWizard and can be set via a YAML
-configuration file.
+Ostrich uses [Chameleon](https://github.com/bazaarvoice/chameleon) for setting the default ZooKeeper connect string.
+Please refer to the Configuration section of the [Calculator Documentation]
+(https://github.com/bazaarvoice/ostrich/blob/master/examples/calculator/README.md) for instructionson how to set the
+ZooKeeper connect string.
 
-### Setting ZooKeeper Connect String via Environment
-Starting the dictionary server for `a-k` (Step 4 above):
-
-	$ export CHAMELEON_ZOOKEEPER_ENSEMBLE=localhost:2181
-    $ cd examples/dictionary/service
-    $ java -Ddw.wordRange=a-k -Ddw.http.port=8080 -Ddw.http.adminPort=8081 \
-        -jar target/dictionary-service-*.jar server /tmp/config.yaml
-	
-Starting the dictionary server for `l-z` (Step 5 above):
-
-	$ export CHAMELEON_ZOOKEEPER_ENSEMBLE=localhost:2181
-    $ cd examples/dictionary/service
-    $ java -Ddw.wordRange=l-z -Ddw.http.port=8180 -Ddw.http.adminPort=8181 \
-        -jar target/dictionary-service-*.jar server /tmp/config.yaml
-	
-Starting the dictionary client (Step 6 above)
-
-	$ export CHAMELEON_ZOOKEEPER_ENSEMBLE=localhost:2181
-    $ cd examples/dictionary/user
-    $ java -jar target/dictionary-user-*.jar /tmp/config.yaml /usr/share/dict/README
-
-### Setting ZooKeeper Connect String via System Property
-Starting the dictionary server for `a-k` (Step 4 above):
-
-    $ cd examples/dictionary/service
-    $ java -Dchameleon.zookeeper.ensemble=localhost:2181 \
-    	-Ddw.wordRange=a-k -Ddw.http.port=8080 -Ddw.http.adminPort=8081 \
-        -jar target/dictionary-service-*.jar server /tmp/config.yaml
-	
-Starting the dictionary server for `l-z` (Step 5 above):
-
-    $ cd examples/dictionary/service
-    $ java -Dchameleon.zookeeper.ensemble=localhost:2181 \
-    	-Ddw.wordRange=l-z -Ddw.http.port=8180 -Ddw.http.adminPort=8181 \
-        -jar target/dictionary-service-*.jar server /tmp/config.yaml
-	
-Starting the dictionary client (Step 6 above)
-
-    $ cd examples/dictionary/user
-    $ java -Dchameleon.zookeeper.ensemble=localhost:2181 \
-    	-jar target/dictionary-user-*.jar /tmp/config.yaml /usr/share/dict/README
-
-### Setting ZooKeeper Connect String via YAML configuration file
-The ZooKeeper connect string can also be set through the YAML configuration file. The definition of the server
-configuration object can be found in `com.bazaarvoice.soa.examples.dictionary.service.DictionaryConfiguration`. The
-definition of the user configuration object can be found in
-`com.bazaarvoice.soa.examples.dictionary.user.DictionaryConfiguration`. The ZooKeeper connect string and namespace can
-be set in the server and client configurations by defining the `"zooKeeper"` object.
-
-```
-{"zooKeeper": {
-	"connectString":"localhost:2181",
-	"namespace":"/examplenamespace"
-	}
-}
-```
 Please refer to the server and user `DictionaryConfiguration` definitions to see the available configuration options.
+The definition of the server configuration object can be found in
+`com.bazaarvoice.soa.examples.dictionary.service.DictionaryConfiguration`. Thedefinition of the user configuration object
+can be found in`com.bazaarvoice.soa.examples.dictionary.user.DictionaryConfiguration`.
