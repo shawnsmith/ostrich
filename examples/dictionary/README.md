@@ -47,5 +47,5 @@ ZooKeeper connect string.
 
 Please refer to the server and user `DictionaryConfiguration` definitions to see the available configuration options.
 The definition of the server configuration object can be found in
-`com.bazaarvoice.soa.examples.dictionary.service.DictionaryConfiguration`. Thedefinition of the user configuration object
+`com.bazaarvoice.soa.examples.dictionary.service.DictionaryConfiguration`. The definition of the user configuration object
 can be found in`com.bazaarvoice.soa.examples.dictionary.user.DictionaryConfiguration`.

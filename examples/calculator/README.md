@@ -43,7 +43,7 @@ Running the Example
 Configuration
 -------------
 Ostrich uses [Chameleon](https://github.ccom/bazaarvoice/chameleon) for setting the default ZooKeeper connect string.
-The ZooKeeper connect string inferred by hameleon can be overridden through an environment variable or
+The ZooKeeper connect string inferred by Chameleon can be overridden through an environment variable or
 system property. The ZooKeeper connect string can be set in Ostrich programmatically through the ZooKeeperConfiguration
 object. In this example, the ZooKeeperConfiguration object is exposed through DropWizard and can be set via a YAML
 configuration file.
