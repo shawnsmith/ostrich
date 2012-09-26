@@ -15,7 +15,7 @@ based upon which AWS Region (e.g., us_east_1, us_west_2, eu_west_1) and Environm
 ```java
 // Connect to the default ZooKeeper ensemble as inferred by Chameleon
 ZooKeeperConnection zookeeper = new ZooKeeperConfiguration()
-  .withBoundedExponentialBackoffRetry(100, 1000, 5)
+  .withBoundedExponentialBackoffRetry(100, 3000, 3)
   .connect();
 ```
 
@@ -30,7 +30,7 @@ String connectString = Joiner.on(",").join("zookeeper1:2181",
                                            "zookeeper3:2181");
 ZooKeeperConnection zookeeper = new ZooKeeperConfiguration()
   .withConnectString(connectString)
-  .withBoundedExponentialBackoffRetry(100, 1000, 5)
+  .withBoundedExponentialBackoffRetry(100, 3000, 3)
   .connect();
 ```
 
@@ -70,7 +70,7 @@ Here's an example of creating a service pool for the hypothetical `CalculatorSer
 quick start guide](https://github.com/bazaarvoice/ostrich/blob/master/core/docs/service-provider-quick-start.md).
 
 ```java
-ServicePool<CalculatorService> pool = new ServicePoolBuilder<CalculatorService>()
+ServicePool<CalculatorService> pool = ServicePoolBuilder.create(CalculatorService.class)
   .withZooKeeperHostDiscovery(zookeeper)
   .withServiceFactory(new CalculatorServiceFactory())
   .withCache(cachingPolicy)
