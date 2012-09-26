@@ -42,7 +42,7 @@ Configuration
 -------------
 Ostrich uses [Chameleon](https://github.com/bazaarvoice/chameleon) for setting the default ZooKeeper connect string.
 Please refer to the Configuration section of the [Calculator Documentation]
-(/ostrich/blob/master/examples/calculator/README.md) for instructions on how to set the
+(ostrich/blob/master/examples/calculator/README.md) for instructions on how to set the
 ZooKeeper connect string.
 
 Please refer to the server and user `DictionaryConfiguration` definitions to see the available configuration options.
