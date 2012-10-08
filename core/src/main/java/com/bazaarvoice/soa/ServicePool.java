@@ -62,4 +62,19 @@ public interface ServicePool<S> extends Closeable {
      * contain no results.
      */
     HealthCheckResults checkForHealthyEndPoint();
+
+    /**
+     * Return the number of valid end points that this service pool knows about.  Just because an end point is
+     * considered valid doesn't mean it's healthy.  This API will count endpoints that haven't had a health check
+     * performed on them yet so their state isn't known for sure.  If this method returns non-zero then a call into
+     * execute should attempt to make a request to some end point.
+     */
+    int getNumValidEndPoints();
+
+    /**
+     * Return the number of known bad end points that this service pool knows about.  A bad end point is one that an
+     * operation was attempted on and the attempt failed.  An end point could be considered bad prior to its health
+     * check being called.
+     */
+    int getNumBadEndPoints();
 }
