@@ -35,7 +35,7 @@ public abstract class ServicePoolProxies {
     }
 
     /**
-     * Return the number of valid end points that the provided service pool knows about.
+     * Gets the number of valid end points that the provided service pool knows about.
      * @see ServicePool#getNumValidEndPoints()
      */
     public static <S> int getNumValidEndPoints(S dynamicProxy) {
@@ -43,7 +43,7 @@ public abstract class ServicePoolProxies {
     }
 
     /**
-     * Return the number of bad end points that the provided service pool knows about.
+     * Gets the number of bad end points that the provided service pool knows about.
      * @see ServicePool#getNumBadEndPoints()
      */
     public static <S> int getNumBadEndPoints(S dynamicProxy) {
