@@ -66,8 +66,7 @@ public class ServicePoolBuilder<S> {
 
     /**
      * Adds a {@link HostDiscovery} instance to the builder.  The service pool will use this {@code HostDiscovery}
-     * instance unless a preceding call to {@link #withHostDiscoverySource(HostDiscoverySource)} provides a non-null
-     * instance of {@code HostDiscovery}.
+     * instance unless a preceding {@link HostDiscoverySource} provides a non-null instance of {@code HostDiscovery}.
      * <p>
      * Once this method is called, any subsequent calls to host discovery-related methods on this builder instance are
      * ignored.
