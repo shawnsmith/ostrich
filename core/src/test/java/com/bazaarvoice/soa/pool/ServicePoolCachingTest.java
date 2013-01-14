@@ -23,6 +23,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -131,6 +132,12 @@ public class ServicePoolCachingTest {
     public void teardown() {
         for (ServicePool<Service> pool : _pools) {
             pool.close();
+        }
+
+        try {
+            _hostDiscovery.close();
+        } catch (IOException e) {
+            // NOP
         }
     }
 
@@ -319,7 +326,7 @@ public class ServicePoolCachingTest {
     }
 
     private ServicePool<Service> newPool(ServiceCachingPolicy cachingPolicy) {
-        ServicePool<Service> pool = new ServicePool<Service>(_ticker, _hostDiscovery, _serviceFactory,
+        ServicePool<Service> pool = new ServicePool<Service>(_ticker, _hostDiscovery, false, _serviceFactory,
                 cachingPolicy, _partitionFilter, _loadBalanceAlgorithm, _healthCheckExecutor, true);
         _pools.add(pool);
         return pool;

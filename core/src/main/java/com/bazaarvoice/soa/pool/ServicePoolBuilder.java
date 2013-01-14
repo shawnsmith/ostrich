@@ -13,10 +13,12 @@ import com.bazaarvoice.soa.partition.PartitionKey;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.base.Ticker;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,6 +34,7 @@ public class ServicePoolBuilder<S> {
 
     private final Class<S> _serviceType;
     private final List<HostDiscoverySource> _hostDiscoverySources = Lists.newArrayList();
+    private boolean _closeHostDiscovery;
     private ServiceFactory<S> _serviceFactory;
     private String _serviceName;
     private ScheduledExecutorService _healthCheckExecutor;
@@ -91,6 +94,8 @@ public class ServicePoolBuilder<S> {
      * <p>
      * Once this method is called, any subsequent calls to host discovery-related methods on this builder instance are
      * ignored.
+     * <p>
+     *
      *
      * @param connection the ZooKeeper connection to use for host discovery
      * @return this
@@ -100,7 +105,9 @@ public class ServicePoolBuilder<S> {
         return withHostDiscoverySource(new HostDiscoverySource() {
             @Override
             public HostDiscovery forService(String serviceName) {
-                return new ZooKeeperHostDiscovery(connection, serviceName);
+                HostDiscovery hostDiscovery = new ZooKeeperHostDiscovery(connection, serviceName);
+                _closeHostDiscovery = true;
+                return hostDiscovery;
             }
         });
     }
@@ -270,21 +277,39 @@ public class ServicePoolBuilder<S> {
 
         HostDiscovery hostDiscovery = findHostDiscovery(_serviceName);
 
-        if (_cachingPolicy == null) {
-            _cachingPolicy = ServiceCachingPolicyBuilder.NO_CACHING;
-        }
+        try {
+            if (_cachingPolicy == null) {
+                _cachingPolicy = ServiceCachingPolicyBuilder.NO_CACHING;
+            }
 
-        boolean shutdownHealthCheckExecutorOnClose = (_healthCheckExecutor == null);
-        if (_healthCheckExecutor == null) {
-            ThreadFactory threadFactory = new ThreadFactoryBuilder()
-                    .setNameFormat(_serviceName + "-HealthCheckThread-%d")
-                    .setDaemon(true)
-                    .build();
-            _healthCheckExecutor = Executors.newScheduledThreadPool(DEFAULT_NUM_HEALTH_CHECK_THREADS, threadFactory);
-        }
+            boolean shutdownHealthCheckExecutorOnClose = (_healthCheckExecutor == null);
+            if (_healthCheckExecutor == null) {
+                ThreadFactory threadFactory = new ThreadFactoryBuilder()
+                        .setNameFormat(_serviceName + "-HealthCheckThread-%d")
+                        .setDaemon(true)
+                        .build();
+                _healthCheckExecutor = Executors.newScheduledThreadPool(DEFAULT_NUM_HEALTH_CHECK_THREADS, threadFactory);
+            }
 
-        return new ServicePool<S>(Ticker.systemTicker(), hostDiscovery, _serviceFactory, _cachingPolicy,
-                _partitionFilter, _loadBalanceAlgorithm, _healthCheckExecutor, shutdownHealthCheckExecutorOnClose);
+            ServicePool<S> servicePool = new ServicePool<S>(Ticker.systemTicker(), hostDiscovery, _closeHostDiscovery,
+                    _serviceFactory, _cachingPolicy, _partitionFilter, _loadBalanceAlgorithm, _healthCheckExecutor,
+                    shutdownHealthCheckExecutorOnClose);
+
+            _closeHostDiscovery = false;
+
+            return servicePool;
+
+        } catch (Throwable t) {
+            try {
+                if (_closeHostDiscovery) {
+                    hostDiscovery.close();
+                }
+            } catch (IOException e) {
+                // NOP
+            }
+
+            throw Throwables.propagate(t);
+        }
     }
 
     private HostDiscovery findHostDiscovery(String serviceName) {
