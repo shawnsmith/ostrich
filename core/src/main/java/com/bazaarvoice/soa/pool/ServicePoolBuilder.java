@@ -57,6 +57,9 @@ public class ServicePoolBuilder<S> {
      * may be specified.  The service pool will use the first source to return a non-null instance of
      * {@link HostDiscovery} for the service name provided by the {@link ServiceFactory#getServiceName()} method of
      * the factory configured by {@link #withServiceFactory}.
+     * <p>
+     * Note that callers of this method are responsible for calling {@link HostDiscovery#close} on any instances
+     * created by the {@code HostDiscoverySource}.
      *
      * @param hostDiscoverySource a host discovery source to use to find the {@link HostDiscovery} when constructing
      * the {@link ServicePool}
@@ -73,6 +76,8 @@ public class ServicePoolBuilder<S> {
      * <p>
      * Once this method is called, any subsequent calls to host discovery-related methods on this builder instance are
      * ignored.
+     * <p>
+     * Note that callers of this method are responsible for calling {@link HostDiscovery#close} on the passed instance.
      *
      * @param hostDiscovery the host discovery instance to use in the built {@link ServicePool}
      * @return this
@@ -95,7 +100,9 @@ public class ServicePoolBuilder<S> {
      * Once this method is called, any subsequent calls to host discovery-related methods on this builder instance are
      * ignored.
      * <p>
-     *
+     * Note that using this method will cause the ServicePoolBuilder to construct a {@code HostDiscovery} when
+     * {@link #build()} is called and pass it to the new {@code ServicePool}.  Subsequently calling
+     * {@link ServicePool#close()} pool will in turn call {@link HostDiscovery#close()} on the passed instance.
      *
      * @param connection the ZooKeeper connection to use for host discovery
      * @return this
