@@ -56,7 +56,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
 
     private final Ticker _ticker;
     private final HostDiscovery _hostDiscovery;
-    private final boolean _closeHostDiscovery;
+    private final boolean _cleanupHostDiscoveryOnClose;
     private final HostDiscovery.EndPointListener _hostDiscoveryListener;
     private final ServiceFactory<S> _serviceFactory;
     private final ScheduledExecutorService _healthCheckExecutor;
@@ -75,13 +75,13 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
     private final Meter _numExecuteSuccesses;
     private final Meter _numExecuteAttemptFailures;
 
-    ServicePool(Ticker ticker, HostDiscovery hostDiscovery, boolean closeHostDiscovery,
+    ServicePool(Ticker ticker, HostDiscovery hostDiscovery, boolean cleanupHostDiscoveryOnClose,
                 ServiceFactory<S> serviceFactory, ServiceCachingPolicy cachingPolicy,
                 PartitionFilter partitionFilter, LoadBalanceAlgorithm loadBalanceAlgorithm,
                 ScheduledExecutorService healthCheckExecutor, boolean shutdownHealthCheckExecutorOnClose) {
         _ticker = checkNotNull(ticker);
         _hostDiscovery = checkNotNull(hostDiscovery);
-        _closeHostDiscovery = closeHostDiscovery;
+        _cleanupHostDiscoveryOnClose = cleanupHostDiscoveryOnClose;
         _serviceFactory = checkNotNull(serviceFactory);
         _healthCheckExecutor = checkNotNull(healthCheckExecutor);
         _shutdownHealthCheckExecutorOnClose = shutdownHealthCheckExecutorOnClose;
@@ -162,7 +162,7 @@ class ServicePool<S> implements com.bazaarvoice.soa.ServicePool<S> {
         _batchHealthChecksFuture.cancel(true);
 
         _hostDiscovery.removeListener(_hostDiscoveryListener);
-        if (_closeHostDiscovery) {
+        if (_cleanupHostDiscoveryOnClose) {
             try {
                 _hostDiscovery.close();
             } catch (IOException e) {

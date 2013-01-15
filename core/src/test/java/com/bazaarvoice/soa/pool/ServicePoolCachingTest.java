@@ -129,16 +129,12 @@ public class ServicePoolCachingTest {
     }
 
     @After
-    public void teardown() {
+    public void teardown() throws IOException {
         for (ServicePool<Service> pool : _pools) {
             pool.close();
         }
 
-        try {
-            _hostDiscovery.close();
-        } catch (IOException e) {
-            // NOP
-        }
+        _hostDiscovery.close();
     }
 
     @Test

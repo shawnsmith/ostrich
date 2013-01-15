@@ -146,14 +146,10 @@ public class ServicePoolTest {
     }
 
     @After
-    public void teardown() {
+    public void teardown() throws IOException {
         _pool.close();
 
-        try {
-            _hostDiscovery.close();
-        } catch (IOException e) {
-            // NOP
-        }
+        _hostDiscovery.close();
     }
 
     @Test

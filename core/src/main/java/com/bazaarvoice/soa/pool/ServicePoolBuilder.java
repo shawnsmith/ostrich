@@ -102,7 +102,7 @@ public class ServicePoolBuilder<S> {
      * <p>
      * Note that using this method will cause the ServicePoolBuilder to construct a {@code HostDiscovery} when
      * {@link #build()} is called and pass it to the new {@code ServicePool}.  Subsequently calling
-     * {@link ServicePool#close()} pool will in turn call {@link HostDiscovery#close()} on the passed instance.
+     * {@link ServicePool#close()} will in turn call {@link HostDiscovery#close()} on the passed instance.
      *
      * @param connection the ZooKeeper connection to use for host discovery
      * @return this
@@ -313,6 +313,8 @@ public class ServicePoolBuilder<S> {
                 }
             } catch (IOException e) {
                 // NOP
+            } finally {
+                _closeHostDiscovery = false;
             }
 
             throw Throwables.propagate(t);
