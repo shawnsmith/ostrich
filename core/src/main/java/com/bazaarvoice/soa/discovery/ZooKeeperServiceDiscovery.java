@@ -27,9 +27,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * instances currently registered.
  */
 public class ZooKeeperServiceDiscovery implements ServiceDiscovery {
-    /** The path in ZooKeeper where ostrich services are registered. */
-    @VisibleForTesting
-    static final String SERVICE_PATH = ZooKeeperServiceRegistry.rootServicePath();
+    /** The path in ZooKeeper where ostrich services are registered.  Ignoring namespaces. */
+    private static final String SERVICE_PATH = ZooKeeperServiceRegistry.rootServicePath();
 
     private final ZooKeeperNodeDiscovery<String> _nodeDiscovery;
 
