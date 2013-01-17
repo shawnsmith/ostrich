@@ -58,16 +58,18 @@ public class ServicePoolBuilder<S> {
      * {@link HostDiscovery} for the service name provided by the {@link ServiceFactory#getServiceName()} method of
      * the factory configured by {@link #withServiceFactory}.
      * <p>
-     * Note that callers of this method are responsible for calling {@link HostDiscovery#close} on any instances
-     * created by the {@code HostDiscoverySource}.
+     * Note that using this method will cause the ServicePoolBuilder to call
+     * {@link HostDiscoverySource#forService(String serviceName)} when {@link #build()} is called and pass the returned
+     * {@link HostDiscovery} to the new {@code ServicePool}.  Subsequently calling {@link ServicePool#close()} will in
+     * turn call {@link HostDiscovery#close()} on the passed instance.
      *
      * @param hostDiscoverySource a host discovery source to use to find the {@link HostDiscovery} when constructing
      * the {@link ServicePool}
      * @return this
      */
     public ServicePoolBuilder<S> withHostDiscoverySource(HostDiscoverySource hostDiscoverySource) {
-        _hostDiscoverySources.add(checkNotNull(hostDiscoverySource));
-        return this;
+        checkNotNull(hostDiscoverySource);
+        return withHostDiscoverySourceInternal(hostDiscoverySource, true);
     }
 
     /**
@@ -84,12 +86,13 @@ public class ServicePoolBuilder<S> {
      */
     public ServicePoolBuilder<S> withHostDiscovery(final HostDiscovery hostDiscovery) {
         checkNotNull(hostDiscovery);
-        return withHostDiscoverySource(new HostDiscoverySource() {
+        HostDiscoverySource hostDiscoverySource = new HostDiscoverySource() {
             @Override
             public HostDiscovery forService(String serviceName) {
                 return hostDiscovery;
             }
-        });
+        };
+        return withHostDiscoverySourceInternal(hostDiscoverySource, false);
     }
 
     /**
@@ -109,14 +112,22 @@ public class ServicePoolBuilder<S> {
      */
     public ServicePoolBuilder<S> withZooKeeperHostDiscovery(final ZooKeeperConnection connection) {
         checkNotNull(connection);
-        return withHostDiscoverySource(new HostDiscoverySource() {
+        HostDiscoverySource hostDiscoverySource = new HostDiscoverySource() {
             @Override
             public HostDiscovery forService(String serviceName) {
-                HostDiscovery hostDiscovery = new ZooKeeperHostDiscovery(connection, serviceName);
-                _closeHostDiscovery = true;
-                return hostDiscovery;
+                return new ZooKeeperHostDiscovery(connection, serviceName);
             }
-        });
+        };
+        return withHostDiscoverySourceInternal(hostDiscoverySource, true);
+    }
+
+    private ServicePoolBuilder<S> withHostDiscoverySourceInternal(HostDiscoverySource hostDiscoverySource, boolean closeHostDiscoveriesCreatedBySource) {
+        HostDiscoverySource sourceToAdd = hostDiscoverySource;
+        if (closeHostDiscoveriesCreatedBySource) {
+            sourceToAdd = new ClosingHostDiscoverySource(hostDiscoverySource);
+        }
+        _hostDiscoverySources.add(sourceToAdd);
+        return this;
     }
 
     /**
@@ -284,12 +295,13 @@ public class ServicePoolBuilder<S> {
 
         HostDiscovery hostDiscovery = findHostDiscovery(_serviceName);
 
+        boolean shutdownHealthCheckExecutorOnClose = (_healthCheckExecutor == null);
+
         try {
             if (_cachingPolicy == null) {
                 _cachingPolicy = ServiceCachingPolicyBuilder.NO_CACHING;
             }
 
-            boolean shutdownHealthCheckExecutorOnClose = (_healthCheckExecutor == null);
             if (_healthCheckExecutor == null) {
                 ThreadFactory threadFactory = new ThreadFactoryBuilder()
                         .setNameFormat(_serviceName + "-HealthCheckThread-%d")
@@ -305,8 +317,11 @@ public class ServicePoolBuilder<S> {
             _closeHostDiscovery = false;
 
             return servicePool;
-
         } catch (Throwable t) {
+            if (shutdownHealthCheckExecutorOnClose) {
+                _healthCheckExecutor.shutdownNow();
+            }
+
             try {
                 if (_closeHostDiscovery) {
                     hostDiscovery.close();
@@ -329,5 +344,22 @@ public class ServicePoolBuilder<S> {
             }
         }
         throw new IllegalStateException(format("No HostDiscovery found for service: %s", serviceName));
+    }
+
+    private class ClosingHostDiscoverySource implements HostDiscoverySource {
+        private HostDiscoverySource _wrappedSource;
+
+        public ClosingHostDiscoverySource(HostDiscoverySource wrappedSource) {
+            _wrappedSource = wrappedSource;
+        }
+
+        @Override
+        public HostDiscovery forService(String serviceName) {
+            HostDiscovery hostDiscovery = _wrappedSource.forService(serviceName);
+            if (hostDiscovery != null) {
+                _closeHostDiscovery = true;
+            }
+            return hostDiscovery;
+        }
     }
 }
