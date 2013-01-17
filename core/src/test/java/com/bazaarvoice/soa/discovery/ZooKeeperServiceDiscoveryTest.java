@@ -42,13 +42,13 @@ public class ZooKeeperServiceDiscoveryTest {
 
     @Test
     public void testNoServices() {
-        registerServices();
+        setServices();
         assertEquals(0, Iterables.size(_discovery.getServices()));
     }
 
     @Test
     public void testOneService() {
-        registerServices("service");
+        setServices("service");
 
         Iterable<String> services = _discovery.getServices();
         assertEquals(1, Iterables.size(services));
@@ -57,7 +57,7 @@ public class ZooKeeperServiceDiscoveryTest {
 
     @Test
     public void testMultipleServices() {
-        registerServices("service1", "service2");
+        setServices("service1", "service2");
 
         Iterable<String> services = _discovery.getServices();
         assertEquals(2, Iterables.size(services));
@@ -96,7 +96,7 @@ public class ZooKeeperServiceDiscoveryTest {
         assertEquals("service", service);
     }
 
-    private void registerServices(String... services) {
+    private void setServices(String... services) {
         Map<String, String> serviceMap = Maps.newHashMap();
         for (String service : services) {
             serviceMap.put(service, service);
