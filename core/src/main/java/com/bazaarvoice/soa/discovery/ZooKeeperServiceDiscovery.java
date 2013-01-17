@@ -3,18 +3,14 @@ package com.bazaarvoice.soa.discovery;
 import com.bazaarvoice.soa.ServiceDiscovery;
 import com.bazaarvoice.soa.registry.ZooKeeperServiceRegistry;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
-import com.bazaarvoice.zookeeper.internal.CuratorConnection;
 import com.bazaarvoice.zookeeper.recipes.discovery.NodeDataParser;
 import com.bazaarvoice.zookeeper.recipes.discovery.ZooKeeperNodeDiscovery;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
-import com.netflix.curator.framework.CuratorFramework;
-import com.netflix.curator.utils.ZKPaths;
 
 import java.io.IOException;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -28,19 +24,27 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class ZooKeeperServiceDiscovery implements ServiceDiscovery {
     /** The path in ZooKeeper where ostrich services are registered.  Ignoring namespaces. */
-    private static final String SERVICE_PATH = ZooKeeperServiceRegistry.rootServicePath();
+    @VisibleForTesting
+    static final String SERVICE_PATH = ZooKeeperServiceRegistry.rootServicePath();
+
+    /** Node data parser that returns the service name of the path. */
+    @VisibleForTesting
+    static final NodeDataParser<String> SERVICE_NAME_PARSER = new NodeDataParser<String>() {
+        @Override
+        public String parse(String path, byte[] nodeData) {
+            path = path.substring(SERVICE_PATH.length());
+            if (path.startsWith("/")) {
+                path = path.substring(1);
+            }
+
+            return path;
+        }
+    };
 
     private final ZooKeeperNodeDiscovery<String> _nodeDiscovery;
 
     public ZooKeeperServiceDiscovery(ZooKeeperConnection connection) {
-        checkNotNull(connection);
-        checkArgument(connection instanceof CuratorConnection);
-
-        CuratorFramework curator = ((CuratorConnection) connection).getCurator();
-        String namespace = curator.getNamespace();
-
-        _nodeDiscovery = new ZooKeeperNodeDiscovery<String>(connection, SERVICE_PATH, new ServiceNameParser(namespace));
-        _nodeDiscovery.start();
+        this(new ZooKeeperNodeDiscovery<String>(connection, SERVICE_PATH, SERVICE_NAME_PARSER));
     }
 
     @VisibleForTesting
@@ -58,25 +62,5 @@ public class ZooKeeperServiceDiscovery implements ServiceDiscovery {
     @Override
     public void close() throws IOException {
         _nodeDiscovery.close();
-    }
-
-    /** Node data parser that returns the service name of the path. */
-    @VisibleForTesting
-    static final class ServiceNameParser implements NodeDataParser<String> {
-        private final String _prefix;
-
-        public ServiceNameParser(String namespace) {
-            _prefix = ZKPaths.makePath(namespace, SERVICE_PATH);
-        }
-
-        @Override
-        public String parse(String path, byte[] nodeData) {
-            path = path.substring(_prefix.length());
-            if (path.startsWith("/")) {
-                path = path.substring(1);
-            }
-
-            return path;
-        }
     }
 }

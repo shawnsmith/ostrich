@@ -1,11 +1,11 @@
 package com.bazaarvoice.soa.discovery;
 
-import com.bazaarvoice.soa.discovery.ZooKeeperServiceDiscovery.ServiceNameParser;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.bazaarvoice.zookeeper.recipes.discovery.ZooKeeperNodeDiscovery;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closeables;
+import com.netflix.curator.utils.ZKPaths;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -72,27 +72,10 @@ public class ZooKeeperServiceDiscoveryTest {
     }
 
     @Test
-    public void testServiceNameParserWithNoNamespace() {
-        ServiceNameParser parser = new ServiceNameParser("");
+    public void testServiceNameParser() {
+        String path = ZKPaths.makePath(ZooKeeperServiceDiscovery.SERVICE_PATH, "service");
 
-        String service = parser.parse("/ostrich/service", null);
-        assertEquals("service", service);
-    }
-
-    @Test
-    public void testServiceNameParserWithRootNamespace() {
-        ServiceNameParser parser = new ServiceNameParser("/");
-
-        String service = parser.parse("/ostrich/service", null);
-        assertEquals("service", service);
-    }
-
-
-    @Test
-    public void testServiceNameParserWithNamespace() {
-        ServiceNameParser parser = new ServiceNameParser("/namespace");
-
-        String service = parser.parse("/namespace/ostrich/service", null);
+        String service = ZooKeeperServiceDiscovery.SERVICE_NAME_PARSER.parse(path, null);
         assertEquals("service", service);
     }
 
