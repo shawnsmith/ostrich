@@ -1,5 +1,6 @@
 package com.bazaarvoice.soa.discovery;
 
+import com.bazaarvoice.soa.discovery.ZooKeeperServiceDiscovery.ServiceNameParser;
 import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.bazaarvoice.zookeeper.recipes.discovery.ZooKeeperNodeDiscovery;
 import com.google.common.collect.Iterables;
@@ -20,7 +21,7 @@ import static org.mockito.Mockito.when;
 
 public class ZooKeeperServiceDiscoveryTest {
     private ZooKeeperServiceDiscovery _discovery;
-    private ZooKeeperNodeDiscovery<Void> _nodeDiscovery;
+    private ZooKeeperNodeDiscovery<String> _nodeDiscovery;
 
     @SuppressWarnings("unchecked")
     @Before
@@ -41,7 +42,7 @@ public class ZooKeeperServiceDiscoveryTest {
 
     @Test
     public void testNoServices() {
-        when(_nodeDiscovery.getNodes()).thenReturn(Maps.<String, Void>newHashMap());
+        registerServices();
         assertEquals(0, Iterables.size(_discovery.getServices()));
     }
 
@@ -70,10 +71,35 @@ public class ZooKeeperServiceDiscoveryTest {
         verify(_nodeDiscovery).close();
     }
 
+    @Test
+    public void testServiceNameParserWithNoNamespace() {
+        ServiceNameParser parser = new ServiceNameParser("");
+
+        String service = parser.parse("/ostrich/service", null);
+        assertEquals("service", service);
+    }
+
+    @Test
+    public void testServiceNameParserWithRootNamespace() {
+        ServiceNameParser parser = new ServiceNameParser("/");
+
+        String service = parser.parse("/ostrich/service", null);
+        assertEquals("service", service);
+    }
+
+
+    @Test
+    public void testServiceNameParserWithNamespace() {
+        ServiceNameParser parser = new ServiceNameParser("/namespace");
+
+        String service = parser.parse("/namespace/ostrich/service", null);
+        assertEquals("service", service);
+    }
+
     private void registerServices(String... services) {
-        Map<String, Void> serviceMap = Maps.newHashMap();
+        Map<String, String> serviceMap = Maps.newHashMap();
         for (String service : services) {
-            serviceMap.put(service, null);
+            serviceMap.put(service, service);
         }
 
         when(_nodeDiscovery.getNodes()).thenReturn(serviceMap);
