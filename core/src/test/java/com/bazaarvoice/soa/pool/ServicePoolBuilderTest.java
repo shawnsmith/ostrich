@@ -166,17 +166,11 @@ public class ServicePoolBuilderTest {
 
     @Test
     public void testHostDiscoveryFromSourceCloses() throws Exception {
-        Listenable<ConnectionStateListener> connectionStateListener = mock(Listenable.class);
-        CuratorFramework curatorFramework = mock(CuratorFramework.class);
-        CuratorConnection connection = mock(CuratorConnection.class);
         HostDiscoverySource closingHostDiscoverySource = mock(HostDiscoverySource.class);
         HostDiscovery closedHostDiscovery = mock(HostDiscovery.class);
         HostDiscoverySource nonClosingHostDiscoverySource = mock(HostDiscoverySource.class);
         HostDiscovery unclosedHostDiscovery = mock(HostDiscovery.class);
 
-        when(curatorFramework.getState()).thenReturn(CuratorFrameworkState.STARTED);
-        when(curatorFramework.getConnectionStateListenable()).thenReturn(connectionStateListener);
-        when(connection.getCurator()).thenReturn(curatorFramework);
         when(closingHostDiscoverySource.forService(anyString())).thenReturn(closedHostDiscovery);
         when(nonClosingHostDiscoverySource.forService(anyString())).thenReturn(unclosedHostDiscovery);
 
@@ -195,14 +189,7 @@ public class ServicePoolBuilderTest {
 
     @Test
     public void testHostDiscoveryDoesNotClose() throws Exception {
-        Listenable<ConnectionStateListener> connectionStateListener = mock(Listenable.class);
-        CuratorFramework curatorFramework = mock(CuratorFramework.class);
-        CuratorConnection connection = mock(CuratorConnection.class);
         HostDiscovery unclosedHostDiscovery = mock(HostDiscovery.class);
-
-        when(curatorFramework.getState()).thenReturn(CuratorFrameworkState.STARTED);
-        when(curatorFramework.getConnectionStateListenable()).thenReturn(connectionStateListener);
-        when(connection.getCurator()).thenReturn(curatorFramework);
 
         ServicePool<Service> servicePool = (ServicePool<Service>) ServicePoolBuilder.create(Service.class)
                 .withServiceFactory(_serviceFactory)
