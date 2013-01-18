@@ -320,6 +320,7 @@ public class ServicePoolBuilder<S> {
         } catch (Throwable t) {
             if (shutdownHealthCheckExecutorOnClose) {
                 _healthCheckExecutor.shutdownNow();
+                _healthCheckExecutor = null;
             }
 
             try {
