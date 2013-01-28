@@ -108,7 +108,6 @@
     <modules>
         <module>core</module>
         <module>dropwizard</module>
-        <module>discovery-server</module>
         <module>examples</module>
     </modules>
 </project>
