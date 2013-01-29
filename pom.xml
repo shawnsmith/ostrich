@@ -8,9 +8,9 @@
         <version>1.0</version>
     </parent>
 
-    <groupId>com.bazaarvoice.soa</groupId>
-    <artifactId>soa</artifactId>
-    <version>1.4.1-SNAPSHOT</version>
+    <groupId>com.bazaarvoice.ostrich</groupId>
+    <artifactId>ostrich</artifactId>
+    <version>1.5.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <scm>
@@ -19,12 +19,12 @@
         <developerConnection>scm:git:git@github.com:bazaarvoice/ostrich.git</developerConnection>
     </scm>
 
-    <name>soa</name>
+    <name>Ostrich</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <curator.extensions.version>1.0.0</curator.extensions.version>
+        <curator.extensions.version>1.0.1</curator.extensions.version>
     </properties>
 
     <build>
