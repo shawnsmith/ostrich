@@ -4,42 +4,29 @@
 
     <parent>
         <groupId>com.bazaarvoice.ostrich</groupId>
-        <artifactId>ostrich</artifactId>
+        <artifactId>zookeeper</artifactId>
         <version>1.5.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <groupId>com.bazaarvoice.ostrich</groupId>
-    <artifactId>core</artifactId>
+    <groupId>com.bazaarvoice.ostrich.zookeeper</groupId>
+    <artifactId>discovery</artifactId>
     <packaging>jar</packaging>
 
-    <name>core</name>
-    <description>Core classes that form Ostrich</description>
+    <name>discovery</name>
+    <description>Ostrich service discovery backed by ZooKeeper</description>
 
     <dependencies>
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
+            <groupId>com.bazaarvoice.curator</groupId>
+            <artifactId>recipes</artifactId>
+            <version>${curator.extensions.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>com.yammer.metrics</groupId>
-            <artifactId>metrics-core</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>commons-pool</groupId>
-            <artifactId>commons-pool</artifactId>
+            <groupId>com.bazaarvoice.ostrich</groupId>
+            <artifactId>core</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>

@@ -1,11 +1,9 @@
-package com.bazaarvoice.ostrich.discovery;
+package com.bazaarvoice.ostrich.discovery.zookeeper;
 
 import com.bazaarvoice.curator.recipes.NodeDiscovery;
-import com.bazaarvoice.ostrich.HostDiscovery;
 import com.bazaarvoice.ostrich.ServiceEndPoint;
 import com.bazaarvoice.ostrich.ServiceEndPointJsonCodec;
 import com.bazaarvoice.ostrich.metrics.Metrics;
-import com.bazaarvoice.ostrich.registry.ZooKeeperServiceRegistry;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ConcurrentHashMultiset;
@@ -14,6 +12,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Sets;
 import com.netflix.curator.framework.CuratorFramework;
+import com.netflix.curator.utils.ZKPaths;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Meter;
@@ -28,12 +27,21 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
- * The <code>ZooKeeperHostDiscovery</code> class encapsulates ZooKeeperNodeDiscovery which
- * watches a service path in ZooKeeper and will monitor which hosts are
- * available.  As hosts come and go the results of calling the <code>#getHosts</code> method changes.
+ * The <code>HostDiscovery</code> class encapsulates a ZooKeeper backed NodeDiscovery which watches a specific service
+ * path in ZooKeeper and will monitor which end points are known to exist.  As end pionts come and go the results of
+ * calling the {@link #getHosts} method change.
  */
-public class ZooKeeperHostDiscovery implements HostDiscovery {
-    private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperHostDiscovery.class);
+public class HostDiscovery implements com.bazaarvoice.ostrich.HostDiscovery {
+    private static final Logger LOG = LoggerFactory.getLogger(HostDiscovery.class);
+
+    /**
+     * The root path in ZooKeeper for where service registrations are stored.
+     * <p/>
+     * WARNING: Do not modify this without also modifying the ALL of the corresponding paths in the service registry,
+     * host discovery, and service discovery classes!!!
+     */
+    @VisibleForTesting
+    static final String ROOT_SERVICES_PATH = "/ostrich";
 
     private final NodeDiscovery<ServiceEndPoint> _nodeDiscovery;
     private final Multiset<ServiceEndPoint> _endPoints;
@@ -45,18 +53,18 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
     private final Meter _numZooKeeperRemoves;
     private final Meter _numZooKeeperChanges;
 
-    public ZooKeeperHostDiscovery(CuratorFramework curator, String serviceName) {
+    public HostDiscovery(CuratorFramework curator, String serviceName) {
         this(new NodeDiscoveryFactory(), curator, serviceName);
     }
 
     @VisibleForTesting
-    ZooKeeperHostDiscovery(NodeDiscoveryFactory factory, CuratorFramework curator, String serviceName) {
+    HostDiscovery(NodeDiscoveryFactory factory, CuratorFramework curator, String serviceName) {
         checkNotNull(factory);
         checkNotNull(curator);
         checkNotNull(serviceName);
         checkArgument(!"".equals(serviceName));
 
-        String servicePath = ZooKeeperServiceRegistry.makeServicePath(serviceName);
+        String servicePath = makeServicePath(serviceName);
 
         _listeners = Sets.newSetFromMap(Maps.<EndPointListener, Boolean>newConcurrentMap());
         _endPoints = ConcurrentHashMultiset.create();
@@ -144,6 +152,17 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         for (EndPointListener listener : _listeners) {
             listener.onEndPointRemoved(endPoint);
         }
+    }
+
+    /**
+     * Construct the path in ZooKeeper to where a service's children live.
+     * @param serviceName The name of the service to get the ZooKeeper path for.
+     * @return The ZooKeeper path.
+     */
+    public static String makeServicePath(String serviceName) {
+        checkNotNull(serviceName);
+        checkArgument(!"".equals(serviceName));
+        return ZKPaths.makePath(ROOT_SERVICES_PATH, serviceName);
     }
 
     /**

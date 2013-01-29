@@ -1,4 +1,4 @@
-package com.bazaarvoice.ostrich.discovery;
+package com.bazaarvoice.ostrich.discovery.zookeeper;
 
 import com.bazaarvoice.curator.recipes.NodeDiscovery;
 import com.google.common.collect.Iterables;
@@ -19,15 +19,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class ZooKeeperServiceDiscoveryTest {
-    private ZooKeeperServiceDiscovery _discovery;
+public class ServiceDiscoveryTest {
+    private ServiceDiscovery _discovery;
     private NodeDiscovery<String> _nodeDiscovery;
 
     @SuppressWarnings("unchecked")
     @Before
     public void setup() throws Exception {
         _nodeDiscovery = mock(NodeDiscovery.class);
-        _discovery = new ZooKeeperServiceDiscovery(_nodeDiscovery);
+        _discovery = new ServiceDiscovery(_nodeDiscovery);
     }
 
     @After
@@ -37,7 +37,7 @@ public class ZooKeeperServiceDiscoveryTest {
 
     @Test(expected = NullPointerException.class)
     public void testNullCurator() {
-        new ZooKeeperServiceDiscovery((CuratorFramework) null);
+        new ServiceDiscovery((CuratorFramework) null);
     }
 
     @Test
@@ -73,9 +73,9 @@ public class ZooKeeperServiceDiscoveryTest {
 
     @Test
     public void testServiceNameParser() {
-        String path = ZKPaths.makePath(ZooKeeperServiceDiscovery.SERVICE_PATH, "service");
+        String path = ZKPaths.makePath(ServiceDiscovery.ROOT_SERVICES_PATH, "service");
 
-        String service = ZooKeeperServiceDiscovery.SERVICE_NAME_PARSER.parse(path, null);
+        String service = ServiceDiscovery.SERVICE_NAME_PARSER.parse(path, null);
         assertEquals("service", service);
     }
 

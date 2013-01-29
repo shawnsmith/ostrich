@@ -1,9 +1,8 @@
-package com.bazaarvoice.ostrich.registry;
+package com.bazaarvoice.ostrich.registry.zookeeper;
 
 import com.bazaarvoice.curator.recipes.PersistentEphemeralNode;
 import com.bazaarvoice.ostrich.ServiceEndPoint;
 import com.bazaarvoice.ostrich.ServiceEndPointJsonCodec;
-import com.bazaarvoice.ostrich.ServiceRegistry;
 import com.bazaarvoice.ostrich.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
@@ -31,13 +30,18 @@ import static com.google.common.base.Preconditions.checkState;
 /**
  * A <code>ServiceRegistry</code> implementation that uses ZooKeeper as its backing data store.
  */
-public class ZooKeeperServiceRegistry implements ServiceRegistry
+public class ServiceRegistry implements com.bazaarvoice.ostrich.ServiceRegistry
 {
-    /** The root path in ZooKeeper for where service registrations are stored. */
+    /**
+     * The root path in ZooKeeper for where service registrations are stored.
+     * <p/>
+     * WARNING: Do not modify this without also modifying the ALL of the corresponding paths in the service registry,
+     * host discovery, and service discovery classes!!!
+     */
     @VisibleForTesting
-    static final String ROOT_SERVICES_PATH = "ostrich";
+    static final String ROOT_SERVICES_PATH = "/ostrich";
 
-    /** Maximum number of bytes that can be stored on a node in ZooKeeper. */
+    /** Maximum number of bytes that can be stored in a node in ZooKeeper. */
     @VisibleForTesting
     static final int MAX_DATA_SIZE = 1024 * 1024;
 
@@ -51,7 +55,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     /** The ephemeral data that's been written to ZooKeeper.  Saved in case the connection is lost and then regained. */
     private final Map<String, PersistentEphemeralNode> _nodes = Maps.newConcurrentMap();
 
-    private final Metrics _metrics = Metrics.forClass(ZooKeeperServiceRegistry.class);
+    private final Metrics _metrics = Metrics.forClass(ServiceRegistry.class);
     private final LoadingCache<String, Counter> _numRegisteredEndpoints = CacheBuilder.newBuilder()
             .build(new CacheLoader<String, Counter>() {
                 @Override
@@ -60,12 +64,12 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
                 }
             });
 
-    public ZooKeeperServiceRegistry(CuratorFramework curator) {
+    public ServiceRegistry(CuratorFramework curator) {
         this(new NodeFactory(curator));
     }
 
     @VisibleForTesting
-    ZooKeeperServiceRegistry(NodeFactory nodeFactory) {
+    ServiceRegistry(NodeFactory nodeFactory) {
         _nodeFactory = checkNotNull(nodeFactory);
     }
 

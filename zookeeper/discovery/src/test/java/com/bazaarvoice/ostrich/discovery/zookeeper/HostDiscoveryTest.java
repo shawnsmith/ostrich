@@ -1,11 +1,9 @@
-package com.bazaarvoice.ostrich.discovery;
+package com.bazaarvoice.ostrich.discovery.zookeeper;
 
-import com.bazaarvoice.ostrich.HostDiscovery;
+import com.bazaarvoice.curator.recipes.NodeDiscovery;
 import com.bazaarvoice.ostrich.ServiceEndPoint;
 import com.bazaarvoice.ostrich.ServiceEndPointBuilder;
 import com.bazaarvoice.ostrich.ServiceEndPointJsonCodec;
-import com.bazaarvoice.ostrich.registry.ZooKeeperServiceRegistry;
-import com.bazaarvoice.curator.recipes.NodeDiscovery;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -24,7 +22,6 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -32,32 +29,31 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class ZooKeeperHostDiscoveryTest {
+public class HostDiscoveryTest {
     private static final ServiceEndPoint FOO = new ServiceEndPointBuilder()
             .withServiceName("Foo")
             .withId("server:8080")
             .build();
 
-    private ZooKeeperHostDiscovery _discovery;
+    private HostDiscovery _discovery;
     private NodeDiscovery.NodeListener<ServiceEndPoint> _listener;
     private NodeDiscovery.NodeDataParser<ServiceEndPoint> _parser;
 
     @SuppressWarnings("unchecked")
     @Before
     public void setup() throws Exception {
-        ZooKeeperHostDiscovery.NodeDiscoveryFactory factory = mock(ZooKeeperHostDiscovery.NodeDiscoveryFactory.class);
+        HostDiscovery.NodeDiscoveryFactory factory = mock(HostDiscovery.NodeDiscoveryFactory.class);
         NodeDiscovery<ServiceEndPoint> nodeDiscovery = mock(NodeDiscovery.class);
         CuratorFramework curator = mock(CuratorFramework.class);
         when(factory.create(Matchers.<CuratorFramework>any(CuratorFramework.class), anyString(),
                 Matchers.<NodeDiscovery.NodeDataParser<ServiceEndPoint>>any())).thenReturn(nodeDiscovery);
 
-        _discovery = new ZooKeeperHostDiscovery(factory, curator, FOO.getServiceName());
+        _discovery = new HostDiscovery(factory, curator, FOO.getServiceName());
 
         // Capture the parser.
         ArgumentCaptor<NodeDiscovery.NodeDataParser<ServiceEndPoint>> parserCaptor =
                 (ArgumentCaptor) ArgumentCaptor.forClass(NodeDiscovery.NodeDataParser.class);
-        verify(factory).create(same(curator), eq(ZooKeeperServiceRegistry.makeServicePath("Foo")),
-                parserCaptor.capture());
+        verify(factory).create(same(curator), anyString(), parserCaptor.capture());
         _parser = parserCaptor.getValue();
 
         // Capture the listener.
@@ -74,17 +70,17 @@ public class ZooKeeperHostDiscoveryTest {
 
     @Test (expected = NullPointerException.class)
     public void testNullCurator() {
-        new ZooKeeperHostDiscovery(null, FOO.getServiceName());
+        new HostDiscovery(null, FOO.getServiceName());
     }
 
     @Test (expected = NullPointerException.class)
     public void testNullServiceName() throws Exception {
-        new ZooKeeperHostDiscovery(mock(CuratorFramework.class), null);
+        new HostDiscovery(mock(CuratorFramework.class), null);
     }
 
     @Test (expected = IllegalArgumentException.class)
     public void testEmptyServiceName() throws Exception {
-        new ZooKeeperHostDiscovery(mock(CuratorFramework.class), "");
+        new HostDiscovery(mock(CuratorFramework.class), "");
     }
 
     @Test
@@ -125,7 +121,7 @@ public class ZooKeeperHostDiscoveryTest {
     @SuppressWarnings("unchecked")
     @Test
     public void testExistingData() throws Exception {
-        ZooKeeperHostDiscovery.NodeDiscoveryFactory factory = mock(ZooKeeperHostDiscovery.NodeDiscoveryFactory.class);
+        HostDiscovery.NodeDiscoveryFactory factory = mock(HostDiscovery.NodeDiscoveryFactory.class);
         NodeDiscovery<ServiceEndPoint> nodeDiscovery = mock(NodeDiscovery.class);
         when(factory.create(Matchers.<CuratorFramework>any(), anyString(),
                 Matchers.<NodeDiscovery.NodeDataParser<ServiceEndPoint>>any())).thenReturn(nodeDiscovery);
@@ -144,7 +140,7 @@ public class ZooKeeperHostDiscoveryTest {
             }
         }).when(nodeDiscovery).start();
 
-        HostDiscovery discovery = new ZooKeeperHostDiscovery(factory, mock(CuratorFramework.class),
+        HostDiscovery discovery = new HostDiscovery(factory, mock(CuratorFramework.class),
                 FOO.getServiceName());
 
         assertEquals(ImmutableList.of(FOO), ImmutableList.copyOf(discovery.getHosts()));

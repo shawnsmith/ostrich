@@ -1,9 +1,9 @@
-package com.bazaarvoice.ostrich.registry;
+package com.bazaarvoice.ostrich.registry.zookeeper;
 
+import com.bazaarvoice.curator.recipes.PersistentEphemeralNode;
 import com.bazaarvoice.ostrich.ServiceEndPoint;
 import com.bazaarvoice.ostrich.ServiceEndPointBuilder;
 import com.bazaarvoice.ostrich.ServiceEndPointJsonCodec;
-import com.bazaarvoice.curator.recipes.PersistentEphemeralNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 import com.netflix.curator.framework.CuratorFramework;
@@ -11,14 +11,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.concurrent.TimeUnit;
 
-import static com.bazaarvoice.ostrich.registry.ZooKeeperServiceRegistry.MAX_DATA_SIZE;
-import static com.bazaarvoice.ostrich.registry.ZooKeeperServiceRegistry.makeEndPointPath;
+import static com.bazaarvoice.ostrich.registry.zookeeper.ServiceRegistry.MAX_DATA_SIZE;
+import static com.bazaarvoice.ostrich.registry.zookeeper.ServiceRegistry.makeEndPointPath;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -30,16 +29,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class ZooKeeperServiceRegistryTest {
+public class ServiceRegistryTest {
     private static final ServiceEndPoint FOO = newEndPoint("Foo", "server:80", "");
     private static final String FOO_PATH = makeEndPointPath(FOO);
 
-    private ZooKeeperServiceRegistry.NodeFactory _nodeFactory;
-    private ZooKeeperServiceRegistry _registry;
+    private ServiceRegistry.NodeFactory _nodeFactory;
+    private ServiceRegistry _registry;
 
     @Before
     public void setup() {
-        _nodeFactory = mock(ZooKeeperServiceRegistry.NodeFactory.class);
+        _nodeFactory = mock(ServiceRegistry.NodeFactory.class);
         when(_nodeFactory.create(anyString(), any(byte[].class)))
                 .thenAnswer(new Answer<PersistentEphemeralNode>() {
                     @Override
@@ -47,7 +46,7 @@ public class ZooKeeperServiceRegistryTest {
                         return mock(PersistentEphemeralNode.class);
                     }
                 });
-        _registry = new ZooKeeperServiceRegistry(_nodeFactory);
+        _registry = new ServiceRegistry(_nodeFactory);
     }
 
     @After
@@ -57,17 +56,17 @@ public class ZooKeeperServiceRegistryTest {
 
     @Test(expected = NullPointerException.class)
     public void testNullCurator() throws Exception {
-        new ZooKeeperServiceRegistry((CuratorFramework) null);
+        new ServiceRegistry((CuratorFramework) null);
     }
 
     @Test(expected = NullPointerException.class)
     public void testNullFactory() {
-        new ZooKeeperServiceRegistry((ZooKeeperServiceRegistry.NodeFactory) null);
+        new ServiceRegistry((ServiceRegistry.NodeFactory) null);
     }
 
     @Test
     public void testConstructor() {
-        new ZooKeeperServiceRegistry(mock(CuratorFramework.class));
+        new ServiceRegistry(mock(CuratorFramework.class));
     }
 
     @Test(expected = NullPointerException.class)
@@ -134,7 +133,7 @@ public class ZooKeeperServiceRegistryTest {
         _registry.register(FOO);
         _registry.register(FOO);
 
-        verify(_nodeFactory, times(2)).create(eq(FOO_PATH), Matchers.<byte[]>any());
+        verify(_nodeFactory, times(2)).create(eq(FOO_PATH), any(byte[].class));
         verify(firstNode).close(anyLong(), any(TimeUnit.class));
     }
 
@@ -154,7 +153,7 @@ public class ZooKeeperServiceRegistryTest {
     public void testUnregisterWithoutFirstRegistering() throws Exception {
         _registry.unregister(FOO);
 
-        verify(_nodeFactory, never()).create(eq(FOO_PATH), Matchers.<byte[]>any());
+        verify(_nodeFactory, never()).create(eq(FOO_PATH), any(byte[].class));
     }
 
     @Test
@@ -171,7 +170,6 @@ public class ZooKeeperServiceRegistryTest {
         when(_nodeFactory.create(anyString(), any(byte[].class))).thenReturn(node);
 
         _registry.register(FOO);
-
         _registry.close();
 
         verify(node).close(anyLong(), any(TimeUnit.class));
