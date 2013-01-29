@@ -52,9 +52,9 @@ public class ServicePoolBuilder<S> {
 
     /**
      * Adds a {@link HostDiscoverySource} instance to the builder.  Multiple instances of {@code HostDiscoverySource}
-     * may be specified.  The service pool will use the first source to return a non-null instance of
-     * {@link HostDiscovery} for the service name provided by the {@link ServiceFactory#getServiceName()} method of
-     * the factory configured by {@link #withServiceFactory}.
+     * may be specified.  The service pool will query the sources in the order they were registered and use the first
+     * non-null {@link HostDiscovery} returned for the service name provided by the
+     * {@link ServiceFactory#getServiceName()} method of the factory configured by {@link #withServiceFactory}.
      * <p>
      * Note that using this method will cause the ServicePoolBuilder to call
      * {@link HostDiscoverySource#forService(String serviceName)} when {@link #build()} is called and pass the returned
@@ -67,15 +67,16 @@ public class ServicePoolBuilder<S> {
      */
     public ServicePoolBuilder<S> withHostDiscoverySource(HostDiscoverySource hostDiscoverySource) {
         checkNotNull(hostDiscoverySource);
-        return withHostDiscoverySourceInternal(hostDiscoverySource, true);
+        return withHostDiscovery(hostDiscoverySource, true);
     }
 
     /**
      * Adds a {@link HostDiscovery} instance to the builder.  The service pool will use this {@code HostDiscovery}
-     * instance unless a preceding {@link HostDiscoverySource} provides a non-null instance of {@code HostDiscovery}.
+     * instance unless a preceding {@link HostDiscoverySource} provides a non-null instance of {@code HostDiscovery} for
+     * a given service name.
      * <p>
      * Once this method is called, any subsequent calls to host discovery-related methods on this builder instance are
-     * ignored.
+     * ignored (because this non-null discovery will always be returned).
      * <p>
      * Note that callers of this method are responsible for calling {@link HostDiscovery#close} on the passed instance.
      *
@@ -90,15 +91,13 @@ public class ServicePoolBuilder<S> {
                 return hostDiscovery;
             }
         };
-        return withHostDiscoverySourceInternal(hostDiscoverySource, false);
+        return withHostDiscovery(hostDiscoverySource, false);
     }
 
-    private ServicePoolBuilder<S> withHostDiscoverySourceInternal(HostDiscoverySource hostDiscoverySource, boolean closeHostDiscoveriesCreatedBySource) {
-        HostDiscoverySource sourceToAdd = hostDiscoverySource;
-        if (closeHostDiscoveriesCreatedBySource) {
-            sourceToAdd = new ClosingHostDiscoverySource(hostDiscoverySource);
-        }
-        _hostDiscoverySources.add(sourceToAdd);
+    private ServicePoolBuilder<S> withHostDiscovery(HostDiscoverySource source, boolean close) {
+        _hostDiscoverySources.add(close
+                ? new ClosingHostDiscoverySource(source)
+                : source);
         return this;
     }
 
@@ -110,8 +109,10 @@ public class ServicePoolBuilder<S> {
      * @return this
      */
     public ServicePoolBuilder<S> withServiceFactory(ServiceFactory<S> serviceFactory) {
-        _serviceFactory = checkNotNull(serviceFactory);
+        checkNotNull(serviceFactory);
         checkArgument(!Strings.isNullOrEmpty(serviceFactory.getServiceName()), "Service name must be configured");
+
+        _serviceFactory = serviceFactory;
         _serviceName = serviceFactory.getServiceName();
         _serviceFactory.configure(this);
         return this;
@@ -275,11 +276,11 @@ public class ServicePoolBuilder<S> {
             }
 
             if (_healthCheckExecutor == null) {
-                ThreadFactory threadFactory = new ThreadFactoryBuilder()
-                        .setNameFormat(_serviceName + "-HealthCheckThread-%d")
-                        .setDaemon(true)
-                        .build();
-                _healthCheckExecutor = Executors.newScheduledThreadPool(DEFAULT_NUM_HEALTH_CHECK_THREADS, threadFactory);
+                _healthCheckExecutor = Executors.newScheduledThreadPool(DEFAULT_NUM_HEALTH_CHECK_THREADS,
+                        new ThreadFactoryBuilder()
+                                .setNameFormat(_serviceName + "-HealthCheckThread-%d")
+                                .setDaemon(true)
+                                .build());
             }
 
             ServicePool<S> servicePool = new ServicePool<S>(Ticker.systemTicker(), hostDiscovery, _closeHostDiscovery,
@@ -290,7 +291,7 @@ public class ServicePoolBuilder<S> {
 
             return servicePool;
         } catch (Throwable t) {
-            if (shutdownHealthCheckExecutorOnClose) {
+            if (shutdownHealthCheckExecutorOnClose && _healthCheckExecutor != null) {
                 _healthCheckExecutor.shutdownNow();
                 _healthCheckExecutor = null;
             }

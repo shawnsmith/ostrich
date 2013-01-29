@@ -19,13 +19,14 @@ import java.util.NavigableMap;
 /**
  * Uses consistent hashing to map service calls to end points.  Partitions are mapped to servers based on hashes of the
  * service end point ID strings (ie. ip:port).
- * <p>
+ * <p/>
  * Choose this partition filter when every server can handle every request, but throughput is increased if requests
  * on the same data are directed to the same server.  For example, choose this partition filter to distribute requests
  * across a set of memcached servers.
- * <p>
- * The algorithm is inspired by <a href="http://www.last.fm/user/RJ/journal/2007/04/10/rz_libketama_-_a_consistent_hashing_algo_for_memcache_clients"
- * >libketama</a>.
+ * <p/>
+ * The algorithm is inspired by:
+ * <a href="http://last.fm/user/RJ/journal/2007/04/10/rz_libketama_-_a_consistent_hashing_algo_for_memcache_clients">
+ *     libketama</a>
  */
 public class ConsistentHashPartitionFilter implements PartitionFilter {
     private static final int DEFAULT_ENTRIES_PER_END_POINT = 100;
