@@ -5,12 +5,10 @@ import com.bazaarvoice.ostrich.HostDiscoverySource;
 import com.bazaarvoice.ostrich.LoadBalanceAlgorithm;
 import com.bazaarvoice.ostrich.RetryPolicy;
 import com.bazaarvoice.ostrich.ServiceFactory;
-import com.bazaarvoice.ostrich.discovery.ZooKeeperHostDiscovery;
 import com.bazaarvoice.ostrich.loadbalance.RandomAlgorithm;
 import com.bazaarvoice.ostrich.partition.IdentityPartitionFilter;
 import com.bazaarvoice.ostrich.partition.PartitionFilter;
 import com.bazaarvoice.ostrich.partition.PartitionKey;
-import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -93,32 +91,6 @@ public class ServicePoolBuilder<S> {
             }
         };
         return withHostDiscoverySourceInternal(hostDiscoverySource, false);
-    }
-
-    /**
-     * Adds a {@link ZooKeeperConnection} instance to the builder that will be used for host discovery.  The service
-     * pool will use ZooKeeper for host discovery unless a preceding call to
-     * {@link #withHostDiscoverySource(HostDiscoverySource)} provides a non-null instance of {@code HostDiscovery}.
-     * <p>
-     * Once this method is called, any subsequent calls to host discovery-related methods on this builder instance are
-     * ignored.
-     * <p>
-     * Note that using this method will cause the ServicePoolBuilder to construct a {@code HostDiscovery} when
-     * {@link #build()} is called and pass it to the new {@code ServicePool}.  Subsequently calling
-     * {@link ServicePool#close()} will in turn call {@link HostDiscovery#close()} on the passed instance.
-     *
-     * @param connection the ZooKeeper connection to use for host discovery
-     * @return this
-     */
-    public ServicePoolBuilder<S> withZooKeeperHostDiscovery(final ZooKeeperConnection connection) {
-        checkNotNull(connection);
-        HostDiscoverySource hostDiscoverySource = new HostDiscoverySource() {
-            @Override
-            public HostDiscovery forService(String serviceName) {
-                return new ZooKeeperHostDiscovery(connection, serviceName);
-            }
-        };
-        return withHostDiscoverySourceInternal(hostDiscoverySource, true);
     }
 
     private ServicePoolBuilder<S> withHostDiscoverySourceInternal(HostDiscoverySource hostDiscoverySource, boolean closeHostDiscoveriesCreatedBySource) {

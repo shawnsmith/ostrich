@@ -24,7 +24,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <bazaarvoice.zookeeper.version>0.1.0</bazaarvoice.zookeeper.version>
+        <curator.extensions.version>1.0.0</curator.extensions.version>
     </properties>
 
     <build>
@@ -47,15 +47,15 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>com.bazaarvoice.zookeeper</groupId>
-                <artifactId>zookeeper-recipes</artifactId>
-                <version>${bazaarvoice.zookeeper.version}</version>
+                <groupId>com.bazaarvoice.curator</groupId>
+                <artifactId>recipes</artifactId>
+                <version>${curator.extensions.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.bazaarvoice.zookeeper</groupId>
-                <artifactId>zookeeper-test</artifactId>
-                <version>${bazaarvoice.zookeeper.version}</version>
+                <groupId>com.bazaarvoice.curator</groupId>
+                <artifactId>test</artifactId>
+                <version>${curator.extensions.version}</version>
                 <scope>test</scope>
             </dependency>
 
@@ -108,6 +108,6 @@
     <modules>
         <module>core</module>
         <module>dropwizard</module>
-        <module>examples</module>
+        <!--<module>examples</module>-->
     </modules>
 </project>

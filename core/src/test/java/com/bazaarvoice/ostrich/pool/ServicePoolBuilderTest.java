@@ -8,15 +8,6 @@ import com.bazaarvoice.ostrich.ServiceFactory;
 import com.bazaarvoice.ostrich.loadbalance.RandomAlgorithm;
 import com.bazaarvoice.ostrich.partition.IdentityPartitionFilter;
 import com.bazaarvoice.ostrich.partition.PartitionFilter;
-import com.bazaarvoice.zookeeper.ZooKeeperConfiguration;
-import com.bazaarvoice.zookeeper.ZooKeeperConnection;
-import com.bazaarvoice.zookeeper.internal.CuratorConnection;
-import com.google.common.io.Closeables;
-import com.netflix.curator.framework.CuratorFramework;
-import com.netflix.curator.framework.imps.CuratorFrameworkState;
-import com.netflix.curator.framework.listen.Listenable;
-import com.netflix.curator.framework.state.ConnectionStateListener;
-import com.netflix.curator.test.TestingServer;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -61,11 +52,6 @@ public class ServicePoolBuilderTest {
     @Test(expected = NullPointerException.class)
     public void testNullHostDiscovery() {
         ServicePoolBuilder.create(Service.class).withHostDiscovery(null);
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testNullZooKeeperConnection() {
-        ServicePoolBuilder.create(Service.class).withZooKeeperHostDiscovery(null);
     }
 
     @Test(expected = NullPointerException.class)
@@ -143,25 +129,6 @@ public class ServicePoolBuilderTest {
                 .withHealthCheckExecutor(_healthCheckExecutor)
                 .withPartitionFilter(_partitionFilter)
                 .build();
-    }
-
-    @Test
-    public void testBuildWithZooKeeperConnection() throws Exception {
-        TestingServer zooKeeperServer = new TestingServer();
-        ZooKeeperConnection connection = null;
-        try {
-            connection = new ZooKeeperConfiguration().withConnectString(zooKeeperServer.getConnectString()).connect();
-
-            ServicePoolBuilder.create(Service.class)
-                    .withServiceFactory(_serviceFactory)
-                    .withCachingPolicy(_cachingPolicy)
-                    .withZooKeeperHostDiscovery(connection)
-                    .withPartitionFilter(_partitionFilter)
-                    .build();
-        } finally {
-            Closeables.closeQuietly(connection);
-            Closeables.closeQuietly(zooKeeperServer);
-        }
     }
 
     @Test

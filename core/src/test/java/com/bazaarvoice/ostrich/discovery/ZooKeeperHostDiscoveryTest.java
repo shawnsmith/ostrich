@@ -5,14 +5,12 @@ import com.bazaarvoice.ostrich.ServiceEndPoint;
 import com.bazaarvoice.ostrich.ServiceEndPointBuilder;
 import com.bazaarvoice.ostrich.ServiceEndPointJsonCodec;
 import com.bazaarvoice.ostrich.registry.ZooKeeperServiceRegistry;
-import com.bazaarvoice.zookeeper.ZooKeeperConnection;
-import com.bazaarvoice.zookeeper.recipes.discovery.NodeDataParser;
-import com.bazaarvoice.zookeeper.recipes.discovery.NodeListener;
-import com.bazaarvoice.zookeeper.recipes.discovery.ZooKeeperNodeDiscovery;
+import com.bazaarvoice.curator.recipes.NodeDiscovery;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Closeables;
+import com.netflix.curator.framework.CuratorFramework;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,30 +39,30 @@ public class ZooKeeperHostDiscoveryTest {
             .build();
 
     private ZooKeeperHostDiscovery _discovery;
-    private NodeListener<ServiceEndPoint> _listener;
-    private NodeDataParser<ServiceEndPoint> _parser;
+    private NodeDiscovery.NodeListener<ServiceEndPoint> _listener;
+    private NodeDiscovery.NodeDataParser<ServiceEndPoint> _parser;
 
     @SuppressWarnings("unchecked")
     @Before
     public void setup() throws Exception {
         ZooKeeperHostDiscovery.NodeDiscoveryFactory factory = mock(ZooKeeperHostDiscovery.NodeDiscoveryFactory.class);
-        ZooKeeperNodeDiscovery<ServiceEndPoint> nodeDiscovery = mock(ZooKeeperNodeDiscovery.class);
-        ZooKeeperConnection connection = mock(ZooKeeperConnection.class);
-        when(factory.create(Matchers.<ZooKeeperConnection>any(ZooKeeperConnection.class), anyString(),
-                Matchers.<NodeDataParser<ServiceEndPoint>>any())).thenReturn(nodeDiscovery);
+        NodeDiscovery<ServiceEndPoint> nodeDiscovery = mock(NodeDiscovery.class);
+        CuratorFramework curator = mock(CuratorFramework.class);
+        when(factory.create(Matchers.<CuratorFramework>any(CuratorFramework.class), anyString(),
+                Matchers.<NodeDiscovery.NodeDataParser<ServiceEndPoint>>any())).thenReturn(nodeDiscovery);
 
-        _discovery = new ZooKeeperHostDiscovery(factory, connection, FOO.getServiceName());
+        _discovery = new ZooKeeperHostDiscovery(factory, curator, FOO.getServiceName());
 
         // Capture the parser.
-        ArgumentCaptor<NodeDataParser<ServiceEndPoint>> parserCaptor =
-                (ArgumentCaptor) ArgumentCaptor.forClass(NodeDataParser.class);
-        verify(factory).create(same(connection), eq(ZooKeeperServiceRegistry.makeServicePath("Foo")),
+        ArgumentCaptor<NodeDiscovery.NodeDataParser<ServiceEndPoint>> parserCaptor =
+                (ArgumentCaptor) ArgumentCaptor.forClass(NodeDiscovery.NodeDataParser.class);
+        verify(factory).create(same(curator), eq(ZooKeeperServiceRegistry.makeServicePath("Foo")),
                 parserCaptor.capture());
         _parser = parserCaptor.getValue();
 
         // Capture the listener.
-        ArgumentCaptor<NodeListener<ServiceEndPoint>> listenerCaptor =
-                (ArgumentCaptor) ArgumentCaptor.forClass(NodeListener.class);
+        ArgumentCaptor<NodeDiscovery.NodeListener<ServiceEndPoint>> listenerCaptor =
+                (ArgumentCaptor) ArgumentCaptor.forClass(NodeDiscovery.NodeListener.class);
         verify(nodeDiscovery).addListener(listenerCaptor.capture());
         _listener = listenerCaptor.getValue();
     }
@@ -75,18 +73,18 @@ public class ZooKeeperHostDiscoveryTest {
     }
 
     @Test (expected = NullPointerException.class)
-    public void testNullConnection() {
+    public void testNullCurator() {
         new ZooKeeperHostDiscovery(null, FOO.getServiceName());
     }
 
     @Test (expected = NullPointerException.class)
     public void testNullServiceName() throws Exception {
-        new ZooKeeperHostDiscovery(mock(ZooKeeperConnection.class), null);
+        new ZooKeeperHostDiscovery(mock(CuratorFramework.class), null);
     }
 
     @Test (expected = IllegalArgumentException.class)
     public void testEmptyServiceName() throws Exception {
-        new ZooKeeperHostDiscovery(mock(ZooKeeperConnection.class), "");
+        new ZooKeeperHostDiscovery(mock(CuratorFramework.class), "");
     }
 
     @Test
@@ -128,13 +126,13 @@ public class ZooKeeperHostDiscoveryTest {
     @Test
     public void testExistingData() throws Exception {
         ZooKeeperHostDiscovery.NodeDiscoveryFactory factory = mock(ZooKeeperHostDiscovery.NodeDiscoveryFactory.class);
-        ZooKeeperNodeDiscovery<ServiceEndPoint> nodeDiscovery = mock(ZooKeeperNodeDiscovery.class);
-        when(factory.create(Matchers.<ZooKeeperConnection>any(), anyString(),
-                Matchers.<NodeDataParser<ServiceEndPoint>>any())).thenReturn(nodeDiscovery);
+        NodeDiscovery<ServiceEndPoint> nodeDiscovery = mock(NodeDiscovery.class);
+        when(factory.create(Matchers.<CuratorFramework>any(), anyString(),
+                Matchers.<NodeDiscovery.NodeDataParser<ServiceEndPoint>>any())).thenReturn(nodeDiscovery);
 
         // Capture the listener.
-        final ArgumentCaptor<NodeListener<ServiceEndPoint>> listenerCaptor =
-                (ArgumentCaptor) ArgumentCaptor.forClass(NodeListener.class);
+        final ArgumentCaptor<NodeDiscovery.NodeListener<ServiceEndPoint>> listenerCaptor =
+                (ArgumentCaptor) ArgumentCaptor.forClass(NodeDiscovery.NodeListener.class);
         doNothing().when(nodeDiscovery).addListener(listenerCaptor.capture());
 
         // Add FOO when nodeDiscovery.start() is called. This is NodeDiscovery's behavior when it has data when started.
@@ -146,7 +144,7 @@ public class ZooKeeperHostDiscoveryTest {
             }
         }).when(nodeDiscovery).start();
 
-        HostDiscovery discovery = new ZooKeeperHostDiscovery(factory, mock(ZooKeeperConnection.class),
+        HostDiscovery discovery = new ZooKeeperHostDiscovery(factory, mock(CuratorFramework.class),
                 FOO.getServiceName());
 
         assertEquals(ImmutableList.of(FOO), ImmutableList.copyOf(discovery.getHosts()));

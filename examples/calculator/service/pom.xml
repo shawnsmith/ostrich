@@ -59,11 +59,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.bazaarvoice.zookeeper</groupId>
-            <artifactId>zookeeper-dropwizard</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>

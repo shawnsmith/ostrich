@@ -11,8 +11,8 @@ import com.sun.jersey.client.apache4.ApacheHttpClient4;
 import com.sun.jersey.client.apache4.ApacheHttpClient4Handler;
 import com.sun.jersey.client.apache4.config.ApacheHttpClient4Config;
 import com.sun.jersey.client.apache4.config.DefaultApacheHttpClient4Config;
+import com.yammer.dropwizard.client.HttpClientBuilder;
 import com.yammer.dropwizard.client.HttpClientConfiguration;
-import com.yammer.dropwizard.client.HttpClientFactory;
 import com.yammer.dropwizard.jersey.JacksonMessageBodyProvider;
 import com.yammer.dropwizard.validation.Validator;
 import org.apache.http.client.HttpClient;
@@ -38,7 +38,7 @@ public class DictionaryServiceFactory implements ServiceFactory<DictionaryServic
     }
 
     private static ApacheHttpClient4 createDefaultJerseyClient(HttpClientConfiguration configuration) {
-        HttpClient httpClient = new HttpClientFactory(configuration).build();
+        HttpClient httpClient = new HttpClientBuilder().using(configuration).build();
         ApacheHttpClient4Handler handler = new ApacheHttpClient4Handler(httpClient, null, true);
         ApacheHttpClient4Config config = new DefaultApacheHttpClient4Config();
         config.getSingletons().add(new JacksonMessageBodyProvider(new ObjectMapper(), new Validator()));

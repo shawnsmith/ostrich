@@ -1,12 +1,11 @@
 package com.bazaarvoice.ostrich.discovery;
 
+import com.bazaarvoice.curator.recipes.NodeDiscovery;
 import com.bazaarvoice.ostrich.ServiceDiscovery;
 import com.bazaarvoice.ostrich.registry.ZooKeeperServiceRegistry;
-import com.bazaarvoice.zookeeper.ZooKeeperConnection;
-import com.bazaarvoice.zookeeper.recipes.discovery.NodeDataParser;
-import com.bazaarvoice.zookeeper.recipes.discovery.ZooKeeperNodeDiscovery;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
+import com.netflix.curator.framework.CuratorFramework;
 
 import java.io.IOException;
 import java.util.Map;
@@ -29,7 +28,7 @@ public class ZooKeeperServiceDiscovery implements ServiceDiscovery {
 
     /** Node data parser that returns the service name of the path. */
     @VisibleForTesting
-    static final NodeDataParser<String> SERVICE_NAME_PARSER = new NodeDataParser<String>() {
+    static final NodeDiscovery.NodeDataParser<String> SERVICE_NAME_PARSER = new NodeDiscovery.NodeDataParser<String>() {
         @Override
         public String parse(String path, byte[] nodeData) {
             path = path.substring(SERVICE_PATH.length());
@@ -41,14 +40,14 @@ public class ZooKeeperServiceDiscovery implements ServiceDiscovery {
         }
     };
 
-    private final ZooKeeperNodeDiscovery<String> _nodeDiscovery;
+    private final NodeDiscovery<String> _nodeDiscovery;
 
-    public ZooKeeperServiceDiscovery(ZooKeeperConnection connection) {
-        this(new ZooKeeperNodeDiscovery<String>(connection, SERVICE_PATH, SERVICE_NAME_PARSER));
+    public ZooKeeperServiceDiscovery(CuratorFramework curator) {
+        this(new NodeDiscovery<String>(curator, SERVICE_PATH, SERVICE_NAME_PARSER));
     }
 
     @VisibleForTesting
-    ZooKeeperServiceDiscovery(ZooKeeperNodeDiscovery<String> nodeDiscovery) {
+    ZooKeeperServiceDiscovery(NodeDiscovery<String> nodeDiscovery) {
         _nodeDiscovery = checkNotNull(nodeDiscovery);
         _nodeDiscovery.start();
     }

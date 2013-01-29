@@ -3,10 +3,10 @@ package com.bazaarvoice.ostrich.registry;
 import com.bazaarvoice.ostrich.ServiceEndPoint;
 import com.bazaarvoice.ostrich.ServiceEndPointBuilder;
 import com.bazaarvoice.ostrich.ServiceEndPointJsonCodec;
-import com.bazaarvoice.zookeeper.ZooKeeperConnection;
-import com.bazaarvoice.zookeeper.recipes.ZooKeeperPersistentEphemeralNode;
+import com.bazaarvoice.curator.recipes.PersistentEphemeralNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
+import com.netflix.curator.framework.CuratorFramework;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,10 +41,10 @@ public class ZooKeeperServiceRegistryTest {
     public void setup() {
         _nodeFactory = mock(ZooKeeperServiceRegistry.NodeFactory.class);
         when(_nodeFactory.create(anyString(), any(byte[].class)))
-                .thenAnswer(new Answer<ZooKeeperPersistentEphemeralNode>() {
+                .thenAnswer(new Answer<PersistentEphemeralNode>() {
                     @Override
-                    public ZooKeeperPersistentEphemeralNode answer(InvocationOnMock invocation) throws Throwable {
-                        return mock(ZooKeeperPersistentEphemeralNode.class);
+                    public PersistentEphemeralNode answer(InvocationOnMock invocation) throws Throwable {
+                        return mock(PersistentEphemeralNode.class);
                     }
                 });
         _registry = new ZooKeeperServiceRegistry(_nodeFactory);
@@ -56,8 +56,8 @@ public class ZooKeeperServiceRegistryTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void testNullConnection() throws Exception {
-        new ZooKeeperServiceRegistry((ZooKeeperConnection) null);
+    public void testNullCurator() throws Exception {
+        new ZooKeeperServiceRegistry((CuratorFramework) null);
     }
 
     @Test(expected = NullPointerException.class)
@@ -67,7 +67,7 @@ public class ZooKeeperServiceRegistryTest {
 
     @Test
     public void testConstructor() {
-        new ZooKeeperServiceRegistry(mock(ZooKeeperConnection.class));
+        new ZooKeeperServiceRegistry(mock(CuratorFramework.class));
     }
 
     @Test(expected = NullPointerException.class)
@@ -113,7 +113,7 @@ public class ZooKeeperServiceRegistryTest {
 
     @Test
     public void testRegister() throws Exception {
-        ZooKeeperPersistentEphemeralNode node = mock(ZooKeeperPersistentEphemeralNode.class);
+        PersistentEphemeralNode node = mock(PersistentEphemeralNode.class);
         when(_nodeFactory.create(anyString(), any(byte[].class))).thenReturn(node);
 
         _registry.register(FOO);
@@ -127,8 +127,8 @@ public class ZooKeeperServiceRegistryTest {
 
     @Test
     public void testDuplicateRegister() throws Exception {
-        ZooKeeperPersistentEphemeralNode firstNode = mock(ZooKeeperPersistentEphemeralNode.class);
-        ZooKeeperPersistentEphemeralNode secondNode = mock(ZooKeeperPersistentEphemeralNode.class);
+        PersistentEphemeralNode firstNode = mock(PersistentEphemeralNode.class);
+        PersistentEphemeralNode secondNode = mock(PersistentEphemeralNode.class);
         when(_nodeFactory.create(anyString(), any(byte[].class))).thenReturn(firstNode, secondNode);
 
         _registry.register(FOO);
@@ -140,7 +140,7 @@ public class ZooKeeperServiceRegistryTest {
 
     @Test
     public void testUnregister() throws Exception {
-        ZooKeeperPersistentEphemeralNode node = mock(ZooKeeperPersistentEphemeralNode.class);
+        PersistentEphemeralNode node = mock(PersistentEphemeralNode.class);
         when(_nodeFactory.create(anyString(), any(byte[].class))).thenReturn(node);
 
         _registry.register(FOO);
@@ -167,7 +167,7 @@ public class ZooKeeperServiceRegistryTest {
 
     @Test
     public void testServiceNodeIsDeletedWhenRegistryIsClosed() throws Exception {
-        ZooKeeperPersistentEphemeralNode node = mock(ZooKeeperPersistentEphemeralNode.class);
+        PersistentEphemeralNode node = mock(PersistentEphemeralNode.class);
         when(_nodeFactory.create(anyString(), any(byte[].class))).thenReturn(node);
 
         _registry.register(FOO);

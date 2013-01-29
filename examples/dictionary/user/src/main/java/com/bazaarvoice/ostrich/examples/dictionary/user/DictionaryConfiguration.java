@@ -1,6 +1,5 @@
 package com.bazaarvoice.ostrich.examples.dictionary.user;
 
-import com.bazaarvoice.zookeeper.dropwizard.ZooKeeperConfiguration;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yammer.dropwizard.client.JerseyClientConfiguration;
 

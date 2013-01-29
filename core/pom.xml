@@ -18,14 +18,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.bazaarvoice.zookeeper</groupId>
-            <artifactId>zookeeper-recipes</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.bazaarvoice.zookeeper</groupId>
-            <artifactId>zookeeper-test</artifactId>
-            <scope>test</scope>
+            <groupId>com.bazaarvoice.curator</groupId>
+            <artifactId>recipes</artifactId>
         </dependency>
 
         <dependency>

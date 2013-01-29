@@ -1,17 +1,17 @@
 package com.bazaarvoice.ostrich.registry;
 
+import com.bazaarvoice.curator.recipes.PersistentEphemeralNode;
 import com.bazaarvoice.ostrich.ServiceEndPoint;
 import com.bazaarvoice.ostrich.ServiceEndPointJsonCodec;
 import com.bazaarvoice.ostrich.ServiceRegistry;
 import com.bazaarvoice.ostrich.metrics.Metrics;
-import com.bazaarvoice.zookeeper.ZooKeeperConnection;
-import com.bazaarvoice.zookeeper.recipes.ZooKeeperPersistentEphemeralNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Maps;
+import com.netflix.curator.framework.CuratorFramework;
 import com.netflix.curator.utils.ZKPaths;
 import com.yammer.metrics.core.Counter;
 import org.apache.zookeeper.CreateMode;
@@ -49,7 +49,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
     private volatile boolean _closed = false;
 
     /** The ephemeral data that's been written to ZooKeeper.  Saved in case the connection is lost and then regained. */
-    private final Map<String, ZooKeeperPersistentEphemeralNode> _nodes = Maps.newConcurrentMap();
+    private final Map<String, PersistentEphemeralNode> _nodes = Maps.newConcurrentMap();
 
     private final Metrics _metrics = Metrics.forClass(ZooKeeperServiceRegistry.class);
     private final LoadingCache<String, Counter> _numRegisteredEndpoints = CacheBuilder.newBuilder()
@@ -60,8 +60,8 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
                 }
             });
 
-    public ZooKeeperServiceRegistry(ZooKeeperConnection connection) {
-        this(new NodeFactory(connection));
+    public ZooKeeperServiceRegistry(CuratorFramework curator) {
+        this(new NodeFactory(curator));
     }
 
     @VisibleForTesting
@@ -93,7 +93,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
         checkState(data.length < MAX_DATA_SIZE, "Serialized form of ServiceEndPoint must be < 1MB.");
 
         String path = makeEndPointPath(endPoint);
-        ZooKeeperPersistentEphemeralNode oldNode = _nodes.put(path, _nodeFactory.create(path, data));
+        PersistentEphemeralNode oldNode = _nodes.put(path, _nodeFactory.create(path, data));
         if (oldNode != null) {
             closeNode(oldNode);
         }
@@ -109,7 +109,7 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
         checkNotNull(endPoint);
 
         String path = makeEndPointPath(endPoint);
-        ZooKeeperPersistentEphemeralNode node = _nodes.remove(path);
+        PersistentEphemeralNode node = _nodes.remove(path);
         if (node != null) {
             closeNode(node);
 
@@ -126,14 +126,14 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
 
         _closed = true;
 
-        for (ZooKeeperPersistentEphemeralNode node : _nodes.values()) {
+        for (PersistentEphemeralNode node : _nodes.values()) {
             closeNode(node);
         }
         _nodes.clear();
         _metrics.close();
     }
 
-    private void closeNode(ZooKeeperPersistentEphemeralNode node) {
+    private void closeNode(PersistentEphemeralNode node) {
         node.close(10, TimeUnit.SECONDS);
     }
 
@@ -170,14 +170,14 @@ public class ZooKeeperServiceRegistry implements ServiceRegistry
 
     @VisibleForTesting
     static class NodeFactory {
-        private final ZooKeeperConnection _connection;
+        private final CuratorFramework _curator;
 
-        NodeFactory(ZooKeeperConnection connection) {
-            _connection = checkNotNull(connection);
+        NodeFactory(CuratorFramework curator) {
+            _curator = checkNotNull(curator);
         }
 
-        ZooKeeperPersistentEphemeralNode create(String path, byte[] data) {
-            return new ZooKeeperPersistentEphemeralNode(_connection, path, data, CreateMode.EPHEMERAL);
+        PersistentEphemeralNode create(String path, byte[] data) {
+            return new PersistentEphemeralNode(_curator, path, data, CreateMode.EPHEMERAL);
         }
     }
 }

@@ -1,10 +1,10 @@
 package com.bazaarvoice.ostrich.discovery;
 
-import com.bazaarvoice.zookeeper.ZooKeeperConnection;
-import com.bazaarvoice.zookeeper.recipes.discovery.ZooKeeperNodeDiscovery;
+import com.bazaarvoice.curator.recipes.NodeDiscovery;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closeables;
+import com.netflix.curator.framework.CuratorFramework;
 import com.netflix.curator.utils.ZKPaths;
 import org.junit.After;
 import org.junit.Before;
@@ -21,12 +21,12 @@ import static org.mockito.Mockito.when;
 
 public class ZooKeeperServiceDiscoveryTest {
     private ZooKeeperServiceDiscovery _discovery;
-    private ZooKeeperNodeDiscovery<String> _nodeDiscovery;
+    private NodeDiscovery<String> _nodeDiscovery;
 
     @SuppressWarnings("unchecked")
     @Before
     public void setup() throws Exception {
-        _nodeDiscovery = mock(ZooKeeperNodeDiscovery.class);
+        _nodeDiscovery = mock(NodeDiscovery.class);
         _discovery = new ZooKeeperServiceDiscovery(_nodeDiscovery);
     }
 
@@ -36,8 +36,8 @@ public class ZooKeeperServiceDiscoveryTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void testNullConnection() {
-        new ZooKeeperServiceDiscovery((ZooKeeperConnection) null);
+    public void testNullCurator() {
+        new ZooKeeperServiceDiscovery((CuratorFramework) null);
     }
 
     @Test

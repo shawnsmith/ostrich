@@ -1,14 +1,11 @@
 package com.bazaarvoice.ostrich.discovery;
 
+import com.bazaarvoice.curator.recipes.NodeDiscovery;
 import com.bazaarvoice.ostrich.HostDiscovery;
 import com.bazaarvoice.ostrich.ServiceEndPoint;
 import com.bazaarvoice.ostrich.ServiceEndPointJsonCodec;
 import com.bazaarvoice.ostrich.metrics.Metrics;
 import com.bazaarvoice.ostrich.registry.ZooKeeperServiceRegistry;
-import com.bazaarvoice.zookeeper.ZooKeeperConnection;
-import com.bazaarvoice.zookeeper.recipes.discovery.NodeDataParser;
-import com.bazaarvoice.zookeeper.recipes.discovery.NodeListener;
-import com.bazaarvoice.zookeeper.recipes.discovery.ZooKeeperNodeDiscovery;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ConcurrentHashMultiset;
@@ -16,6 +13,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Sets;
+import com.netflix.curator.framework.CuratorFramework;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Meter;
@@ -37,7 +35,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class ZooKeeperHostDiscovery implements HostDiscovery {
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperHostDiscovery.class);
 
-    private final ZooKeeperNodeDiscovery<ServiceEndPoint> _nodeDiscovery;
+    private final NodeDiscovery<ServiceEndPoint> _nodeDiscovery;
     private final Multiset<ServiceEndPoint> _endPoints;
     private final Set<EndPointListener> _listeners;
 
@@ -47,13 +45,14 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
     private final Meter _numZooKeeperRemoves;
     private final Meter _numZooKeeperChanges;
 
-    public ZooKeeperHostDiscovery(ZooKeeperConnection connection, String serviceName) {
-        this(new NodeDiscoveryFactory(), connection, serviceName);
+    public ZooKeeperHostDiscovery(CuratorFramework curator, String serviceName) {
+        this(new NodeDiscoveryFactory(), curator, serviceName);
     }
 
     @VisibleForTesting
-    ZooKeeperHostDiscovery(NodeDiscoveryFactory factory, ZooKeeperConnection connection, String serviceName) {
-        checkNotNull(connection);
+    ZooKeeperHostDiscovery(NodeDiscoveryFactory factory, CuratorFramework curator, String serviceName) {
+        checkNotNull(factory);
+        checkNotNull(curator);
         checkNotNull(serviceName);
         checkArgument(!"".equals(serviceName));
 
@@ -63,9 +62,9 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
         _endPoints = ConcurrentHashMultiset.create();
 
         _nodeDiscovery = factory.create(
-                connection,
+                curator,
                 servicePath,
-                new NodeDataParser<ServiceEndPoint>() {
+                new NodeDiscovery.NodeDataParser<ServiceEndPoint>() {
                     public ServiceEndPoint parse(String path, byte[] nodeData) {
                         String json = new String(nodeData, Charsets.UTF_8);
                         return ServiceEndPointJsonCodec.fromJson(json);
@@ -150,7 +149,7 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
     /**
      * A zookeeper-common {@code NodeListener}
      */
-    private final class ServiceListener implements NodeListener<ServiceEndPoint> {
+    private final class ServiceListener implements NodeDiscovery.NodeListener<ServiceEndPoint> {
         @Override
         public void onNodeAdded(String path, ServiceEndPoint node) {
             _numZooKeeperAdds.mark();
@@ -173,9 +172,9 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
 
     @VisibleForTesting
     static class NodeDiscoveryFactory {
-        ZooKeeperNodeDiscovery<ServiceEndPoint> create(ZooKeeperConnection connection, String path,
-                                                       NodeDataParser<ServiceEndPoint> parser) {
-            return new ZooKeeperNodeDiscovery<ServiceEndPoint>(connection, path, parser);
+        NodeDiscovery<ServiceEndPoint> create(CuratorFramework curator, String path,
+                                              NodeDiscovery.NodeDataParser<ServiceEndPoint> parser) {
+            return new NodeDiscovery<ServiceEndPoint>(curator, path, parser);
         }
     }
 }
