@@ -1,15 +1,18 @@
 package com.bazaarvoice.ostrich.examples.calculator.user;
 
+import com.bazaarvoice.ostrich.discovery.zookeeper.HostDiscovery;
 import com.bazaarvoice.ostrich.dropwizard.healthcheck.ContainsHealthyEndPointCheck;
 import com.bazaarvoice.ostrich.examples.calculator.client.CalculatorService;
 import com.bazaarvoice.ostrich.examples.calculator.client.CalculatorServiceFactory;
+import com.bazaarvoice.ostrich.examples.calculator.service.ZooKeeperConfiguration;
 import com.bazaarvoice.ostrich.pool.ServiceCachingPolicy;
 import com.bazaarvoice.ostrich.pool.ServiceCachingPolicyBuilder;
 import com.bazaarvoice.ostrich.pool.ServicePoolBuilder;
 import com.bazaarvoice.ostrich.pool.ServicePoolProxies;
 import com.bazaarvoice.ostrich.retry.ExponentialBackoffRetry;
-import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.google.common.io.Closeables;
+import com.netflix.curator.framework.CuratorFramework;
+import com.netflix.curator.framework.CuratorFrameworkFactory;
 import com.yammer.dropwizard.config.ConfigurationFactory;
 import com.yammer.dropwizard.validation.Validator;
 import com.yammer.metrics.HealthChecks;
@@ -47,7 +50,7 @@ public class CalculatorProxyUser {
                 LOG.info("i:{}, {}", i, e.getClass().getCanonicalName());
             }
 
-            Thread.sleep(500);
+            Thread.sleep(100);
         }
     }
 
@@ -71,7 +74,7 @@ public class CalculatorProxyUser {
             configuration = new CalculatorConfiguration();
         }
 
-        ZooKeeperConnection zooKeeper = configuration.getZooKeeperConfiguration().connect();
+        CuratorFramework curator = newCurator(configuration.getZooKeeperConfiguration());
 
         // Connection caching is optional, but included here for the sake of demonstration.
         ServiceCachingPolicy cachingPolicy = new ServiceCachingPolicyBuilder()
@@ -82,7 +85,7 @@ public class CalculatorProxyUser {
 
         CalculatorService service = ServicePoolBuilder.create(CalculatorService.class)
                 .withServiceFactory(new CalculatorServiceFactory(configuration.getHttpClientConfiguration()))
-                .withZooKeeperHostDiscovery(zooKeeper)
+                .withHostDiscovery(new HostDiscovery(curator, "calculator"))
                 .withCachingPolicy(cachingPolicy)
                 .buildProxy(new ExponentialBackoffRetry(5, 50, 1000, TimeUnit.MILLISECONDS));
 
@@ -95,6 +98,13 @@ public class CalculatorProxyUser {
         user.use();
 
         ServicePoolProxies.close(service);
-        Closeables.closeQuietly(zooKeeper);
+        Closeables.closeQuietly(curator);
+    }
+
+    private static CuratorFramework newCurator(ZooKeeperConfiguration config) {
+        CuratorFramework curator = CuratorFrameworkFactory.newClient(config.getConnectString(), config.getRetry());
+        curator.start();
+
+        return curator.usingNamespace(config.getNamespace());
     }
 }

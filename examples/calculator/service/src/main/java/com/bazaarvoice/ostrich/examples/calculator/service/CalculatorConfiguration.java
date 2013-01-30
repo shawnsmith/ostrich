@@ -1,19 +1,18 @@
 package com.bazaarvoice.ostrich.examples.calculator.service;
 
-import com.bazaarvoice.zookeeper.dropwizard.ZooKeeperConfiguration;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yammer.dropwizard.config.Configuration;
 
-public class CalculatorConfiguration extends Configuration {
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 
-    private ZooKeeperConfiguration _zooKeeperConfiguration = new ZooKeeperConfiguration();
+public class CalculatorConfiguration extends Configuration {
+    @NotNull
+    @Valid
+    @JsonProperty
+    private final ZooKeeperConfiguration zookeeper = new ZooKeeperConfiguration();
 
     public ZooKeeperConfiguration getZooKeeperConfiguration() {
-        return _zooKeeperConfiguration;
-    }
-
-    @JsonProperty("zooKeeper")
-    public void setZooKeeperConfiguration(ZooKeeperConfiguration zooKeeperConfiguration) {
-        _zooKeeperConfiguration = zooKeeperConfiguration;
+        return zookeeper;
     }
 }

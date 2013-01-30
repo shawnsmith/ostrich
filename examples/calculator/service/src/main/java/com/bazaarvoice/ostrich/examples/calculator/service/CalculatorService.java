@@ -1,13 +1,14 @@
 package com.bazaarvoice.ostrich.examples.calculator.service;
 
+import com.bazaarvoice.curator.dropwizard.ManagedCuratorFramework;
 import com.bazaarvoice.ostrich.ServiceEndPoint;
 import com.bazaarvoice.ostrich.ServiceEndPointBuilder;
-import com.bazaarvoice.ostrich.ServiceRegistry;
-import com.bazaarvoice.ostrich.registry.ZooKeeperServiceRegistry;
-import com.bazaarvoice.zookeeper.ZooKeeperConnection;
+import com.bazaarvoice.ostrich.registry.zookeeper.ServiceRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Closeables;
+import com.netflix.curator.framework.CuratorFramework;
+import com.netflix.curator.framework.CuratorFrameworkFactory;
 import com.yammer.dropwizard.Service;
 import com.yammer.dropwizard.config.Bootstrap;
 import com.yammer.dropwizard.config.Environment;
@@ -54,10 +55,10 @@ public class CalculatorService extends Service<CalculatorConfiguration> {
                 .withPayload(getJson(env).writeValueAsString(payload))
                 .build();
 
-        // Once everything has initialized successfully, register services with ZooKeeper where clients can find them.
-        final ZooKeeperConnection connection = config.getZooKeeperConfiguration().connect();
-        final ServiceRegistry registry = new ZooKeeperServiceRegistry(connection);
+        final CuratorFramework curator = newCurator(config.getZooKeeperConfiguration(), env);
         env.manage(new Managed() {
+            ServiceRegistry registry = new ServiceRegistry(curator);
+
             @Override
             public void start() throws Exception {
                 registry.register(endPoint);
@@ -66,14 +67,22 @@ public class CalculatorService extends Service<CalculatorConfiguration> {
             @Override
             public void stop() throws Exception {
                 registry.unregister(endPoint);
-                Closeables.closeQuietly(connection);
             }
         });
-        System.out.println("end of initialize");
     }
 
     private ObjectMapper getJson(Environment env) {
         return env.getObjectMapperFactory().build();
+    }
+
+    private CuratorFramework newCurator(ZooKeeperConfiguration config, Environment env) {
+        CuratorFramework curator = CuratorFrameworkFactory.newClient(config.getConnectString(), config.getRetry());
+        if (!Strings.isNullOrEmpty(config.getNamespace())) {
+            curator = curator.usingNamespace(config.getNamespace());
+        }
+
+        env.manage(new ManagedCuratorFramework(curator));
+        return curator;
     }
 
     public static void main(String[] args) throws Exception {
