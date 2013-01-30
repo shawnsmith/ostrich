@@ -1,20 +1,23 @@
 package com.bazaarvoice.ostrich.examples.dictionary.user;
 
+import com.bazaarvoice.ostrich.discovery.zookeeper.HostDiscovery;
 import com.bazaarvoice.ostrich.dropwizard.healthcheck.ContainsHealthyEndPointCheck;
 import com.bazaarvoice.ostrich.examples.dictionary.client.DictionaryService;
 import com.bazaarvoice.ostrich.examples.dictionary.client.DictionaryServiceFactory;
+import com.bazaarvoice.ostrich.examples.dictionary.service.ZooKeeperConfiguration;
 import com.bazaarvoice.ostrich.pool.ServiceCachingPolicy;
 import com.bazaarvoice.ostrich.pool.ServiceCachingPolicyBuilder;
 import com.bazaarvoice.ostrich.pool.ServicePoolBuilder;
 import com.bazaarvoice.ostrich.pool.ServicePoolProxies;
 import com.bazaarvoice.ostrich.retry.ExponentialBackoffRetry;
-import com.bazaarvoice.zookeeper.ZooKeeperConnection;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Charsets;
 import com.google.common.base.Splitter;
 import com.google.common.io.Closeables;
 import com.google.common.io.Files;
 import com.google.common.io.LineProcessor;
+import com.netflix.curator.framework.CuratorFramework;
+import com.netflix.curator.framework.CuratorFrameworkFactory;
 import com.yammer.dropwizard.config.ConfigurationFactory;
 import com.yammer.dropwizard.validation.Validator;
 import com.yammer.metrics.HealthChecks;
@@ -60,13 +63,19 @@ public class DictionaryUser {
 
     public void spellCheck(String word) {
         try {
-            if (_service.contains(word)) {
+            if (_service.contains(word.toLowerCase())) {
                 LOG.info("ok: {}", word);
             } else {
                 LOG.info("MISSPELLED: {}", word);
             }
         } catch (Exception e) {
             LOG.warn("word:{}, {}", word, e);
+        }
+
+        try {
+            Thread.sleep(10);
+        } catch(InterruptedException e) {
+            // ignored
         }
     }
 
@@ -80,7 +89,7 @@ public class DictionaryUser {
                 DictionaryConfiguration.class, new Validator());
         DictionaryConfiguration configuration = configFactory.build(new File(args[0]));
 
-        ZooKeeperConnection zooKeeper = configuration.getZooKeeperConfiguration().connect();
+        CuratorFramework curator = newCurator(configuration.getZooKeeperConfiguration());
 
         // Connection caching is optional, but included here for the sake of demonstration.
         ServiceCachingPolicy cachingPolicy = new ServiceCachingPolicyBuilder()
@@ -93,7 +102,7 @@ public class DictionaryUser {
         // when the builder calls its configure() method.
         DictionaryService service = ServicePoolBuilder.create(DictionaryService.class)
                 .withServiceFactory(new DictionaryServiceFactory(configuration.getHttpClientConfiguration()))
-                .withZooKeeperHostDiscovery(zooKeeper)
+                .withHostDiscovery(new HostDiscovery(curator, "dictionary"))
                 .withCachingPolicy(cachingPolicy)
                 .buildProxy(new ExponentialBackoffRetry(5, 50, 1000, TimeUnit.MILLISECONDS));
 
@@ -108,6 +117,13 @@ public class DictionaryUser {
         }
 
         ServicePoolProxies.close(service);
-        Closeables.closeQuietly(zooKeeper);
+        Closeables.closeQuietly(curator);
+    }
+
+    private static CuratorFramework newCurator(ZooKeeperConfiguration config) {
+        CuratorFramework curator = CuratorFrameworkFactory.newClient(config.getConnectString(), config.getRetry());
+        curator.start();
+
+        return curator.usingNamespace(config.getNamespace());
     }
 }

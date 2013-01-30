@@ -75,7 +75,7 @@ public class CalculatorService extends Service<CalculatorConfiguration> {
         return env.getObjectMapperFactory().build();
     }
 
-    private CuratorFramework newCurator(ZooKeeperConfiguration config, Environment env) {
+    private static CuratorFramework newCurator(ZooKeeperConfiguration config, Environment env) {
         CuratorFramework curator = CuratorFrameworkFactory.newClient(config.getConnectString(), config.getRetry());
         if (!Strings.isNullOrEmpty(config.getNamespace())) {
             curator = curator.usingNamespace(config.getNamespace());
