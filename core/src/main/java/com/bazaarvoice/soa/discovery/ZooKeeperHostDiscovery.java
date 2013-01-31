@@ -98,11 +98,6 @@ public class ZooKeeperHostDiscovery implements HostDiscovery {
     }
 
     @Override
-    public boolean contains(ServiceEndPoint endPoint) {
-        return _endPoints.contains(endPoint);
-    }
-
-    @Override
     public void addListener(EndPointListener listener) {
         _listeners.add(listener);
         _numListeners.inc();
