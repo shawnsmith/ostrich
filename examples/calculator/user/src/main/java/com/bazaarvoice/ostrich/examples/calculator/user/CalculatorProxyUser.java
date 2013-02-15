@@ -13,7 +13,6 @@ import com.google.common.io.Closeables;
 import com.netflix.curator.framework.CuratorFramework;
 import com.yammer.dropwizard.config.ConfigurationException;
 import com.yammer.dropwizard.config.ConfigurationFactory;
-import com.yammer.dropwizard.config.LoggingFactory;
 import com.yammer.dropwizard.util.JarLocation;
 import com.yammer.dropwizard.validation.Validator;
 import com.yammer.metrics.HealthChecks;
@@ -114,16 +113,12 @@ public class CalculatorProxyUser {
 
     private static CalculatorConfiguration loadConfigFile(String configFile)
             throws IOException, ConfigurationException {
-        LoggingFactory.bootstrap();
-
         ConfigurationFactory<CalculatorConfiguration> configFactory = ConfigurationFactory
                 .forClass(CalculatorConfiguration.class, new Validator());
-        CalculatorConfiguration config = (configFile != null) ?
-                configFactory.build(new File(configFile)) : configFactory.build();
-
-        // Configure logging
-        new LoggingFactory(config.getLoggingConfiguration(), "calculator").configure();
-
-        return config;
+        if (configFile != null) {
+            return configFactory.build(new File(configFile));
+        } else {
+            return configFactory.build();
+        }
     }
 }

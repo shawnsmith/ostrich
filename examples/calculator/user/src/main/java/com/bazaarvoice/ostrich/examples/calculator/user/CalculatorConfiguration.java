@@ -3,7 +3,6 @@ package com.bazaarvoice.ostrich.examples.calculator.user;
 import com.bazaarvoice.curator.dropwizard.ZooKeeperConfiguration;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yammer.dropwizard.client.JerseyClientConfiguration;
-import com.yammer.dropwizard.config.LoggingConfiguration;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -22,20 +21,11 @@ public class CalculatorConfiguration {
     @JsonProperty
     private JerseyClientConfiguration httpClient = new JerseyClientConfiguration();
 
-    @Valid
-    @NotNull
-    @JsonProperty
-    private LoggingConfiguration logging = new LoggingConfiguration();
-
     public ZooKeeperConfiguration getZooKeeperConfiguration() {
         return zooKeeper;
     }
 
     public JerseyClientConfiguration getHttpClientConfiguration() {
         return httpClient;
-    }
-
-    public LoggingConfiguration getLoggingConfiguration() {
-        return logging;
     }
 }

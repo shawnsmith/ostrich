@@ -18,7 +18,6 @@ import com.google.common.io.LineProcessor;
 import com.netflix.curator.framework.CuratorFramework;
 import com.yammer.dropwizard.config.ConfigurationException;
 import com.yammer.dropwizard.config.ConfigurationFactory;
-import com.yammer.dropwizard.config.LoggingFactory;
 import com.yammer.dropwizard.util.JarLocation;
 import com.yammer.dropwizard.validation.Validator;
 import com.yammer.metrics.HealthChecks;
@@ -133,16 +132,12 @@ public class DictionaryUser {
 
     private static DictionaryConfiguration loadConfigFile(String configFile)
             throws IOException, ConfigurationException {
-        LoggingFactory.bootstrap();
-
         ConfigurationFactory<DictionaryConfiguration> configFactory = ConfigurationFactory
                 .forClass(DictionaryConfiguration.class, new Validator());
-        DictionaryConfiguration config = (configFile != null) ?
-                configFactory.build(new File(configFile)) : configFactory.build();
-
-        // Configure logging
-        new LoggingFactory(config.getLoggingConfiguration(), "dictionary").configure();
-
-        return config;
+        if (configFile != null) {
+            return configFactory.build(new File(configFile));
+        } else {
+            return configFactory.build();
+        }
     }
 }
