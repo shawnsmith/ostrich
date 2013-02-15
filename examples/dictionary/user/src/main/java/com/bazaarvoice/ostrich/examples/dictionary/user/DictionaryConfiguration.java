@@ -3,6 +3,7 @@ package com.bazaarvoice.ostrich.examples.dictionary.user;
 import com.bazaarvoice.curator.dropwizard.ZooKeeperConfiguration;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yammer.dropwizard.client.JerseyClientConfiguration;
+import com.yammer.dropwizard.config.LoggingConfiguration;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -14,18 +15,27 @@ public class DictionaryConfiguration {
     @Valid
     @NotNull
     @JsonProperty
-    private ZooKeeperConfiguration zookeeper = new ZooKeeperConfiguration();
+    private ZooKeeperConfiguration zooKeeper = new ZooKeeperConfiguration();
 
     @Valid
     @NotNull
     @JsonProperty
     private JerseyClientConfiguration httpClient = new JerseyClientConfiguration();
 
+    @Valid
+    @NotNull
+    @JsonProperty
+    private LoggingConfiguration logging = new LoggingConfiguration();
+
     public ZooKeeperConfiguration getZooKeeperConfiguration() {
-        return zookeeper;
+        return zooKeeper;
     }
 
     public JerseyClientConfiguration getHttpClientConfiguration() {
         return httpClient;
+    }
+
+    public LoggingConfiguration getLoggingConfiguration() {
+        return logging;
     }
 }
